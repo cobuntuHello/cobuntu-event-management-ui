@@ -20,6 +20,10 @@ export { NameEditModal } from "./components/NameEditModal";
 export { DateTimeEditModal } from "./components/DateTimeEditModal";
 export { LocationEditModal } from "./components/LocationEditModal";
 export { SlugEditModal, type SlugEditModalProps } from "./components/SlugEditModal";
+export { ShareModal } from "./components/ShareModal";
+export { PublishModal } from "./components/PublishModal";
+export { DeleteModal } from "./components/DeleteModal";
+export { DuplicateModal, type DuplicateModalProps } from "./components/DuplicateModal";
 
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
