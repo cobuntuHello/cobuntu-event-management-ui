@@ -78,3 +78,31 @@ export function useJsonHeaders(): () => Record<string, string> {
     [authHeaders],
   );
 }
+
+/**
+ * Shared PUT helper for `/api/communities/:tag/events/:id`. Each sub-modal
+ * uses this — pulls apiBaseUrl + json headers from context, throws with
+ * the backend's error message on non-2xx.
+ */
+export function useUpdateEvent(): (
+  communityTag: string,
+  eventId: string,
+  body: Record<string, unknown>,
+) => Promise<any> {
+  const { apiBaseUrl } = useEventManagementConfig();
+  const jsonHeaders = useJsonHeaders();
+  return React.useCallback(
+    async (communityTag, eventId, body) => {
+      const res = await fetch(
+        `${apiBaseUrl}/api/communities/${communityTag}/events/${eventId}`,
+        { method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body) },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to update");
+      }
+      return res.json();
+    },
+    [apiBaseUrl, jsonHeaders],
+  );
+}

@@ -9,12 +9,17 @@ export {
   EventManagementConfigProvider,
   useEventManagementConfig,
   useJsonHeaders,
+  useUpdateEvent,
   type EventManagementConfig,
 } from "./config";
 
 // Components
 export { PriceEditModal, type PriceEditModalProps } from "./components/PriceEditModal";
 export { EditEventDrawer } from "./components/EditEventDrawer";
+export { NameEditModal } from "./components/NameEditModal";
+export { DateTimeEditModal } from "./components/DateTimeEditModal";
+export { LocationEditModal } from "./components/LocationEditModal";
+export { SlugEditModal, type SlugEditModalProps } from "./components/SlugEditModal";
 
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
