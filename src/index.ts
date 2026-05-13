@@ -30,3 +30,10 @@ export { Calendar, type CalendarProps } from "./ui/calendar";
 export { Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectItem } from "./ui/select";
 export { ModalShell } from "./ui/modal-shell";
 export { cn } from "./ui/utils";
+
+// Event-domain primitives — used by EditEventDrawer (coming in PR 5). Each
+// one was previously local to cobuntu-admin; community-app didn't have
+// equivalents. Now both apps consume them from here.
+export { EventTimestamps } from "./ui/event-timestamps";
+export { EventTags } from "./ui/event-tags";
+export { RichTextEditor } from "./ui/rich-text-editor";
