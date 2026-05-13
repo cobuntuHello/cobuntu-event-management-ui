@@ -1,12 +1,20 @@
-// @cobuntu/event-management-ui
+// @cobuntu/event-management-ui — public exports
 //
-// Shared event-management UI consumed by `cobuntu-admin` (community leaders)
-// and `cobuntu-community-app` (event hosts, via /manage/[slug]).
-//
-// Components ported here become the canonical version. Once a component
-// lives in this package, both apps must consume it from here — local copies
-// should be deleted from the consuming apps to prevent drift.
-//
-// Skeleton only — PR 1 ports the first component (PriceEditModal).
+// Add a component here when porting it from the consuming apps. Both apps
+// then import from the package root.
 
-export {};
+// Config — every consumer must wrap its event-management surface with the
+// provider so the components can fetch from the right API and authenticate.
+export {
+  EventManagementConfigProvider,
+  useEventManagementConfig,
+  useJsonHeaders,
+  type EventManagementConfig,
+} from "./config";
+
+// Components
+export { PriceEditModal, type PriceEditModalProps } from "./components/PriceEditModal";
+
+// Re-export the Stripe primitives in case a consumer wants to render the
+// status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
+export { useStripeStatus, StripeRequiredWarning, type StripeStatus } from "./components/stripe-status";
