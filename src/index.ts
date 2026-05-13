@@ -37,3 +37,17 @@ export { cn } from "./ui/utils";
 export { EventTimestamps } from "./ui/event-timestamps";
 export { EventTags } from "./ui/event-tags";
 export { RichTextEditor } from "./ui/rich-text-editor";
+export { EventLocationSelector } from "./ui/event-location-selector";
+
+// Google Maps helpers (used by EventLocationSelector). Consumers can import
+// `isValidUrl` / `isVideoConferencingUrl` directly if they need to validate
+// URLs in form code outside the picker.
+export {
+  searchLocations,
+  getLocationDetails,
+  isValidUrl,
+  isVideoConferencingUrl,
+  isGoogleMapsConfigured,
+  type LocationSuggestion,
+  type LocationDetails,
+} from "./lib/google-maps";
