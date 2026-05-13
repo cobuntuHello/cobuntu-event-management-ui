@@ -14,6 +14,7 @@ export {
 
 // Components
 export { PriceEditModal, type PriceEditModalProps } from "./components/PriceEditModal";
+export { EditEventDrawer } from "./components/EditEventDrawer";
 
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
