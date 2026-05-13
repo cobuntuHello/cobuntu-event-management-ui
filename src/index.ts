@@ -18,3 +18,15 @@ export { PriceEditModal, type PriceEditModalProps } from "./components/PriceEdit
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
 export { useStripeStatus, StripeRequiredWarning, type StripeStatus } from "./components/stripe-status";
+
+// UI primitives — building blocks shared by the event-management components.
+// Re-exported here so consuming apps can either import them directly (handy
+// for the community-app, which has no shadcn primitives of its own) or
+// continue using their own copies (admin already has its own equivalents).
+export { Button, buttonVariants, type ButtonProps } from "./ui/button";
+export { Input, type InputProps } from "./ui/input";
+export { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
+export { Calendar, type CalendarProps } from "./ui/calendar";
+export { Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectItem } from "./ui/select";
+export { ModalShell } from "./ui/modal-shell";
+export { cn } from "./ui/utils";
