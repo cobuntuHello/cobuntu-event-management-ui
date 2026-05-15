@@ -151,17 +151,28 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
   async function handleConfirm(notifyAttendees: boolean) {
     setConfirmState("loading");
     try {
+      // Validate date+time pairs before serializing. The form's
+      // startTime/endTime can be cleared by the user (empty string),
+      // which would produce NaN hours/minutes → silent Invalid Date →
+      // toISOString throws with an unhelpful "Invalid time value"
+      // message. Catch it here with something actionable instead.
       let startISO: string | undefined;
       let endISO: string | undefined;
       if (form.startDate) {
-        const sd = new Date(form.startDate);
         const [sh, sm] = form.startTime.split(":").map(Number);
+        if (!Number.isFinite(sh) || !Number.isFinite(sm)) {
+          throw new Error("Start time is invalid. Please re-enter it (HH:MM).");
+        }
+        const sd = new Date(form.startDate);
         sd.setHours(sh, sm, 0, 0);
         startISO = sd.toISOString();
       }
       if (form.endDate) {
-        const ed = new Date(form.endDate);
         const [eh, em] = form.endTime.split(":").map(Number);
+        if (!Number.isFinite(eh) || !Number.isFinite(em)) {
+          throw new Error("End time is invalid. Please re-enter it (HH:MM).");
+        }
+        const ed = new Date(form.endDate);
         ed.setHours(eh, em, 0, 0);
         endISO = ed.toISOString();
       }
@@ -180,9 +191,17 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
       setConfirmState("success");
       setTimeout(() => { setConfirmState("hidden"); onSaved(); }, 1500);
     } catch (e: any) {
-      setErrorMsg(e.message || "Failed to update");
+      // Log details so a developer / leader can see the real error in
+      // browser devtools — the on-screen message is necessarily short.
+      // eslint-disable-next-line no-console
+      console.error("[EditEventDrawer] Failed to update event:", e);
+      setErrorMsg(e?.message || "Failed to update");
       setConfirmState("error");
-      setTimeout(() => setConfirmState("hidden"), 2000);
+      // Do NOT auto-hide on error. User must dismiss explicitly so the
+      // error message stays on screen long enough to read + act on.
+      // (Pre-fix, errors auto-hid after 2s and people thought the save
+      // had silently succeeded when it had actually failed — Truth's
+      // 2026-05-15 report.)
     }
   }
 
@@ -363,7 +382,17 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
             </>)}
             {confirmState === "loading" && (<div className="py-8 flex flex-col items-center gap-3"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400 animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><p className="text-sm text-zinc-500">Updating event...</p></div>)}
             {confirmState === "success" && (<div className="py-8 flex flex-col items-center gap-3"><div className="h-16 w-16 rounded-full bg-emerald-50 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500"><polyline points="20 6 9 17 4 12"/></svg></div><h3 className="text-[15px] font-semibold text-zinc-900">Event Updated!</h3><p className="text-sm text-zinc-500">Changes saved successfully</p></div>)}
-            {confirmState === "error" && (<div className="py-8 flex flex-col items-center gap-3"><div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><h3 className="text-[15px] font-semibold text-zinc-900">Update Failed</h3><p className="text-sm text-zinc-500">{errorMsg}</p></div>)}
+            {confirmState === "error" && (
+              <div className="py-6 flex flex-col items-center gap-3">
+                <div className="h-14 w-14 rounded-full bg-red-50 flex items-center justify-center">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </div>
+                <h3 className="text-[15px] font-semibold text-zinc-900">Update Failed</h3>
+                <p className="text-sm text-zinc-500 text-center px-4 break-words">{errorMsg}</p>
+                <p className="text-[11px] text-zinc-400 text-center mt-1">Check browser devtools console for full error.</p>
+                <button onClick={() => setConfirmState("hidden")} className="mt-3 px-5 py-2 text-[13px] font-medium border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 cursor-pointer">Dismiss</button>
+              </div>
+            )}
           </div>
         </div>
       )}
