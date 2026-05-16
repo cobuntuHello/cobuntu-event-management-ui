@@ -17,6 +17,11 @@ export function LocationEditModal({ event, communityTag, onClose, onSaved, showT
   const updateEvent = useUpdateEvent();
   const [physical, setPhysical] = useState(event.physicalLocation || "");
   const [online, setOnline] = useState(event.onlineUrl || "");
+  // Hold the lat/lng Google Places returns alongside the selected address.
+  // Without these, the community-app event detail map (gated on both being
+  // non-null) silently never renders for any event saved through this modal.
+  const [lat, setLat] = useState<number | null>(event.physicalLatitude ?? null);
+  const [lng, setLng] = useState<number | null>(event.physicalLongitude ?? null);
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -25,6 +30,8 @@ export function LocationEditModal({ event, communityTag, onClose, onSaved, showT
       await updateEvent(communityTag, event.id, {
         physicalLocation: physical.trim() || null,
         onlineUrl: online.trim() || null,
+        physicalLatitude: lat,
+        physicalLongitude: lng,
       });
       showToast("Location updated");
       onSaved();
@@ -43,6 +50,10 @@ export function LocationEditModal({ event, communityTag, onClose, onSaved, showT
         onlineUrl={online}
         onPhysicalLocationChange={setPhysical}
         onOnlineUrlChange={setOnline}
+        onCoordinatesChange={(nextLat, nextLng) => {
+          setLat(nextLat);
+          setLng(nextLng);
+        }}
         hideHeader
       />
       <div className="flex justify-end gap-2 mt-5">

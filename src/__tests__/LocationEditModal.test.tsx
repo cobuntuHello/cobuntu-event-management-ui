@@ -44,6 +44,8 @@ describe("LocationEditModal", () => {
     expect(body).toEqual({
       physicalLocation: "123 Main St",
       onlineUrl: "https://meet.example.com/room",
+      physicalLatitude: null,
+      physicalLongitude: null,
     });
   });
 
@@ -72,6 +74,42 @@ describe("LocationEditModal", () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body).toEqual({ physicalLocation: null, onlineUrl: null });
+    expect(body).toEqual({
+      physicalLocation: null,
+      onlineUrl: null,
+      physicalLatitude: null,
+      physicalLongitude: null,
+    });
+  });
+
+  it("preloaded physicalLatitude/Longitude are forwarded to the backend on save", async () => {
+    // Regression guard for the previous bug where the modal dropped
+    // coordinates on the floor — the community-app event detail map
+    // requires both lat AND lng to render, so any save that omitted
+    // them silently disabled the map for that event.
+    const fetchMock = mockFetch([
+      { method: "PUT", url: "/events/evt-1", body: { ok: true } },
+    ]);
+    const user = userEvent.setup();
+    renderWithConfig(
+      <LocationEditModal
+        {...baseProps({
+          event: {
+            id: "evt-1",
+            physicalLocation: "Casa Capitão",
+            onlineUrl: "",
+            physicalLatitude: 38.7223,
+            physicalLongitude: -9.1393,
+          },
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.physicalLatitude).toBe(38.7223);
+    expect(body.physicalLongitude).toBe(-9.1393);
   });
 });
