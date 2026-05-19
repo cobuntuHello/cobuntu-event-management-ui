@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Trash2, Plus, FileText, ChevronDown, Lock, GripVertical, Copy } from "lucide-react";
 import {
   DndContext,
@@ -623,8 +624,18 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
     {/* ─── Notify-attendees confirmation ─────────────────────────
         Shown when an existing tier's name or price changed. Mirrors the
         three-button prompt in EditEventDrawer so hosts get the same UX
-        across event-edit and tier-edit. */}
-    {confirmState !== "hidden" && (
+        across event-edit and tier-edit.
+
+        Portaled to document.body because the consuming surface (e.g.
+        cobuntu-admin's event detail page) wraps content in a
+        transformed container (ViewTransition uses translate-y for the
+        crossfade). A non-`none` transform creates a containing block
+        for `position: fixed` descendants, so without the portal this
+        modal positions relative to the wrapper — and if the user is
+        scrolled down, appears off-screen above the viewport. Reported
+        by PBN (2026-05-19): "Save button does nothing on price." It
+        was firing the prompt, but the prompt was invisible. */}
+    {confirmState !== "hidden" && typeof document !== "undefined" && createPortal(
       <div className="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-xl w-[calc(100vw-2rem)] md:w-[400px] p-6">
           {confirmState === "options" && (<>
@@ -640,7 +651,8 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
           {confirmState === "success" && (<div className="py-8 flex flex-col items-center gap-3"><div className="h-16 w-16 rounded-full bg-emerald-50 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500"><polyline points="20 6 9 17 4 12"/></svg></div><h3 className="text-[15px] font-semibold text-zinc-900">Pricing Updated!</h3><p className="text-sm text-zinc-500">Changes saved successfully</p></div>)}
           {confirmState === "error" && (<div className="py-8 flex flex-col items-center gap-3"><div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><h3 className="text-[15px] font-semibold text-zinc-900">Update Failed</h3><p className="text-sm text-zinc-500">{confirmError}</p></div>)}
         </div>
-      </div>
+      </div>,
+      document.body,
     )}
     </>
   );
