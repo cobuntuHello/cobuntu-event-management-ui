@@ -114,6 +114,23 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
 
   function handleClose() { setAnimating(false); setTimeout(onClose, 300); }
 
+  // Update flow: close the drawer first (visually), then open the
+  // notify-attendees prompt centered on the viewport once the drawer
+  // is out of the way. Keeps the drawer mounted underneath so a
+  // cancel can re-open it with the user's in-progress edits intact.
+  function handleUpdateClick() {
+    setAnimating(false);
+    setTimeout(() => setConfirmState("options"), 300);
+  }
+
+  // Cancel button on the confirmation modal — return the drawer to
+  // its open state without unmounting it, so the user keeps their
+  // edits. Mirrors `closeSubModal(false)`'s reopen pattern.
+  function handleCancelConfirm() {
+    setConfirmState("hidden");
+    requestAnimationFrame(() => requestAnimationFrame(() => setAnimating(true)));
+  }
+
   function openSubModal(modal: SubModal) {
     if (modal === "description") setTempDesc(form.description);
     if (modal === "location") { setTempPhysical(form.physicalLocation); setTempOnline(form.onlineUrl); }
@@ -188,8 +205,12 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
         tagIds: form.tags.map(t => t.id),
         notifyAttendees,
       });
-      setConfirmState("success");
-      setTimeout(() => { setConfirmState("hidden"); onSaved(); }, 1500);
+      // Toast fires immediately on backend success. The drawer was
+      // already visually closed when the prompt opened; calling
+      // onSaved() unmounts it for real and lets the parent reload.
+      showToast("Event updated");
+      setConfirmState("hidden");
+      onSaved();
     } catch (e: any) {
       // Log details so a developer / leader can see the real error in
       // browser devtools — the on-screen message is necessarily short.
@@ -364,7 +385,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
         {/* Footer */}
         <div className="px-6 py-4 border-t border-zinc-100 flex justify-end gap-3 shrink-0 bg-white">
           <button onClick={handleClose} className="px-5 py-2.5 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer">Close</button>
-          <button onClick={() => setConfirmState("options")} className="px-5 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer">Update</button>
+          <button onClick={handleUpdateClick} className="px-5 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer">Update</button>
         </div>
       </div>
 
@@ -377,7 +398,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
               <div className="flex flex-col gap-3">
                 <button onClick={() => handleConfirm(true)} className="w-full px-4 py-3 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer">Yes, notify attendees</button>
                 <button onClick={() => handleConfirm(false)} className="w-full px-4 py-3 text-[13px] font-medium border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 cursor-pointer">Yes, do not notify attendees</button>
-                <button onClick={() => setConfirmState("hidden")} className="w-full px-4 py-3 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-50 cursor-pointer">No, cancel</button>
+                <button onClick={handleCancelConfirm} className="w-full px-4 py-3 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-50 cursor-pointer">No, cancel</button>
               </div>
             </>)}
             {confirmState === "loading" && (<div className="py-8 flex flex-col items-center gap-3"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400 animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><p className="text-sm text-zinc-500">Updating event...</p></div>)}
@@ -390,7 +411,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
                 <h3 className="text-[15px] font-semibold text-zinc-900">Update Failed</h3>
                 <p className="text-sm text-zinc-500 text-center px-4 break-words">{errorMsg}</p>
                 <p className="text-[11px] text-zinc-400 text-center mt-1">Check browser devtools console for full error.</p>
-                <button onClick={() => setConfirmState("hidden")} className="mt-3 px-5 py-2 text-[13px] font-medium border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 cursor-pointer">Dismiss</button>
+                <button onClick={handleCancelConfirm} className="mt-3 px-5 py-2 text-[13px] font-medium border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 cursor-pointer">Dismiss</button>
               </div>
             )}
           </div>
