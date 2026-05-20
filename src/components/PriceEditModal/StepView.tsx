@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
 import type { DraftTier } from "./types";
 import type {
   MemberPricingRow,
@@ -17,8 +16,6 @@ export interface StepViewProps {
   step: StepId;
   communityTag: string;
   onUpdate: (patch: Partial<DraftTier>) => void;
-  /** Click Back arrow → modal returns to Level 2 (per-tier hub). */
-  onBack: () => void;
   /** Forwarded to MembersStep so it can render the MemberPricingSection. */
   memberPricingState?: MemberPricingTierState;
   onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
@@ -34,35 +31,22 @@ const STEP_TITLES: Record<StepId, string> = {
 
 /**
  * Level 3 (step takeover) of the redesigned PriceEditModal. Renders
- * one step component for one tier, with a back-arrow header that
- * returns to the per-tier hub.
+ * one step component for one tier with a context eyebrow.
  *
- * The modal's Save button (modal footer) commits everything — this
- * view doesn't have its own commit button. Back arrow just navigates;
- * dirty state propagates up to the modal via the standard handlers.
+ * Navigation lives at the outer modal footer (Back + Save), not in
+ * this view — keeps the action surface predictable across L1/L2/L3.
  */
 export function StepView({
   t,
   step,
   communityTag,
   onUpdate,
-  onBack,
   memberPricingState,
   onMemberPricingRowChange,
   showToast,
 }: StepViewProps) {
   return (
     <div>
-      {/* Back-to-hub row */}
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 hover:text-zinc-900 cursor-pointer mb-3"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        Back to {t.name || "tier"}
-      </button>
-
       <div className="mb-4">
         <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
           {t.name || "Tier"} · {STEP_TITLES[step]}

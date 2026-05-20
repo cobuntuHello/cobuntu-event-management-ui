@@ -85,15 +85,13 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
 
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // 1. Wait for the modal to load with the GA tier collapsed.
-    // L1 lists tier as a clickable row (name is read-only text).
+    // 1. L1 lists tier as a clickable row (name is read-only text).
     // 2. Click the row → enter L2 (per-tier hub takeover).
     await user.click(await screen.findByRole("button", { name: /GA/ }));
 
-    // 3. Click "Edit" on the Member pricing card. Buttons in
-    //    order: Basics / Options / Member pricing / Registration form.
-    const editButtons = await screen.findAllByRole("button", { name: /^Edit/ });
-    await user.click(editButtons[2]);
+    // 3. Click the Member pricing SectionCard (whole card is clickable
+    //    in the new UX — no inline Edit buttons).
+    await user.click(await screen.findByRole("button", { name: /Member pricing/ }));
 
     // 4. Wait for the section to load and toggle a row dirty.
     const vipsCheckbox = await screen.findByLabelText(
@@ -111,15 +109,12 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     // dirty before any commit.
     expect(await screen.findByText(/unsaved/i)).toBeInTheDocument();
 
-    // 5. Back to hub (L2). Step navigation uses the back-arrow row.
-    await user.click(screen.getByRole("button", { name: /Back to/ }));
+    // 5. Back to hub (L2). Navigation lives in the modal footer.
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
 
-    // Hub is visible again (4 section cards re-show as the row of
-    // Edit buttons).
+    // Hub is visible again — clickable SectionCards re-appear.
     await waitFor(() =>
-      expect(
-        screen.getAllByRole("button", { name: /^Edit/ }).length,
-      ).toBeGreaterThanOrEqual(4),
+      expect(screen.getByRole("button", { name: /Member pricing/ })).toBeInTheDocument(),
     );
 
     // 6. Click the outer modal's Save. Should commit BOTH the tier
@@ -148,10 +143,9 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     mockFetch(stubLoadRoutes());
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // L1 → click row → L2 → Edit on Members → L3.
+    // L1 → click row → L2 → click Member pricing card → L3.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    const editButtons = await screen.findAllByRole("button", { name: /^Edit/ });
-    await user.click(editButtons[2]);
+    await user.click(await screen.findByRole("button", { name: /Member pricing/ }));
 
     // Toggle VIPs on
     const vipsCheckbox = await screen.findByLabelText(
@@ -160,17 +154,9 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     await user.click(vipsCheckbox);
     expect(vipsCheckbox).toBeChecked();
 
-    // Exit step (Back-to-hub arrow), then re-enter via the Members
-    // SectionCard's Edit button.
-    await user.click(screen.getByRole("button", { name: /Back to/ }));
-    await waitFor(() =>
-      expect(
-        screen.getAllByRole("button", { name: /^Edit/ }).length,
-      ).toBeGreaterThanOrEqual(4),
-    );
-    await user.click(
-      screen.getAllByRole("button", { name: /^Edit/ })[2],
-    );
+    // Exit step via footer Back, then re-enter via the Member pricing card.
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    await user.click(await screen.findByRole("button", { name: /Member pricing/ }));
 
     // The same checkbox is still checked — modal-level state survived.
     const vipsAfter = await screen.findByLabelText(
@@ -197,10 +183,9 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
 
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // L1 → click row → L2 → Edit on Members → L3 → toggle → dirty.
+    // L1 → click row → L2 → Member pricing card → L3 → toggle → dirty.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    const editButtons = await screen.findAllByRole("button", { name: /^Edit/ });
-    await user.click(editButtons[2]);
+    await user.click(await screen.findByRole("button", { name: /Member pricing/ }));
 
     await user.click(
       await screen.findByLabelText(/Offer member pricing for VIPs/),
@@ -211,10 +196,11 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     fireEvent.change(valueInput, { target: { value: "20" } });
     expect(await screen.findByText(/unsaved/i)).toBeInTheDocument();
 
-    // Back to hub (L2), then back to tiers (L1). Pre-fix, leaving the
-    // tier wiped the dirty rows. Modal-level state map keeps them now.
-    await user.click(screen.getByRole("button", { name: /Back to GA/ }));
-    await user.click(screen.getByRole("button", { name: /Back to tiers/ }));
+    // Back to hub (L2), then back to tiers (L1) via the footer Back
+    // button. Pre-fix, leaving the tier wiped the dirty rows. Modal-
+    // level state map keeps them now.
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
 
     // Click Save from L1 — the dirty member-pricing row should commit.
     await user.click(screen.getByRole("button", { name: /^save$/i }));

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, Lock, Trash2, Copy } from "lucide-react";
+import { ChevronRight, Lock } from "lucide-react";
 import { SectionCard } from "@cobuntu/management-ui-shared";
 import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
@@ -12,32 +12,21 @@ export interface TierHubViewProps {
   t: DraftTier;
   /** Community-only — admin sets true, community-app /manage omits. */
   showMemberPricing: boolean;
-  /** Whether the tier has been duplicated and whether the parent
-   *  supports the duplicate action at this level. */
-  canDuplicate: boolean;
-  /** Whether deletion is allowed (false when this is the only tier). */
-  canDelete: boolean;
   onUpdate: (patch: Partial<DraftTier>) => void;
-  /** Click "Edit" on a SectionCard → modal enters Level 3 (step view). */
+  /** Click a SectionCard → modal enters Level 3 (step view). */
   onEnterStep: (step: StepId) => void;
-  onDuplicate: () => void;
-  onRemove: () => void;
-  /** Click "Back to tiers" → modal returns to Level 1 (tier list). */
-  onBack: () => void;
 }
 
 /**
  * Level 2 (per-tier hub takeover) of the redesigned PriceEditModal.
  *
  * Renders the four section-card landing (Basics / Options / Members /
- * Form) for a single tier. Takes over the modal body entirely — no
- * siblings, no Add Tier button, no Donations section visible while
- * the user is on this view. The modal's Save button (at the modal
- * footer) commits everything across all tiers when the user is ready.
+ * Form) for a single tier. Each card is fully clickable (whole row is
+ * the tap target — better mobile UX) and enters Level 3 for editing.
  *
- * Tier name + duplicate + delete live in the header here, not in the
- * Level 1 row. Forces a deliberate "select tier → edit" navigation
- * that matches the user's mental model of stepping INTO a tier.
+ * Back / Duplicate / Delete / Save live in the outer modal footer
+ * (PriceEditModal-level), not in the body — the footer-driven nav
+ * pattern keeps the action surface predictable across L1/L2/L3.
  *
  * MembersStep + FormStep mount in Level 3 (StepView) when the user
  * enters those steps; their state is held at the modal level (via
@@ -48,13 +37,8 @@ export interface TierHubViewProps {
 export function TierHubView({
   t,
   showMemberPricing,
-  canDuplicate,
-  canDelete,
   onUpdate,
   onEnterStep,
-  onDuplicate,
-  onRemove,
-  onBack,
 }: TierHubViewProps) {
   const sym = getSymbol(t.currency);
   const locked = isTierLocked(t);
@@ -62,55 +46,27 @@ export function TierHubView({
 
   const billingSummary = t.installmentEnabled ? "Installment plan" : null;
 
+  // Decorative chevron — the SectionCard itself is the click target.
+  const chevron = (
+    <span className="flex items-center text-zinc-400" aria-hidden>
+      <ChevronRight className="w-4 h-4" />
+    </span>
+  );
+
   return (
     <div>
-      {/* Back-to-tiers row */}
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 hover:text-zinc-900 cursor-pointer mb-3"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        Back to tiers
-      </button>
-
-      {/* Tier name + actions header */}
+      {/* Tier name editor */}
       <div className="space-y-3 mb-4">
-        <div className="flex items-end gap-2">
-          <div className="flex-1 min-w-0">
-            <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block mb-1.5">
-              Tier name
-            </label>
-            <StepInput
-              type="text"
-              value={t.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              placeholder="Standard, VIP, Early-bird…"
-            />
-          </div>
-          {canDuplicate && (
-            <button
-              type="button"
-              onClick={onDuplicate}
-              className="h-[38px] px-3 text-[12px] font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer inline-flex items-center gap-1.5 shrink-0"
-              title="Duplicate tier"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              Duplicate
-            </button>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              onClick={onRemove}
-              disabled={locked}
-              className="h-[38px] px-3 text-[12px] font-medium text-red-600 bg-white border border-red-100 rounded-lg hover:bg-red-50 cursor-pointer inline-flex items-center gap-1.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={locked ? "Refund sales before deleting" : "Delete tier"}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete
-            </button>
-          )}
+        <div>
+          <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block mb-1.5">
+            Tier name
+          </label>
+          <StepInput
+            type="text"
+            value={t.name}
+            onChange={(e) => onUpdate({ name: e.target.value })}
+            placeholder="Standard, VIP, Early-bird…"
+          />
         </div>
       </div>
 
@@ -130,15 +86,8 @@ export function TierHubView({
         <SectionCard
           title="Basics"
           description={`${priceDisplay}${billingSummary ? ` · ${billingSummary}` : ""}`}
-          action={
-            <button
-              type="button"
-              onClick={() => onEnterStep("basics")}
-              className="flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-zinc-700 hover:text-zinc-900 cursor-pointer"
-            >
-              Edit <ChevronRight className="w-3 h-3" />
-            </button>
-          }
+          action={chevron}
+          onClick={() => onEnterStep("basics")}
           variant="default"
         />
 
@@ -153,15 +102,8 @@ export function TierHubView({
                 : null,
             ].filter(Boolean).join(" · ") || "Defaults"
           }
-          action={
-            <button
-              type="button"
-              onClick={() => onEnterStep("options")}
-              className="flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-zinc-700 hover:text-zinc-900 cursor-pointer"
-            >
-              Edit <ChevronRight className="w-3 h-3" />
-            </button>
-          }
+          action={chevron}
+          onClick={() => onEnterStep("options")}
           variant="default"
         />
 
@@ -169,16 +111,9 @@ export function TierHubView({
           <SectionCard
             title="Member pricing"
             description={t.id ? "Per-segment discount overrides for this tier." : "Save tier first to configure overrides."}
-            action={
-              <button
-                type="button"
-                onClick={() => onEnterStep("members")}
-                disabled={!t.id}
-                className="flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-zinc-700 hover:text-zinc-900 disabled:text-zinc-300 disabled:cursor-not-allowed cursor-pointer"
-              >
-                Edit <ChevronRight className="w-3 h-3" />
-              </button>
-            }
+            action={chevron}
+            onClick={() => onEnterStep("members")}
+            disabled={!t.id}
             variant="default"
           />
         )}
@@ -194,16 +129,9 @@ export function TierHubView({
                 ? `${t.formFieldCount} field${t.formFieldCount !== 1 ? "s" : ""} linked.`
                 : "No form yet."
           }
-          action={
-            <button
-              type="button"
-              onClick={() => onEnterStep("form")}
-              disabled={!t.id}
-              className="flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-zinc-700 hover:text-zinc-900 disabled:text-zinc-300 disabled:cursor-not-allowed cursor-pointer"
-            >
-              Edit <ChevronRight className="w-3 h-3" />
-            </button>
-          }
+          action={chevron}
+          onClick={() => onEnterStep("form")}
+          disabled={!t.id}
           variant="default"
         />
       </div>

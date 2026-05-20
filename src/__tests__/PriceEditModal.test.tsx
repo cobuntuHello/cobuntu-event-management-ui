@@ -94,9 +94,11 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     ]);
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // New UX: L1 → click tier row → L2 → click Basics Edit → L3.
+    // New UX: L1 → click tier row → L2 → click Basics card → L3.
+    // SectionCards are now fully clickable buttons with the section
+    // heading as accessible name.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(screen.getAllByRole("button", { name: /^Edit/ })[0]);
+    await user.click(await screen.findByRole("button", { name: /Basics/ }));
 
     const priceInput = await screen.findByPlaceholderText("0.00") as HTMLInputElement;
     await user.clear(priceInput);
@@ -125,13 +127,10 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     const props = baseProps();
     renderWithConfig(<PriceEditModal {...props} />);
 
-    // L1 → click row → L2 → click Options Edit → L3.
-    // Capacity lives in OptionsStep. Edit button order in L2:
-    // Basics / Options / [Members] / Form. showMemberPricing is off
-    // in baseProps so no Members card.
+    // L1 → click row → L2 → click Options card → L3.
+    // Capacity lives in OptionsStep.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    const editButtons = screen.getAllByRole("button", { name: /^Edit/ });
-    await user.click(editButtons[1]);
+    await user.click(await screen.findByRole("button", { name: /Options/ }));
 
     const capInput = await screen.findByPlaceholderText("∞") as HTMLInputElement;
     await user.type(capInput, "50");
@@ -154,9 +153,9 @@ describe("PriceEditModal — capacity lock", () => {
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
     const user = userEvent.setup();
-    // L1 → click tier row → L2 → click Basics Edit → L3 where price lives.
+    // L1 → click tier row → L2 → click Basics card → L3 where price lives.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(screen.getAllByRole("button", { name: /^Edit/ })[0]);
+    await user.click(await screen.findByRole("button", { name: /Basics/ }));
 
     const priceInput = await screen.findByPlaceholderText("0.00");
     expect(priceInput).toBeDisabled();
