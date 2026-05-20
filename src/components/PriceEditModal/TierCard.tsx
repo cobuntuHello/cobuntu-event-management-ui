@@ -24,7 +24,6 @@ export interface TierCardProps {
   onRemove: () => void;
   onDuplicate: () => void;
   onToggle: () => void;
-  onOpenForm: () => void;
   /** Render MemberPricingSection (via EditHub → MembersStep) inside
    *  the expanded body. Community-only — admin sets true, community-app
    *  /manage omits. */
@@ -76,7 +75,6 @@ export function TierCard({
   onRemove,
   onDuplicate,
   onToggle,
-  onOpenForm,
   showMemberPricing,
   showToast,
   registerMemberPricingRef,
@@ -175,7 +173,6 @@ export function TierCard({
           onUpdate={onUpdate}
           showMemberPricing={showMemberPricing}
           registerMemberPricingRef={registerMemberPricingRef}
-          onOpenForm={() => onOpenForm()}
           showToast={showToast}
         />
       </Collapse>

@@ -80,11 +80,12 @@ export interface PriceEditModalProps {
   onSaved: () => void;
   showToast: (msg: string) => void;
   /**
-   * Optional. Called when the host clicks "Edit registration form" on a
-   * tier. Each consumer app has a different URL pattern for the form
-   * editor (admin uses a query param; community-app uses a sub-route),
-   * so the navigation is injected. If omitted, the button toasts that
-   * form editing is unavailable in this surface.
+   * @deprecated As of slice 6 the form builder is inlined into the
+   * EditHub's Form step (see ./PriceEditModal/steps/FormStep.tsx). This
+   * prop is retained for backwards compatibility with admin/community-
+   * app call sites that still pass it; the value is ignored. Phase C
+   * (admin SHA bump) deletes the standalone /form pages and removes
+   * this prop from the call sites entirely.
    */
   onOpenTierForm?: (tierId: string) => void;
   /**
@@ -101,7 +102,7 @@ export interface PriceEditModalProps {
   showMemberPricing?: boolean;
 }
 
-export function PriceEditModal({ event, communityTag, onClose, onSaved, showToast, onOpenTierForm, showMemberPricing }: PriceEditModalProps) {
+export function PriceEditModal({ event, communityTag, onClose, onSaved, showToast, showMemberPricing }: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   const stripe = useStripeStatus(communityTag);
@@ -226,15 +227,6 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
       out.splice(idx + 1, 0, copy);
       return out;
     });
-  }
-
-  function openTierForm(tierId: string | undefined) {
-    if (!tierId) { showToast("Save the tier first to add a form"); return; }
-    if (onOpenTierForm) {
-      onOpenTierForm(tierId);
-    } else {
-      showToast("Form editing not available in this surface");
-    }
   }
 
   // ─── Drag-to-reorder (dnd-kit) ────────────────────────────────
@@ -431,7 +423,6 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
                   onRemove={() => removeTier(t._idx)}
                   onDuplicate={() => duplicateTier(t._idx)}
                   onToggle={() => toggleExpand(t._idx)}
-                  onOpenForm={() => openTierForm(t.id)}
                   showMemberPricing={!!showMemberPricing}
                   showToast={showToast}
                   registerMemberPricingRef={(tierId, handle) => {
