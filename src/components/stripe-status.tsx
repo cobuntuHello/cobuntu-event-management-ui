@@ -17,15 +17,20 @@ export interface StripeStatus {
  */
 const stripeCache = new Map<string, { connected: boolean; chargesEnabled: boolean }>();
 
-export function useStripeStatus(communityTag: string): StripeStatus {
+export function useStripeStatus(communityTag: string, opts: { enabled?: boolean } = {}): StripeStatus {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
+  const enabled = opts.enabled ?? true;
   const [status, setStatus] = React.useState<StripeStatus>({
     connected: false,
     chargesEnabled: false,
-    loading: true,
+    loading: enabled,
   });
 
   React.useEffect(() => {
+    if (!enabled) {
+      setStatus({ connected: false, chargesEnabled: false, loading: false });
+      return;
+    }
     if (!communityTag) {
       setStatus({ connected: false, chargesEnabled: false, loading: false });
       return;
@@ -56,7 +61,7 @@ export function useStripeStatus(communityTag: string): StripeStatus {
         setStatus({ connected: false, chargesEnabled: false, loading: false });
       }
     })();
-  }, [communityTag, apiBaseUrl, authHeaders]);
+  }, [communityTag, apiBaseUrl, authHeaders, enabled]);
 
   return status;
 }
