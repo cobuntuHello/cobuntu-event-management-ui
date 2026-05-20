@@ -42,7 +42,13 @@ interface FormState {
   timezone: string;
   physicalLocation: string;
   onlineUrl: string;
+  // Action gate — who can register / RSVP. Stored on events.accessibility.
   accessibility: string;
+  // View gate — who can see the event detail page. Stored on
+  // events.viewability. Introduced by the feat/visibility-overrides
+  // rollout on the backend (2026-05-20); this package now surfaces it
+  // alongside the existing action gate.
+  viewability: string;
   tags: { id: string; name: string }[];
 }
 
@@ -60,6 +66,7 @@ function eventToForm(event: any): FormState {
     physicalLocation: event.physicalLocation || "",
     onlineUrl: event.onlineUrl || "",
     accessibility: event.accessibility || "PUBLIC",
+    viewability: event.viewability || "PUBLIC",
     tags: event.tags?.map((t: any) => ({ id: t.id || t.tagId, name: t.name || t.tag?.name })).filter((t: any) => t.id && t.name) || [],
   };
 }
@@ -82,6 +89,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
   const [tempPhysical, setTempPhysical] = useState("");
   const [tempOnline, setTempOnline] = useState("");
   const [tempAccessibility, setTempAccessibility] = useState("PUBLIC");
+  const [tempViewability, setTempViewability] = useState("PUBLIC");
   const [tempTags, setTempTags] = useState<{ id: string; name: string }[]>([]);
   const [showStripeWarning, setShowStripeWarning] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -134,7 +142,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
   function openSubModal(modal: SubModal) {
     if (modal === "description") setTempDesc(form.description);
     if (modal === "location") { setTempPhysical(form.physicalLocation); setTempOnline(form.onlineUrl); }
-    if (modal === "access") { setTempAccessibility(form.accessibility); }
+    if (modal === "access") { setTempAccessibility(form.accessibility); setTempViewability(form.viewability); }
     if (modal === "tags") setTempTags([...form.tags]);
     setAnimating(false);
     setTimeout(() => { setVisible(false); setSubModal(modal); }, 300);
@@ -144,7 +152,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
     if (save) {
       if (subModal === "description") set("description", tempDesc);
       if (subModal === "location") { set("physicalLocation", tempPhysical); set("onlineUrl", tempOnline); }
-      if (subModal === "access") { set("accessibility", tempAccessibility); }
+      if (subModal === "access") { set("accessibility", tempAccessibility); set("viewability", tempViewability); }
       if (subModal === "tags") set("tags", tempTags);
     }
     setSubModal(null);
@@ -202,6 +210,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
         physicalLocation: form.physicalLocation.trim() || null,
         onlineUrl: form.onlineUrl.trim() || null,
         accessibility: form.accessibility,
+        viewability: form.viewability,
         tagIds: form.tags.map(t => t.id),
         notifyAttendees,
       });
@@ -269,23 +278,34 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
     );
   }
 
-  // ─── Sub-modal: Access (members-only toggle; capacity moved to per-tier) ─
+  // ─── Sub-modal: Visibility (two axes — view + RSVP) ──────────────
+  // Carries both gates from the feat/visibility-overrides rollout:
+  //   - viewability: who can see the event detail page at all
+  //   - accessibility: who can RSVP / purchase tickets (existing field)
+  // Capacity moved to per-tier configuration (Tiers page).
   if (subModal === "access") {
     if (typeof document === "undefined") return null;
     return createPortal(
       <ModalOverlay onClose={() => closeSubModal(false)}>
-        <div className="bg-white rounded-xl shadow-xl w-[calc(100vw-2rem)] md:w-[420px] p-0 overflow-hidden" onClick={e => e.stopPropagation()}>
-          <ModalHeader title="Access" onClose={() => closeSubModal(false)} />
+        <div className="bg-white rounded-xl shadow-xl w-[calc(100vw-2rem)] md:w-[440px] p-0 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <ModalHeader title="Visibility" onClose={() => closeSubModal(false)} />
           <div className="px-6 py-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-zinc-800">Members only</p>
-                <p className="text-xs text-zinc-400 mt-0.5">Restrict to community members</p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-800">Visibility: members only</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Hide the event listing from non-members entirely</p>
+              </div>
+              <Toggle checked={tempViewability === "MEMBERS_ONLY"} onChange={v => setTempViewability(v ? "MEMBERS_ONLY" : "PUBLIC")} />
+            </div>
+            <div className="flex items-center justify-between gap-4 pt-4 border-t border-zinc-100">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-800">RSVP: members only</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Show the event publicly but restrict registration to members</p>
               </div>
               <Toggle checked={tempAccessibility === "MEMBERS_ONLY"} onChange={v => setTempAccessibility(v ? "MEMBERS_ONLY" : "PUBLIC")} />
             </div>
             <p className="text-[12px] text-zinc-500 leading-relaxed">
-              Capacity is now configured per ticket tier — visit the Tiers page to set or update tier capacity.
+              Capacity is configured per ticket tier — visit the Tiers page to set tier capacity.
             </p>
           </div>
           <ModalFooter onCancel={() => closeSubModal(false)} onSave={() => closeSubModal(true)} />
@@ -365,10 +385,16 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
 
           {/* Pricing was here — now consolidated into the Pricing card on the Overview tab. */}
 
-          {/* Access → modal (capacity moved to per-tier) */}
-          <ClickableRow icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} label="Access" onClick={() => openSubModal("access")}>
+          {/* Visibility & Access → modal (capacity moved to per-tier).
+              The modal exposes the 2-axis visibility model — viewability
+              (who can SEE the event) and accessibility (who can RSVP).
+              The row's summary text shows the divergence when the two
+              gates disagree; otherwise a single value is shown. */}
+          <ClickableRow icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} label="Visibility" onClick={() => openSubModal("access")}>
             <p className="text-sm text-zinc-600">
-              {form.accessibility === "MEMBERS_ONLY" ? "Members only" : "Public"}
+              {form.viewability === form.accessibility
+                ? form.viewability === "MEMBERS_ONLY" ? "Members only" : "Public"
+                : `View: ${form.viewability === "MEMBERS_ONLY" ? "members only" : "public"} · RSVP: ${form.accessibility === "MEMBERS_ONLY" ? "members only" : "public"}`}
             </p>
           </ClickableRow>
 

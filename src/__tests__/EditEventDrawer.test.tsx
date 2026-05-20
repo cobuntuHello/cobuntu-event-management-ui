@@ -111,6 +111,48 @@ describe("EditEventDrawer", () => {
     expect(body.notifyAttendees).toBe(false);
   }, 5000);
 
+  it("PUTs viewability alongside accessibility when the user toggles the view gate", async () => {
+    const fetchMock = mockFetch([
+      stripeRoute,
+      { method: "PUT", url: "/events/evt-1", body: { ok: true } },
+    ]);
+    const user = userEvent.setup();
+    const props = baseProps({ event: { ...event, viewability: "PUBLIC" } });
+    renderWithConfig(<EditEventDrawer {...props} />);
+
+    await waitFor(() => expect(screen.getByDisplayValue("Summer Mixer")).toBeInTheDocument());
+
+    // Open the Visibility sub-modal (formerly "Access") and flip the
+    // viewability toggle to members-only.
+    await user.click(screen.getByText(/^Visibility$/));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /^Visibility$/i })).toBeInTheDocument());
+    const visibilityToggle = screen.getByText(/Visibility: members only/).closest("div")!.parentElement!.querySelector("button");
+    if (visibilityToggle) await user.click(visibilityToggle);
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    // Drawer is back — fire the update.
+    await waitFor(() => expect(screen.getByDisplayValue("Summer Mixer")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /^update$/i }));
+    await waitFor(() => screen.getByRole("button", { name: /yes, do not notify attendees/i }), { timeout: 1000 });
+    await user.click(screen.getByRole("button", { name: /yes, do not notify attendees/i }));
+
+    await waitFor(() => expect(props.onSaved).toHaveBeenCalled(), { timeout: 2000 });
+    const putCall = fetchMock.mock.calls.find(c => (c[1] as RequestInit | undefined)?.method === "PUT");
+    expect(putCall).toBeDefined();
+    const body = JSON.parse((putCall![1] as RequestInit).body as string);
+    expect(body.viewability).toBe("MEMBERS_ONLY");
+    // Existing accessibility axis stays at PUBLIC — the two are independent.
+    expect(body.accessibility).toBe("PUBLIC");
+  }, 5000);
+
+  it("shows divergent summary when view + RSVP gates disagree", async () => {
+    mockFetch([stripeRoute]);
+    renderWithConfig(<EditEventDrawer {...baseProps({ event: { ...event, viewability: "MEMBERS_ONLY", accessibility: "PUBLIC" } })} />);
+    await waitFor(() => expect(screen.getByDisplayValue("Summer Mixer")).toBeInTheDocument());
+    // Row summary text reflects the per-axis values.
+    expect(screen.getByText(/View: members only · RSVP: public/i)).toBeInTheDocument();
+  });
+
   it("'No, cancel': dismisses the prompt and re-opens the drawer without PUTting", async () => {
     const fetchMock = mockFetch([stripeRoute]);
     const user = userEvent.setup();
