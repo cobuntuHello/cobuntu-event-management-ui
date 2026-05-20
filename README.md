@@ -16,12 +16,15 @@ Both apps add this as a **git dependency** in their `package.json`:
 }
 ```
 
-And tell Next.js to transpile it (since we ship TypeScript source directly, no build step):
+And tell Next.js to transpile it (since we ship TypeScript source directly, no build step). As of v0.0.2 this package depends on `@cobuntu/management-ui-shared` for cross-package primitives, so consumers must transpile both:
 
 ```js
 // next.config.js
 module.exports = {
-  transpilePackages: ['@cobuntu/event-management-ui'],
+  transpilePackages: [
+    '@cobuntu/event-management-ui',
+    '@cobuntu/management-ui-shared',
+  ],
   // ...
 };
 ```
