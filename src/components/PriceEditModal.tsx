@@ -82,6 +82,15 @@ interface Tier {
     id: string;
     price: number;
     currency: string;
+    // Installment plan fields — backend returns them on every GET /tiers
+    // response since the member-pricing + installments umbrella shipped.
+    // Three-or-none: all three null = no plan offered; all three set =
+    // buyer can opt into "Pay €X total in N × monthly installments" at
+    // checkout. accessDurationMonths is intentionally absent (events
+    // bound access by event date).
+    installmentTotalPrice?: number | null;
+    installmentCount?: number | null;
+    installmentIntervalMonths?: number | null;
   };
 }
 
@@ -101,6 +110,15 @@ interface DraftTier {
   // (display-unit, e.g. "10" = 10€). Used for sliding-scale workshops.
   priceMode: "fixed" | "pwyw";
   pwywMin: string;
+  // Installment plan. Enabled iff all three numeric values are non-empty
+  // valid numbers — the backend's three-or-none validator rejects
+  // partial config. Total + count + interval are display-unit (e.g.
+  // "300", "3", "1") so the UI is consistent with the price field
+  // above; they get converted to smallest unit + integers on save.
+  installmentEnabled: boolean;
+  installmentTotal: string;       // display unit (e.g. "300" = €300 total)
+  installmentCount: string;        // integer string (e.g. "3" = 3 charges)
+  installmentInterval: string;     // integer string (e.g. "1" = monthly)
   expanded: boolean;
   deleted?: boolean;
   // When this draft was created via "Duplicate" of an existing tier, holds
@@ -168,6 +186,10 @@ function blankTier(currency = "EUR", indexHint = 1): DraftTier {
     salesCount: 0,
     priceMode: "fixed",
     pwywMin: "",
+    installmentEnabled: false,
+    installmentTotal: "",
+    installmentCount: "",
+    installmentInterval: "1",
     expanded: true,
   };
 }
@@ -253,6 +275,10 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
               salesCount: typeof t.salesCount === "number" ? t.salesCount : 0,
               priceMode: t.priceMode === "pwyw" ? "pwyw" : "fixed",
               pwywMin: t.pwywMinAmount != null ? fromSmallestUnit(t.pwywMinAmount, t.products.currency) : "",
+              installmentEnabled: t.products.installmentTotalPrice != null,
+              installmentTotal: t.products.installmentTotalPrice != null ? fromSmallestUnit(t.products.installmentTotalPrice, t.products.currency) : "",
+              installmentCount: t.products.installmentCount != null ? String(t.products.installmentCount) : "",
+              installmentInterval: t.products.installmentIntervalMonths != null ? String(t.products.installmentIntervalMonths) : "1",
               expanded: false,
             };
           }));
@@ -432,6 +458,24 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
           const min = parseFloat(t.pwywMin);
           if (isNaN(min) || min < 0) throw new Error(`Minimum amount for "${t.name}" must be a non-negative number.`);
         }
+        // Installment plan — three-or-none + same range bounds as the
+        // backend validator (totalPrice > 0, count >= 2, interval >= 1).
+        // Catching it client-side gives the host an inline message
+        // instead of a generic 400 toast.
+        if (t.installmentEnabled) {
+          const total = parseFloat(t.installmentTotal);
+          const count = parseInt(t.installmentCount, 10);
+          const interval = parseInt(t.installmentInterval, 10);
+          if (isNaN(total) || total <= 0) {
+            throw new Error(`Installment total for "${t.name}" must be a positive number.`);
+          }
+          if (isNaN(count) || count < 2) {
+            throw new Error(`Installment count for "${t.name}" must be at least 2.`);
+          }
+          if (isNaN(interval) || interval < 1) {
+            throw new Error(`Installment interval for "${t.name}" must be at least 1 month.`);
+          }
+        }
       }
 
       // Validate donation config (when enabled)
@@ -512,6 +556,23 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
     const pwywMinSmallest = t.priceMode === "pwyw" && t.pwywMin.trim()
       ? toSmallestUnit(parseFloat(t.pwywMin), t.currency)
       : null;
+    // Installment fields — three-or-none. Send the trio (smallest unit
+     // for total + ints for count/interval) when enabled, all-null when
+     // disabled. Locked once sales exist; skip the keys so the existing
+     // lock-when-sold guard doesn't 400 a no-op save.
+    const installmentBody = locked
+      ? {}
+      : t.installmentEnabled
+        ? {
+            installmentTotalPrice: toSmallestUnit(parseFloat(t.installmentTotal), t.currency),
+            installmentCount: parseInt(t.installmentCount, 10),
+            installmentIntervalMonths: parseInt(t.installmentInterval, 10),
+          }
+        : {
+            installmentTotalPrice: null,
+            installmentCount: null,
+            installmentIntervalMonths: null,
+          };
     return {
       name: t.name.trim(),
       description: t.description.trim() || null,
@@ -521,6 +582,7 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
       // would retroactively reinterpret what buyers paid). Skip on locked
       // tiers so the existing 400 doesn't bounce a no-op save.
       ...(locked ? {} : { priceMode: t.priceMode, pwywMinAmount: pwywMinSmallest }),
+      ...installmentBody,
       // isRecurring/recurringInterval are intentionally NOT sent for events.
       // Marketplace products handle recurring; events do not.
       // Only meaningful for unsaved drafts created via "Duplicate" — the
@@ -886,6 +948,76 @@ function TierCard({ t, canDelete, canDuplicate, onUpdate, onRemove, onDuplicate,
               </div>
             </div>
           </Collapse>
+
+          {/* Installment plan — opt-in toggle + 3 inputs (events skip
+              accessDurationMonths; event date bounds access). Backend
+              enforces three-or-none + range bounds; the same checks
+              run client-side in save() so the host sees inline errors.
+              Locked once paid attendees exist — server-side too. */}
+          <div className="px-4 pt-3 pb-2 border-t border-zinc-100">
+            <label className={`flex items-center gap-2 ${locked ? "cursor-not-allowed" : "cursor-pointer"}`}>
+              <input
+                type="checkbox"
+                checked={t.installmentEnabled}
+                disabled={locked}
+                onChange={e => onUpdate({ installmentEnabled: e.target.checked })}
+                className="w-3.5 h-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400 disabled:cursor-not-allowed"
+              />
+              <span className={`text-[12px] font-medium ${locked ? "text-zinc-400" : "text-zinc-700"}`}>
+                Offer an installment plan
+              </span>
+            </label>
+            <p className="text-[11px] text-zinc-500 mt-1">
+              Let buyers pay this tier in equal monthly charges instead of one upfront payment.
+            </p>
+            <Collapse open={t.installmentEnabled}>
+              <div className="grid grid-cols-3 gap-2.5 mt-2">
+                <div>
+                  <Eyebrow>Total ({sym})</Eyebrow>
+                  <input
+                    type="number" min="0" step="0.01" value={t.installmentTotal}
+                    onChange={e => onUpdate({ installmentTotal: e.target.value })}
+                    placeholder="300"
+                    disabled={locked}
+                    className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
+                  />
+                </div>
+                <div>
+                  <Eyebrow>Charges</Eyebrow>
+                  <input
+                    type="number" min="2" step="1" value={t.installmentCount}
+                    onChange={e => onUpdate({ installmentCount: e.target.value })}
+                    placeholder="3"
+                    disabled={locked}
+                    className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
+                  />
+                </div>
+                <div>
+                  <Eyebrow>Every (months)</Eyebrow>
+                  <input
+                    type="number" min="1" step="1" value={t.installmentInterval}
+                    onChange={e => onUpdate({ installmentInterval: e.target.value })}
+                    placeholder="1"
+                    disabled={locked}
+                    className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
+                  />
+                </div>
+              </div>
+              {t.installmentEnabled
+                && t.installmentTotal
+                && t.installmentCount
+                && parseInt(t.installmentCount, 10) >= 2 && (
+                <p className="text-[11px] text-zinc-500 mt-1.5">
+                  Buyer pays {sym}{(parseFloat(t.installmentTotal) / parseInt(t.installmentCount, 10)).toFixed(2)} every {t.installmentInterval || "1"} month{(t.installmentInterval || "1") !== "1" ? "s" : ""} for {t.installmentCount} charges.
+                </p>
+              )}
+            </Collapse>
+            {locked && t.installmentEnabled && (
+              <p className="text-[10px] text-amber-600 mt-1">
+                Installment plan is locked while tickets are sold. Refund all sales first to change.
+              </p>
+            )}
+          </div>
 
           {/* Form footer */}
           <button
