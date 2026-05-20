@@ -38,7 +38,9 @@ import {
   validateDonation,
   validateTier,
 } from "./PriceEditModal/helpers";
-import { SortableTierCard } from "./PriceEditModal/TierCard";
+import { SortableTierRow } from "./PriceEditModal/TierRow";
+import { TierHubView, type StepId } from "./PriceEditModal/TierHubView";
+import { StepView } from "./PriceEditModal/StepView";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
 import {
   buildRowsFromOverrides,
@@ -122,6 +124,18 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   // PUT when nothing changed.
   const [donation, setDonation] = useState<DonationDraft>(() => loadDonationFromEvent(event));
   const [donationDirty, setDonationDirty] = useState(false);
+
+  // Three-level navigation state. Each non-null value escalates the
+  // modal body to a "takeover" view:
+  //   activeTier=null, activeStep=null      → Level 1 (tier list)
+  //   activeTier=localId, activeStep=null   → Level 2 (per-tier hub)
+  //   activeTier=localId, activeStep=basics → Level 3 (focused step)
+  // Lifted out of the per-card EditHub component so siblings, Add Tier,
+  // and Donations actually disappear when the user steps into a tier
+  // (matching the user's mental model of "click tier → enter its
+  // details").
+  const [activeTier, setActiveTier] = useState<string | null>(null);
+  const [activeStep, setActiveStep] = useState<StepId | null>(null);
 
   // Member-pricing state — lifted out of MemberPricingSection so it
   // survives tier-card collapse / hub↔step navigation / any unmount.
@@ -523,7 +537,37 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   }
 
   const isEmpty = drafts.every(t => t.deleted) || (drafts.length === 1 && !drafts[0].id && !drafts[0].price);
-  const title = isEmpty ? "Add pricing" : visible.length === 1 ? "Edit pricing" : "Pricing tiers";
+
+  // Active draft for Level 2 / 3 takeover views. Keyed by tier.localId
+  // (NOT tier.id) so brand-new unsaved tiers (no backend id yet) work
+  // the same way as saved ones.
+  const activeDraft = activeTier
+    ? drafts.find(d => d.localId === activeTier && !d.deleted)
+    : null;
+
+  // Adapter for the active tier's index — passed to onUpdate / onRemove
+  // / onDuplicate at Levels 2 + 3. Looked up at click-time so a stale
+  // index (e.g. after reorder) doesn't pin to the wrong draft.
+  function activeIdx(): number | null {
+    if (!activeDraft) return null;
+    const idx = drafts.findIndex(d => d.localId === activeDraft.localId);
+    return idx >= 0 ? idx : null;
+  }
+
+  // Title adapts to which level the user is on. Level 2 / 3 use the
+  // tier name so the modal chrome reinforces the focus context.
+  const title =
+    activeDraft
+      ? `Editing ${activeDraft.name || "tier"}`
+      : isEmpty
+        ? "Add pricing"
+        : visible.length === 1
+          ? "Edit pricing"
+          : "Pricing tiers";
+  const subtitle =
+    activeDraft
+      ? null
+      : "Tickets, donations, and per-tier registration forms.";
 
   return (
     <>
@@ -531,45 +575,98 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
       {/* ─── Header ─── */}
       <div className="mb-5">
         <h3 className="text-[16px] font-semibold text-zinc-900">{title}</h3>
-        <p className="text-[12px] text-zinc-500 mt-0.5">
-          Tickets, donations, and per-tier registration forms.
-        </p>
+        {subtitle && (
+          <p className="text-[12px] text-zinc-500 mt-0.5">{subtitle}</p>
+        )}
       </div>
 
       {loading ? (
         <div className="py-12 text-center text-[13px] text-zinc-400">Loading…</div>
+      ) : activeDraft && activeStep ? (
+        // Level 3: step takeover. Hides everything else — siblings,
+        // Add Tier, Donations are all gone. Back arrow returns to the
+        // per-tier hub.
+        <StepView
+          t={activeDraft}
+          step={activeStep}
+          communityTag={communityTag}
+          onUpdate={(patch) => {
+            const idx = activeIdx();
+            if (idx != null) updateDraft(idx, patch);
+          }}
+          onBack={() => setActiveStep(null)}
+          memberPricingState={activeDraft.id ? memberPricingByTier.get(activeDraft.id) : undefined}
+          onMemberPricingRowChange={
+            activeDraft.id
+              ? (idx, patch) => updateMemberPricingRow(activeDraft.id!, idx, patch)
+              : undefined
+          }
+          showToast={showToast}
+        />
+      ) : activeDraft ? (
+        // Level 2: per-tier hub takeover. Tier name editor + delete +
+        // duplicate at top, then 4 SectionCards. Modal-level chrome
+        // (Add Tier, Donations) is hidden — the user is focused on
+        // one tier only.
+        <TierHubView
+          t={activeDraft}
+          showMemberPricing={!!showMemberPricing}
+          canDuplicate={!!activeDraft.id}
+          canDelete={visible.length > 1}
+          onUpdate={(patch) => {
+            const idx = activeIdx();
+            if (idx != null) updateDraft(idx, patch);
+          }}
+          onEnterStep={(step) => setActiveStep(step)}
+          onDuplicate={() => {
+            const idx = activeIdx();
+            if (idx != null) duplicateTier(idx);
+          }}
+          onRemove={() => {
+            const idx = activeIdx();
+            if (idx != null) {
+              removeTier(idx);
+              setActiveTier(null); // pop back to L1 after delete
+            }
+          }}
+          onBack={() => setActiveTier(null)}
+        />
       ) : (
-        // Scroll is owned by the outer ModalShell now (the shared shell's
-        // body sets overflow-y-auto + a fixed max-height). The old inner
-        // `max-h-[68vh] overflow-y-auto` here was a pre-shell stopgap that
-        // capped the tier list to ~68vh inside a 90vh shell — wasting ~22vh
-        // and creating nested scroll containers. Just space the rows now.
+        // Level 1: default tier list. Add tier + Donations + Save.
+        // Scroll is owned by the outer ModalShell (shared shell sets
+        // overflow-y-auto + a fixed max-height).
         <div className="space-y-3">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={visible.map(t => t.localId)} strategy={verticalListSortingStrategy}>
               {visible.map(t => (
-                <SortableTierCard
+                <SortableTierRow
                   key={t.localId}
                   t={t}
-                  communityTag={communityTag}
                   canDelete={visible.length > 1}
                   canDuplicate={!!t.id}
-                  onUpdate={patch => updateDraft(t._idx, patch)}
+                  onSelect={() => setActiveTier(t.localId)}
                   onRemove={() => removeTier(t._idx)}
                   onDuplicate={() => duplicateTier(t._idx)}
-                  onToggle={() => toggleExpand(t._idx)}
-                  showMemberPricing={!!showMemberPricing}
-                  showToast={showToast}
-                  memberPricingState={t.id ? memberPricingByTier.get(t.id) : undefined}
-                  onMemberPricingRowChange={(idx, patch) => t.id && updateMemberPricingRow(t.id, idx, patch)}
                 />
               ))}
             </SortableContext>
           </DndContext>
 
-          {/* Add tier */}
+          {/* Add tier — appends a draft AND auto-navigates into its
+              hub view, matching the user's intent of "create + edit". */}
           <button
-            onClick={addTier}
+            onClick={() => {
+              addTier();
+              // After addTier updates drafts, the new tier sits at the
+              // end. Use a microtask to read the next-state localId.
+              setTimeout(() => {
+                setDrafts(curr => {
+                  const last = curr[curr.length - 1];
+                  if (last) setActiveTier(last.localId);
+                  return curr;
+                });
+              }, 0);
+            }}
             className="w-full flex items-center justify-center gap-1.5 py-3 text-[12px] font-medium text-zinc-500 border border-dashed border-zinc-300 rounded-xl hover:border-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" /> Add tier
@@ -585,7 +682,8 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
         </div>
       )}
 
-      {/* ─── Footer ─── */}
+      {/* ─── Footer ─── Modal-level Save commits everything regardless
+          of which level the user is on. */}
       <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-zinc-100">
         <button onClick={onClose} className="px-4 py-2 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer">Cancel</button>
         <button onClick={onSaveClicked} disabled={saving || loading}

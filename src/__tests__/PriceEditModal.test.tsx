@@ -58,8 +58,13 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     ]);
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // Wait for tiers to load
-    const nameInput = await screen.findByDisplayValue("GA");
+    // L1: tier row shows the name as static text. Click the row → enter L2.
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    // L2: tier name input lives at the top of the hub.
+    const nameInput = (await screen.findByPlaceholderText(
+      "Standard, VIP, Early-bird…",
+    )) as HTMLInputElement;
+    expect(nameInput.value).toBe("GA");
 
     // Change name
     await user.clear(nameInput);
@@ -89,10 +94,8 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     ]);
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    await screen.findByDisplayValue("GA");
-
-    // New UX: expand the tier card → click Basics step → edit price.
-    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
+    // New UX: L1 → click tier row → L2 → click Basics Edit → L3.
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
     await user.click(screen.getAllByRole("button", { name: /^Edit/ })[0]);
 
     const priceInput = await screen.findByPlaceholderText("0.00") as HTMLInputElement;
@@ -122,15 +125,12 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     const props = baseProps();
     renderWithConfig(<PriceEditModal {...props} />);
 
-    await screen.findByDisplayValue("GA");
-
-    // New UX: expand the card → click Options Edit → change capacity.
-    // Capacity lives in OptionsStep now; the Edit buttons are ordered
-    // Basics / Options / [Members] / Form within the hub.
-    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
+    // L1 → click row → L2 → click Options Edit → L3.
+    // Capacity lives in OptionsStep. Edit button order in L2:
+    // Basics / Options / [Members] / Form. showMemberPricing is off
+    // in baseProps so no Members card.
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
     const editButtons = screen.getAllByRole("button", { name: /^Edit/ });
-    // [0] = Basics, [1] = Options. showMemberPricing is false in this
-    // test's baseProps so there's no Members card between them.
     await user.click(editButtons[1]);
 
     const capInput = await screen.findByPlaceholderText("∞") as HTMLInputElement;
@@ -154,10 +154,8 @@ describe("PriceEditModal — capacity lock", () => {
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
     const user = userEvent.setup();
-    await screen.findByDisplayValue("GA");
-
-    // Expand card → enter Basics step where the price input lives.
-    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
+    // L1 → click tier row → L2 → click Basics Edit → L3 where price lives.
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
     await user.click(screen.getAllByRole("button", { name: /^Edit/ })[0]);
 
     const priceInput = await screen.findByPlaceholderText("0.00");
@@ -169,11 +167,9 @@ describe("PriceEditModal — capacity lock", () => {
     mockFetch(stubGetRoutes([makeTier({ salesCount: 7 })]));
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    await screen.findByDisplayValue("GA");
-    // Lock banner now lives at the hub level — just expanding the
-    // card is enough; no step navigation needed.
-    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
-
+    // Lock banner now lives at the per-tier hub (L2) — click the
+    // tier row to enter it.
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
     expect(await screen.findByText(/7 tickets sold/i)).toBeInTheDocument();
   });
 });
