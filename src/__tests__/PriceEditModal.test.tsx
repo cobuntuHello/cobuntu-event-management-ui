@@ -91,7 +91,11 @@ describe("PriceEditModal — notify-attendees prompt", () => {
 
     await screen.findByDisplayValue("GA");
 
-    const priceInput = screen.getByPlaceholderText("0.00") as HTMLInputElement;
+    // New UX: expand the tier card → click Basics step → edit price.
+    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
+    await user.click(screen.getAllByRole("button", { name: /^Edit/ })[0]);
+
+    const priceInput = await screen.findByPlaceholderText("0.00") as HTMLInputElement;
     await user.clear(priceInput);
     await user.type(priceInput, "20");
 
@@ -120,8 +124,16 @@ describe("PriceEditModal — notify-attendees prompt", () => {
 
     await screen.findByDisplayValue("GA");
 
-    // Change only capacity
-    const capInput = screen.getByPlaceholderText("∞") as HTMLInputElement;
+    // New UX: expand the card → click Options Edit → change capacity.
+    // Capacity lives in OptionsStep now; the Edit buttons are ordered
+    // Basics / Options / [Members] / Form within the hub.
+    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
+    const editButtons = screen.getAllByRole("button", { name: /^Edit/ });
+    // [0] = Basics, [1] = Options. showMemberPricing is false in this
+    // test's baseProps so there's no Members card between them.
+    await user.click(editButtons[1]);
+
+    const capInput = await screen.findByPlaceholderText("∞") as HTMLInputElement;
     await user.type(capInput, "50");
 
     await user.click(screen.getByRole("button", { name: /^save$/i }));
@@ -141,11 +153,12 @@ describe("PriceEditModal — capacity lock", () => {
     mockFetch(stubGetRoutes([tier]));
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // Trigger expand on the tier row so the locked inputs are rendered
     const user = userEvent.setup();
     await screen.findByDisplayValue("GA");
-    const chevron = screen.getAllByLabelText(/expand|collapse/i)[0];
-    await user.click(chevron);
+
+    // Expand card → enter Basics step where the price input lives.
+    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
+    await user.click(screen.getAllByRole("button", { name: /^Edit/ })[0]);
 
     const priceInput = await screen.findByPlaceholderText("0.00");
     expect(priceInput).toBeDisabled();
@@ -157,6 +170,8 @@ describe("PriceEditModal — capacity lock", () => {
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
     await screen.findByDisplayValue("GA");
+    // Lock banner now lives at the hub level — just expanding the
+    // card is enough; no step navigation needed.
     await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
 
     expect(await screen.findByText(/7 tickets sold/i)).toBeInTheDocument();
