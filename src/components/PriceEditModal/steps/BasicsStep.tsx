@@ -7,7 +7,7 @@ import {
 } from "@cobuntu/management-ui-shared";
 import { SUPPORTED_CURRENCIES, type DraftTier } from "../types";
 import { getSymbol, isTierLocked } from "../helpers";
-import { Eyebrow } from "../_primitives";
+import { Eyebrow, StepInput } from "../_primitives";
 
 export interface BasicsStepProps {
   t: DraftTier;
@@ -32,43 +32,35 @@ export function BasicsStep({ t, onUpdate }: BasicsStepProps) {
 
   return (
     <div className="space-y-4">
-      {/* Name */}
-      <div>
-        <Eyebrow>Tier name</Eyebrow>
-        <input
-          type="text"
-          value={t.name}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-          placeholder="Standard, VIP, Early-bird…"
-          className="w-full mt-1 px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
-        />
-      </div>
+      {/* Tier name lives in the row header (TierCard's inline input) —
+          renaming from the row is the quickest path. Editing here would
+          duplicate that affordance without adding new capability. */}
 
       {/* Description */}
       <div>
         <Eyebrow>Description (optional)</Eyebrow>
-        <input
-          type="text"
-          value={t.description}
-          onChange={(e) => onUpdate({ description: e.target.value })}
-          placeholder="What's included"
-          className="w-full mt-1 px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
-        />
+        <div className="mt-1">
+          <StepInput
+            type="text"
+            value={t.description}
+            onChange={(e) => onUpdate({ description: e.target.value })}
+            placeholder="What's included"
+          />
+        </div>
       </div>
 
       {/* Price + Currency */}
       <div className="grid grid-cols-[1fr_120px] gap-2.5">
         <div>
           <Eyebrow>{t.priceMode === "pwyw" ? "Suggested price" : "Price"}</Eyebrow>
-          <div className="relative mt-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-zinc-400 pointer-events-none">{sym}</span>
-            <input
+          <div className="mt-1">
+            <StepInput
               type="number" min="0" step="0.01" value={t.price}
               onChange={(e) => onUpdate({ price: e.target.value })}
               placeholder="0.00"
-              disabled={locked}
+              locked={locked}
+              prefix={sym}
               title={locked ? "Refund all sales first to change price" : undefined}
-              className={`w-full pl-7 pr-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
             />
           </div>
         </div>

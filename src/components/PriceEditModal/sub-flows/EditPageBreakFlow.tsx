@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { StepInput } from "../_primitives";
 
 export interface EditPageBreakFlowProps {
   /** Existing label when editing; empty when creating. */
@@ -51,12 +52,11 @@ export function EditPageBreakFlow({
 
       <div>
         <label className="block text-[11px] font-medium text-zinc-600 mb-1">Page title (optional)</label>
-        <input
+        <StepInput
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="e.g. Tell us about your business"
-          className="w-full px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400"
           autoFocus
         />
       </div>

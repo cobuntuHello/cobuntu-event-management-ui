@@ -2,7 +2,7 @@
 
 import type { DraftTier } from "../types";
 import { getSymbol, isTierLocked } from "../helpers";
-import { Collapse, Eyebrow } from "../_primitives";
+import { Collapse, Eyebrow, StepInput } from "../_primitives";
 
 export interface OptionsStepProps {
   t: DraftTier;
@@ -26,12 +26,13 @@ export function OptionsStep({ t, onUpdate }: OptionsStepProps) {
       {/* Capacity */}
       <div>
         <Eyebrow>Capacity (optional)</Eyebrow>
-        <input
-          type="number" min={locked ? t.salesCount : 0} step="1" value={t.capacity}
-          onChange={(e) => onUpdate({ capacity: e.target.value })}
-          placeholder="∞"
-          className="w-full mt-1 px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
+        <div className="mt-1">
+          <StepInput
+            type="number" min={locked ? t.salesCount : 0} step="1" value={t.capacity}
+            onChange={(e) => onUpdate({ capacity: e.target.value })}
+            placeholder="∞"
+          />
+        </div>
         {locked && (
           <p className="text-[10px] text-zinc-400 mt-1">Min {t.salesCount} (already sold).</p>
         )}
@@ -65,14 +66,13 @@ export function OptionsStep({ t, onUpdate }: OptionsStepProps) {
       <Collapse open={t.priceMode === "pwyw"}>
         <div>
           <Eyebrow>Minimum amount (optional)</Eyebrow>
-          <div className="relative mt-1 max-w-[220px]">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-zinc-400 pointer-events-none">{sym}</span>
-            <input
+          <div className="mt-1 max-w-[220px]">
+            <StepInput
               type="number" min="0" step="0.01" value={t.pwywMin}
               onChange={(e) => onUpdate({ pwywMin: e.target.value })}
               placeholder="No minimum"
-              disabled={locked}
-              className={`w-full pl-7 pr-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
+              locked={locked}
+              prefix={sym}
             />
           </div>
         </div>
@@ -93,33 +93,36 @@ export function OptionsStep({ t, onUpdate }: OptionsStepProps) {
           <div className="grid grid-cols-3 gap-2.5">
             <div>
               <Eyebrow>Total ({sym})</Eyebrow>
-              <input
-                type="number" min="0" step="0.01" value={t.installmentTotal}
-                onChange={(e) => onUpdate({ installmentTotal: e.target.value })}
-                placeholder="300"
-                disabled={locked}
-                className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
-              />
+              <div className="mt-1">
+                <StepInput
+                  type="number" min="0" step="0.01" value={t.installmentTotal}
+                  onChange={(e) => onUpdate({ installmentTotal: e.target.value })}
+                  placeholder="300"
+                  locked={locked}
+                />
+              </div>
             </div>
             <div>
               <Eyebrow>Charges</Eyebrow>
-              <input
-                type="number" min="2" step="1" value={t.installmentCount}
-                onChange={(e) => onUpdate({ installmentCount: e.target.value })}
-                placeholder="3"
-                disabled={locked}
-                className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
-              />
+              <div className="mt-1">
+                <StepInput
+                  type="number" min="2" step="1" value={t.installmentCount}
+                  onChange={(e) => onUpdate({ installmentCount: e.target.value })}
+                  placeholder="3"
+                  locked={locked}
+                />
+              </div>
             </div>
             <div>
               <Eyebrow>Every (months)</Eyebrow>
-              <input
-                type="number" min="1" step="1" value={t.installmentInterval}
-                onChange={(e) => onUpdate({ installmentInterval: e.target.value })}
-                placeholder="1"
-                disabled={locked}
-                className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
-              />
+              <div className="mt-1">
+                <StepInput
+                  type="number" min="1" step="1" value={t.installmentInterval}
+                  onChange={(e) => onUpdate({ installmentInterval: e.target.value })}
+                  placeholder="1"
+                  locked={locked}
+                />
+              </div>
             </div>
           </div>
           {t.installmentEnabled

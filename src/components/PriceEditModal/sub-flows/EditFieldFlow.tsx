@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { ArrowLeft, Trash2, Plus } from "lucide-react";
 import { fieldHasOptions, fieldTypeMeta, type FormField } from "../_form-types";
+import { StepInput } from "../_primitives";
 
 export interface EditFieldFlowProps {
   field: FormField;
@@ -69,26 +70,24 @@ export function EditFieldFlow({
       <div className="space-y-3">
         <div>
           <label htmlFor={labelId} className="block text-[11px] font-medium text-zinc-600 mb-1">Label</label>
-          <input
+          <StepInput
             id={labelId}
             type="text"
             value={draft.label}
             onChange={(e) => setDraft({ ...draft, label: e.target.value })}
             placeholder="What should the question read?"
-            className="w-full px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400"
             autoFocus
           />
         </div>
 
         <div>
           <label htmlFor={descriptionId} className="block text-[11px] font-medium text-zinc-600 mb-1">Help text (optional)</label>
-          <input
+          <StepInput
             id={descriptionId}
             type="text"
             value={draft.description || ""}
             onChange={(e) => setDraft({ ...draft, description: e.target.value })}
             placeholder="Shown below the field"
-            className="w-full px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400"
           />
         </div>
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, ChevronRight, Lock } from "lucide-react";
 import { SectionCard } from "@cobuntu/management-ui-shared";
-import { type MemberPricingSectionHandle } from "../MemberPricingSection";
+import type { MemberPricingRow, MemberPricingTierState } from "./member-pricing";
 import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
 import { BasicsStep } from "./steps/BasicsStep";
@@ -19,10 +19,11 @@ export interface EditHubProps {
   onUpdate: (patch: Partial<DraftTier>) => void;
   /** Community-only — admin sets true, community-app /manage omits. */
   showMemberPricing: boolean;
-  /** Imperative ref registration so the outer modal can call
-   *  commit()/isDirty() on this tier's MemberPricingSection during its
-   *  global Save loop. */
-  registerMemberPricingRef?: (tierId: string, handle: MemberPricingSectionHandle | null) => void;
+  /** Per-tier slot from the modal-level member-pricing state map.
+   *  Undefined for unsaved tiers. */
+  memberPricingState?: MemberPricingTierState;
+  /** Notify the modal of a member-pricing row change. */
+  onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
   showToast: (msg: string) => void;
 }
 
@@ -59,7 +60,8 @@ export function EditHub({
   communityTag,
   onUpdate,
   showMemberPricing,
-  registerMemberPricingRef,
+  memberPricingState,
+  onMemberPricingRowChange,
   showToast,
 }: EditHubProps) {
   const [activeStep, setActiveStep] = useState<StepId | null>(null);
@@ -204,8 +206,8 @@ export function EditHub({
           <div className={activeStep === "members" ? "" : "hidden"}>
             <MembersStep
               t={t}
-              communityTag={communityTag}
-              registerMemberPricingRef={registerMemberPricingRef}
+              memberPricingState={memberPricingState}
+              onMemberPricingRowChange={onMemberPricingRowChange}
               showToast={showToast}
             />
           </div>

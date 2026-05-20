@@ -182,4 +182,65 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     );
     expect(vipsAfter).toBeChecked();
   });
+
+  it("collapsing the tier card mid-edit no longer drops the dirty rows (papercut #1 fix)", async () => {
+    // The original PriceEditModal redesign had a known papercut: state
+    // lived inside MemberPricingSection, so collapsing the tier card
+    // (which unmounted EditHub + everything below) dropped any
+    // pending dirty rows. Post-state-lift, the rows live in
+    // PriceEditModal's state map and survive collapse cycles.
+    const user = userEvent.setup();
+    const fetchFn = mockFetch([
+      ...stubLoadRoutes(),
+      { method: "PUT", url: /\/tiers\/tier-1$/, body: tier },
+      {
+        method: "POST",
+        url: /\/api\/communities\/c-1\/tiers\/tier-1\/member-pricing$/,
+        body: { id: "ov-new" },
+      },
+    ]);
+
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+    await screen.findByDisplayValue("GA");
+
+    // Expand → enter Members step → make a dirty row
+    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
+    const editButtons = await screen.findAllByRole("button", { name: /^Edit/ });
+    await user.click(editButtons[2]);
+
+    await user.click(
+      await screen.findByLabelText(/Offer member pricing for VIPs/),
+    );
+    const valueInput = (screen
+      .getAllByPlaceholderText(/20|10|—/)
+      .find((el) => (el as HTMLInputElement).type === "number") as HTMLInputElement);
+    fireEvent.change(valueInput, { target: { value: "20" } });
+    expect(await screen.findByText(/unsaved/i)).toBeInTheDocument();
+
+    // Return to hub, then COLLAPSE the tier card — this used to wipe
+    // the dirty rows. The state map at PriceEditModal level keeps
+    // them now.
+    await user.click(screen.getByRole("button", { name: /Done/i }));
+    await user.click(screen.getAllByLabelText(/expand|collapse/i)[0]);
+
+    // Click Save without re-expanding the card. The dirty member-
+    // pricing row should still commit because the modal-level state
+    // map persists across the collapse.
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => {
+      const post = fetchFn.mock.calls.find(
+        ([url, init]: any) =>
+          /\/tiers\/tier-1\/member-pricing$/.test(url.toString()) &&
+          (init?.method || "GET") === "POST",
+      );
+      expect(post).toBeTruthy();
+      const body = JSON.parse((post![1] as RequestInit).body as string);
+      expect(body).toMatchObject({
+        segmentId: "seg-1",
+        mode: "PERCENT_OFF",
+        value: 20,
+      });
+    });
+  });
 });
