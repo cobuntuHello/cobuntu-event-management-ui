@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import {
@@ -127,6 +127,18 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   // under the same Save button. Replaces the nested per-section Save
   // button the UX redesign flagged as dual-Save confusion.
   const memberPricingRefs = useRef<Map<string, MemberPricingSectionHandle | null>>(new Map());
+
+  // Stable ref-callback identity so React doesn't detach/reattach the
+  // MemberPricingSection handle on every render of the tier list. The
+  // ref map lives on a useRef cell so it's safe to read/write here
+  // without listing in the deps array.
+  const registerMemberPricingRef = useCallback(
+    (tierId: string, handle: MemberPricingSectionHandle | null) => {
+      if (handle) memberPricingRefs.current.set(tierId, handle);
+      else memberPricingRefs.current.delete(tierId);
+    },
+    [],
+  );
 
   function updateDonation(patch: Partial<DonationDraft>) {
     setDonationDirty(true);
@@ -409,7 +421,12 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
       {loading ? (
         <div className="py-12 text-center text-[13px] text-zinc-400">Loading…</div>
       ) : (
-        <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1 -mr-1">
+        // Scroll is owned by the outer ModalShell now (the shared shell's
+        // body sets overflow-y-auto + a fixed max-height). The old inner
+        // `max-h-[68vh] overflow-y-auto` here was a pre-shell stopgap that
+        // capped the tier list to ~68vh inside a 90vh shell — wasting ~22vh
+        // and creating nested scroll containers. Just space the rows now.
+        <div className="space-y-3">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={visible.map(t => t.localId)} strategy={verticalListSortingStrategy}>
               {visible.map(t => (
@@ -425,10 +442,7 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
                   onToggle={() => toggleExpand(t._idx)}
                   showMemberPricing={!!showMemberPricing}
                   showToast={showToast}
-                  registerMemberPricingRef={(tierId, handle) => {
-                    if (handle) memberPricingRefs.current.set(tierId, handle);
-                    else memberPricingRefs.current.delete(tierId);
-                  }}
+                  registerMemberPricingRef={registerMemberPricingRef}
                 />
               ))}
             </SortableContext>

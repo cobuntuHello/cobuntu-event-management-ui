@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   MemberPricingSection,
   type MemberPricingSectionHandle,
@@ -33,8 +34,22 @@ export function MembersStep({
   showToast,
 }: MembersStepProps) {
   const sym = getSymbol(t.currency);
+  const tierId = t.id;
 
-  if (!t.id) {
+  // Stable ref-callback so React doesn't unregister+reregister the
+  // handle on every parent render. The outer modal's Save loop relies
+  // on the ref staying attached to detect dirty rows. Closes over the
+  // tier id captured at this render — when the tier id changes (rare;
+  // happens only after a brand-new tier is saved and re-fetched), the
+  // callback identity changes and React swaps the registration.
+  const refCallback = useCallback(
+    (handle: MemberPricingSectionHandle | null) => {
+      if (tierId) registerMemberPricingRef?.(tierId, handle);
+    },
+    [registerMemberPricingRef, tierId],
+  );
+
+  if (!tierId) {
     return (
       <div className="px-4 py-6 rounded-lg border border-dashed border-zinc-300 text-center">
         <p className="text-[12px] font-medium text-zinc-700">Save tier first</p>
@@ -47,9 +62,9 @@ export function MembersStep({
 
   return (
     <MemberPricingSection
-      ref={(handle) => registerMemberPricingRef?.(t.id!, handle)}
+      ref={refCallback}
       communityTag={communityTag}
-      tierId={t.id}
+      tierId={tierId}
       currencyCode={t.currency}
       currencySymbol={sym}
       showToast={showToast}
