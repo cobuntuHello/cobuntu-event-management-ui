@@ -1,39 +1,45 @@
-"use client";
+/**
+ * Re-export of `ModalShell` from `@cobuntu/management-ui-shared`.
+ *
+ * The shared primitive is API-compatible with the previous local
+ * component — it accepts the same `children` / `onClose` / `width`
+ * props (the `width` preset short-codes "sm" | "md" | "lg" coexist
+ * with the raw Tailwind classes that existing call-sites already pass).
+ *
+ * The shared version additionally exposes `title`, `subtitle`,
+ * `headerExtra`, `footer`, `dismissOnBackdrop`, and a fixed max-height
+ * with internal scroll. Existing call-sites that don't pass title or
+ * footer collapse to body-only, matching prior behavior.
+ *
+ * The shared shell renders a default close button in its header — we
+ * force `hideCloseButton: true` here so call-sites that bring their
+ * own close affordance inside `children` don't double up. Components
+ * adopting the new slot-based layout can pass `hideCloseButton={false}`
+ * (or the new `Modal` directly) once they're refactored.
+ */
+export {
+  ModalShell as SharedModalShell,
+  type ModalShellProps as SharedModalShellProps,
+} from "@cobuntu/management-ui-shared";
 
 import * as React from "react";
-import { createPortal } from "react-dom";
+import { ModalShell as Shared } from "@cobuntu/management-ui-shared";
 
-/**
- * Modal wrapper portaled to document.body so it escapes any overflow-clipped
- * ancestor. Click outside dismisses, click inside doesn't bubble.
- *
- * Intentionally minimal — no animation, no focus trap. The components
- * consuming this rely on Radix primitives (e.g. SelectPrimitive) for their
- * own focus handling.
- */
-export function ModalShell({
-  children,
-  onClose,
-  width = "w-[420px]",
-}: {
+export interface ModalShellProps {
   children: React.ReactNode;
   onClose: () => void;
   width?: string;
-}) {
-  // SSR guard: createPortal needs document.
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-      onClick={onClose}
+}
+
+export function ModalShell({ children, onClose, width }: ModalShellProps) {
+  return (
+    <Shared
+      onClose={onClose}
+      width={width ?? "w-[420px]"}
+      hideCloseButton
+      maxHeight="90vh"
     >
-      <div
-        className={`bg-white rounded-xl shadow-xl ${width} p-6 text-zinc-900`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>,
-    document.body,
+      {children}
+    </Shared>
   );
 }

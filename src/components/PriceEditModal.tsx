@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, Plus, FileText, ChevronDown, Lock, GripVertical, Copy } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -15,15 +15,32 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { ModalShell } from "../ui/modal-shell";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
-import { MemberPricingSection } from "./MemberPricingSection";
+import { type MemberPricingSectionHandle } from "./MemberPricingSection";
+import {
+  type DonationDraft,
+  type DraftTier,
+  type OriginalTierSnapshot,
+  type Tier,
+} from "./PriceEditModal/types";
+import {
+  blankTier,
+  buildDonationBody,
+  buildTierBody,
+  findTiersWithMaterialChanges,
+  fromSmallestUnit,
+  hasPaidTier,
+  loadDonationFromEvent,
+  toDisplay,
+  validateDonation,
+  validateTier,
+} from "./PriceEditModal/helpers";
+import { SortableTierCard } from "./PriceEditModal/TierCard";
+import { DonationsSection } from "./PriceEditModal/DonationsSection";
 
 /**
  * Single source of truth for ticket-tier management on an event.
@@ -50,150 +67,11 @@ import { MemberPricingSection } from "./MemberPricingSection";
  * recurring; events do not.
  */
 
-const SUPPORTED_CURRENCIES = [
-  { code: "EUR", name: "Euro", symbol: "€" },
-  { code: "USD", name: "US Dollar", symbol: "$" },
-  { code: "GBP", name: "British Pound", symbol: "£" },
-  { code: "BRL", name: "Brazilian Real", symbol: "R$" },
-  { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
-  { code: "CAD", name: "Canadian Dollar", symbol: "$" },
-  { code: "AUD", name: "Australian Dollar", symbol: "$" },
-  { code: "JPY", name: "Japanese Yen", symbol: "¥" },
-];
-
-function getSymbol(code: string) { return SUPPORTED_CURRENCIES.find(c => c.code === code)?.symbol || code; }
-function toDisplay(price: number, currency: string) { return currency === "JPY" ? price : price / 100; }
-function toSmallestUnit(majorAmount: number, currency: string): number {
-  return currency === "JPY" ? Math.round(majorAmount) : Math.round(majorAmount * 100);
-}
-function fromSmallestUnit(smallestAmount: number, currency: string): string {
-  if (smallestAmount == null) return "";
-  return String(currency === "JPY" ? smallestAmount : smallestAmount / 100);
-}
-
-interface Tier {
-  id: string;
-  name: string;
-  description: string | null;
-  capacity: number | null;
-  salesCount?: number;     // non-refunded sales — backend adds this to GET /tiers
-  priceMode?: "fixed" | "pwyw" | null;
-  pwywMinAmount?: number | null;
-  products: {
-    id: string;
-    price: number;
-    currency: string;
-    // Installment plan fields — backend returns them on every GET /tiers
-    // response since the member-pricing + installments umbrella shipped.
-    // Three-or-none: all three null = no plan offered; all three set =
-    // buyer can opt into "Pay €X total in N × monthly installments" at
-    // checkout. accessDurationMonths is intentionally absent (events
-    // bound access by event date).
-    installmentTotalPrice?: number | null;
-    installmentCount?: number | null;
-    installmentIntervalMonths?: number | null;
-  };
-}
-
-interface DraftTier {
-  localId: string;        // stable client-side key (drag id, react key) — survives reorders
-  id?: string;            // existing tier id (undefined = new)
-  name: string;
-  description: string;
-  price: string;
-  currency: string;
-  capacity: string;
-  hasForm: boolean;       // whether the saved tier already has a form attached
-  formFieldCount: number; // number of fields in the linked form (0 when not linked)
-  salesCount: number;     // non-refunded sales — drives sold display + lock UI
-  // Pricing model. 'fixed' = listed price is the price. 'pwyw' = listed
-  // price is ignored at checkout; buyer chooses an amount above pwywMin
-  // (display-unit, e.g. "10" = 10€). Used for sliding-scale workshops.
-  priceMode: "fixed" | "pwyw";
-  pwywMin: string;
-  // Installment plan. Enabled iff all three numeric values are non-empty
-  // valid numbers — the backend's three-or-none validator rejects
-  // partial config. Total + count + interval are display-unit (e.g.
-  // "300", "3", "1") so the UI is consistent with the price field
-  // above; they get converted to smallest unit + integers on save.
-  installmentEnabled: boolean;
-  installmentTotal: string;       // display unit (e.g. "300" = €300 total)
-  installmentCount: string;        // integer string (e.g. "3" = 3 charges)
-  installmentInterval: string;     // integer string (e.g. "1" = monthly)
-  expanded: boolean;
-  deleted?: boolean;
-  // When this draft was created via "Duplicate" of an existing tier, holds
-  // the source's tier id. The POST body sends it as copyFormFromTierId so
-  // the backend clones the source's registration form onto the new tier in
-  // the same transaction. Lives only on unsaved drafts (no id yet).
-  sourceTierId?: string;
-  sourceTierName?: string;
-}
-
-// Sidecar donation config — saved separately from tiers via PUT /donations.
-// Mirrors the shape stored in events.donationConfig + products.donationConfig.
-interface DonationDraft {
-  enabled: boolean;
-  mode: "fixed" | "pwyw";
-  // Display-unit amounts (e.g. 5, 10, 25 for euros). Converted to smallest
-  // unit on save.
-  amounts: string[];
-  // Display-unit floor for pwyw mode.
-  minAmount: string;
-  currency: string;
-  label: string;
-}
-
-function blankDonation(currency = "EUR"): DonationDraft {
-  return {
-    enabled: false,
-    mode: "fixed",
-    amounts: ["5", "10", "25"],
-    minAmount: "",
-    currency,
-    label: "",
-  };
-}
-
-function loadDonationFromEvent(event: any): DonationDraft {
-  const cfg = event?.donationConfig;
-  if (!cfg || typeof cfg !== "object") return blankDonation(event?.currency || "EUR");
-  const currency: string = cfg.currency || event?.currency || "EUR";
-  const mode: "fixed" | "pwyw" = cfg.mode === "pwyw" ? "pwyw" : "fixed";
-  const amounts: string[] = Array.isArray(cfg.amounts) && cfg.amounts.length > 0
-    ? cfg.amounts.map((a: number) => fromSmallestUnit(a, currency))
-    : ["5", "10", "25"];
-  const minAmount: string = cfg.minAmount != null ? fromSmallestUnit(cfg.minAmount, currency) : "";
-  return {
-    enabled: !!cfg.enabled,
-    mode,
-    amounts,
-    minAmount,
-    currency,
-    label: cfg.label || "",
-  };
-}
-
-function blankTier(currency = "EUR", indexHint = 1): DraftTier {
-  return {
-    localId: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `local-${Math.random().toString(36).slice(2)}`,
-    name: indexHint === 1 ? "Standard" : `Tier ${indexHint}`,
-    description: "",
-    price: "",
-    currency,
-    capacity: "",
-    hasForm: false,
-    formFieldCount: 0,
-    salesCount: 0,
-    priceMode: "fixed",
-    pwywMin: "",
-    installmentEnabled: false,
-    installmentTotal: "",
-    installmentCount: "",
-    installmentInterval: "1",
-    expanded: true,
-  };
-}
+// Currency table, currency conversion helpers, blank-row builders, and
+// the Tier / DraftTier / DonationDraft shapes live in
+// ./PriceEditModal/types.ts + ./PriceEditModal/helpers.ts. Imported
+// above. The standalone helper tests exercise them in isolation —
+// see src/__tests__/PriceEditModal.helpers.test.ts.
 
 export interface PriceEditModalProps {
   event: any;
@@ -202,11 +80,12 @@ export interface PriceEditModalProps {
   onSaved: () => void;
   showToast: (msg: string) => void;
   /**
-   * Optional. Called when the host clicks "Edit registration form" on a
-   * tier. Each consumer app has a different URL pattern for the form
-   * editor (admin uses a query param; community-app uses a sub-route),
-   * so the navigation is injected. If omitted, the button toasts that
-   * form editing is unavailable in this surface.
+   * @deprecated As of slice 6 the form builder is inlined into the
+   * EditHub's Form step (see ./PriceEditModal/steps/FormStep.tsx). This
+   * prop is retained for backwards compatibility with admin/community-
+   * app call sites that still pass it; the value is ignored. Phase C
+   * (admin SHA bump) deletes the standalone /form pages and removes
+   * this prop from the call sites entirely.
    */
   onOpenTierForm?: (tierId: string) => void;
   /**
@@ -223,13 +102,7 @@ export interface PriceEditModalProps {
   showMemberPricing?: boolean;
 }
 
-// Snapshot of an existing tier captured at load time. Used to decide
-// whether the host changed something attendees should be notified about
-// (name or price). New tiers — and changes to non-material fields like
-// description or capacity — don't enter this map.
-type OriginalTierSnapshot = { name: string; price: string; currency: string };
-
-export function PriceEditModal({ event, communityTag, onClose, onSaved, showToast, onOpenTierForm, showMemberPricing }: PriceEditModalProps) {
+export function PriceEditModal({ event, communityTag, onClose, onSaved, showToast, showMemberPricing }: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   const stripe = useStripeStatus(communityTag);
@@ -248,6 +121,24 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   // PUT when nothing changed.
   const [donation, setDonation] = useState<DonationDraft>(() => loadDonationFromEvent(event));
   const [donationDirty, setDonationDirty] = useState(false);
+  // Imperative refs to each mounted MemberPricingSection (keyed by tier
+  // id — only saved tiers mount the section). The global save() walks
+  // these after tier writes succeed so member-pricing overrides commit
+  // under the same Save button. Replaces the nested per-section Save
+  // button the UX redesign flagged as dual-Save confusion.
+  const memberPricingRefs = useRef<Map<string, MemberPricingSectionHandle | null>>(new Map());
+
+  // Stable ref-callback identity so React doesn't detach/reattach the
+  // MemberPricingSection handle on every render of the tier list. The
+  // ref map lives on a useRef cell so it's safe to read/write here
+  // without listing in the deps array.
+  const registerMemberPricingRef = useCallback(
+    (tierId: string, handle: MemberPricingSectionHandle | null) => {
+      if (handle) memberPricingRefs.current.set(tierId, handle);
+      else memberPricingRefs.current.delete(tierId);
+    },
+    [],
+  );
 
   function updateDonation(patch: Partial<DonationDraft>) {
     setDonationDirty(true);
@@ -350,15 +241,6 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
     });
   }
 
-  function openTierForm(tierId: string | undefined) {
-    if (!tierId) { showToast("Save the tier first to add a form"); return; }
-    if (onOpenTierForm) {
-      onOpenTierForm(tierId);
-    } else {
-      showToast("Form editing not available in this surface");
-    }
-  }
-
   // ─── Drag-to-reorder (dnd-kit) ────────────────────────────────
   // PointerSensor with a small distance so a click on the drag handle still
   // works as a click (e.g. accidental presses don't immediately drag).
@@ -415,32 +297,16 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   }
 
   const visible = drafts.map((t, idx) => ({ ...t, _idx: idx })).filter(t => !t.deleted);
-  const hasPaid = visible.some(t => parseFloat(t.price || "0") > 0);
+  const hasPaid = hasPaidTier(drafts);
 
   if (!loading && stripe.loading === false && !stripe.chargesEnabled && hasPaid) {
     return <StripeRequiredWarning communityTag={communityTag} onClose={onClose} />;
   }
 
-  // Returns the list of existing tiers (those with an `id`) whose name or
-  // price changed materially compared to what was loaded. New, deleted,
-  // and unchanged tiers are excluded — those don't trigger an attendee
-  // email regardless of `notifyAttendees`.
-  function tiersWithMaterialChanges(): DraftTier[] {
-    return drafts.filter(t => {
-      if (!t.id || t.deleted) return false;
-      const orig = originalTiers.get(t.id);
-      if (!orig) return false;
-      const nameChanged = (orig.name || "").trim() !== (t.name || "").trim();
-      const priceChanged = (orig.price || "") !== (t.price || "")
-        || (orig.currency || "") !== (t.currency || "");
-      return nameChanged || priceChanged;
-    });
-  }
-
   async function onSaveClicked() {
     // If there's at least one existing tier with a material change, ask
     // the host whether to notify enrolled attendees. Otherwise just save.
-    if (tiersWithMaterialChanges().length > 0) {
+    if (findTiersWithMaterialChanges(drafts, originalTiers).length > 0) {
       setConfirmState("options");
       return;
     }
@@ -463,54 +329,17 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   async function save(notifyAttendees: boolean = false, opts: { suppressFinalToast?: boolean } = {}) {
     setSaving(true);
     try {
-      // Validate tiers
+      // Validate tiers — pure helper returns the first failure message,
+      // or null when the draft is valid. Three-or-none installment rules
+      // + pwyw min bounds live in helpers.ts so they're test-covered in
+      // isolation (PriceEditModal.helpers.test.ts).
       for (const t of drafts.filter(x => !x.deleted)) {
-        if (!t.name.trim()) throw new Error("Tier name is required");
-        if (t.price === "" || isNaN(parseFloat(t.price))) throw new Error(`Price required for "${t.name}"`);
-        if (t.priceMode === "pwyw" && t.pwywMin.trim()) {
-          const min = parseFloat(t.pwywMin);
-          if (isNaN(min) || min < 0) throw new Error(`Minimum amount for "${t.name}" must be a non-negative number.`);
-        }
-        // Installment plan — three-or-none + same range bounds as the
-        // backend validator (totalPrice > 0, count >= 2, interval >= 1).
-        // Catching it client-side gives the host an inline message
-        // instead of a generic 400 toast.
-        if (t.installmentEnabled) {
-          const total = parseFloat(t.installmentTotal);
-          const count = parseInt(t.installmentCount, 10);
-          const interval = parseInt(t.installmentInterval, 10);
-          if (isNaN(total) || total <= 0) {
-            throw new Error(`Installment total for "${t.name}" must be a positive number.`);
-          }
-          if (isNaN(count) || count < 2) {
-            throw new Error(`Installment count for "${t.name}" must be at least 2.`);
-          }
-          if (isNaN(interval) || interval < 1) {
-            throw new Error(`Installment interval for "${t.name}" must be at least 1 month.`);
-          }
-        }
+        const err = validateTier(t);
+        if (err) throw new Error(err);
       }
 
-      // Validate donation config (when enabled)
-      if (donation.enabled) {
-        if (donation.mode === "fixed") {
-          // Reject blank-or-zero rows up front so the host sees the error
-          // here rather than getting a silent "kept the valid ones" save.
-          const trimmed = donation.amounts.map(a => a.trim());
-          const hasBlank = trimmed.some(a => a === "");
-          if (hasBlank) throw new Error("Fill in or remove blank donation amounts.");
-          const invalid = trimmed.find(a => {
-            const n = parseFloat(a);
-            return isNaN(n) || n <= 0;
-          });
-          if (invalid !== undefined) throw new Error(`Donation amount "${invalid}" must be a positive number.`);
-          if (trimmed.length === 0) throw new Error("At least one donation amount is required when fixed mode is enabled.");
-        }
-        if (donation.mode === "pwyw" && donation.minAmount.trim()) {
-          const n = parseFloat(donation.minAmount);
-          if (isNaN(n) || n < 0) throw new Error("Minimum donation must be a non-negative number.");
-        }
-      }
+      const donationErr = validateDonation(donation);
+      if (donationErr) throw new Error(donationErr);
 
       // Apply: tier deletes, updates, creates. The notify-attendees flag is
       // only relevant on PUT updates of existing tiers (the only path the
@@ -520,21 +349,36 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "DELETE", headers: authHeaders() });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to delete "${t.name}"`); }
         } else if (t.id) {
-          const body = buildBody(t, { notifyAttendees });
+          const body = buildTierBody(t, { notifyAttendees });
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body) });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to update "${t.name}"`); }
         } else if (!t.deleted) {
-          const body = buildBody(t);
+          const body = buildTierBody(t);
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to create "${t.name}"`); }
         }
       }
 
-      // Persist donation sidecar config (separate API call — independent of tiers)
+      // Commit member-pricing overrides via the imperative refs the
+      // tier cards register on mount. Each mounted section writes its
+      // own dirty rows; the parent never threads the override payloads
+      // through the tier save loop (the backend exposes them as a
+      // separate sub-resource). Done AFTER tier writes so brand-new
+      // tiers — which can't have overrides until their POST returns a
+      // tier id — aren't a concern (the section unmounts/remounts on
+      // re-fetch). Failures bubble up into the same catch as tier
+      // failures, surfacing the same toast / confirm-state-machine
+      // error path.
+      for (const [, handle] of memberPricingRefs.current) {
+        if (handle && handle.isDirty()) {
+          await handle.commit();
+        }
+      }
+
+      // Persist donation sidecar config (separate API call — independent of tiers).
+      // PUT receives null when disabled so the backend clears server state.
       if (donationDirty) {
-        const donationBody = donation.enabled
-          ? buildDonationBody()
-          : null;
+        const donationBody = buildDonationBody(donation, drafts[0]?.currency || "EUR");
         const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/donations`, {
           method: "PUT",
           headers: jsonHeaders(),
@@ -560,78 +404,6 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
     finally { setSaving(false); }
   }
 
-  function buildBody(t: DraftTier, extras: { notifyAttendees?: boolean } = {}): Record<string, unknown> {
-    // When a tier already has paid attendees, price + currency are locked
-    // server-side. Skip them client-side too so users (and DevTools) can't
-    // bounce off a 400. Capacity is still sent (the backend enforces a
-    // floor of salesCount). Brand-new tiers (no id) always send everything.
-    const locked = !!t.id && t.salesCount > 0;
-    const pwywMinSmallest = t.priceMode === "pwyw" && t.pwywMin.trim()
-      ? toSmallestUnit(parseFloat(t.pwywMin), t.currency)
-      : null;
-    // Installment fields — three-or-none. Send the trio (smallest unit
-     // for total + ints for count/interval) when enabled, all-null when
-     // disabled. Locked once sales exist; skip the keys so the existing
-     // lock-when-sold guard doesn't 400 a no-op save.
-    const installmentBody = locked
-      ? {}
-      : t.installmentEnabled
-        ? {
-            installmentTotalPrice: toSmallestUnit(parseFloat(t.installmentTotal), t.currency),
-            installmentCount: parseInt(t.installmentCount, 10),
-            installmentIntervalMonths: parseInt(t.installmentInterval, 10),
-          }
-        : {
-            installmentTotalPrice: null,
-            installmentCount: null,
-            installmentIntervalMonths: null,
-          };
-    return {
-      name: t.name.trim(),
-      description: t.description.trim() || null,
-      ...(locked ? {} : { price: parseFloat(t.price), currency: t.currency }),
-      capacity: t.capacity ? parseInt(t.capacity, 10) : null,
-      // priceMode is locked server-side once sales exist (changing fixed↔pwyw
-      // would retroactively reinterpret what buyers paid). Skip on locked
-      // tiers so the existing 400 doesn't bounce a no-op save.
-      ...(locked ? {} : { priceMode: t.priceMode, pwywMinAmount: pwywMinSmallest }),
-      ...installmentBody,
-      // isRecurring/recurringInterval are intentionally NOT sent for events.
-      // Marketplace products handle recurring; events do not.
-      // Only meaningful for unsaved drafts created via "Duplicate" — the
-      // backend clones the source tier's registration form onto this new
-      // tier in the same transaction.
-      ...(t.sourceTierId && !t.id ? { copyFormFromTierId: t.sourceTierId } : {}),
-      // Only relevant on PUT update — the backend ignores it on POST.
-      // When true, attendees enrolled in this tier receive an "event
-      // updated" email listing the changed name and/or price.
-      ...(extras.notifyAttendees ? { notifyAttendees: true } : {}),
-    };
-  }
-
-  function buildDonationBody(): Record<string, unknown> {
-    const currency = donation.currency || drafts[0]?.currency || "EUR";
-    const base: Record<string, unknown> = {
-      enabled: donation.enabled,
-      mode: donation.mode,
-      currency,
-    };
-    if (donation.mode === "fixed") {
-      const amounts = donation.amounts
-        .map(a => parseFloat(a))
-        .filter(a => !isNaN(a) && a > 0)
-        .map(a => toSmallestUnit(a, currency));
-      base.amounts = amounts;
-    } else if (donation.mode === "pwyw") {
-      const minRaw = donation.minAmount ? parseFloat(donation.minAmount) : null;
-      if (minRaw != null && !isNaN(minRaw)) {
-        base.minAmount = toSmallestUnit(minRaw, currency);
-      }
-    }
-    if (donation.label.trim()) base.label = donation.label.trim();
-    return base;
-  }
-
   const isEmpty = drafts.every(t => t.deleted) || (drafts.length === 1 && !drafts[0].id && !drafts[0].price);
   const title = isEmpty ? "Add pricing" : visible.length === 1 ? "Edit pricing" : "Pricing tiers";
 
@@ -649,7 +421,12 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
       {loading ? (
         <div className="py-12 text-center text-[13px] text-zinc-400">Loading…</div>
       ) : (
-        <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1 -mr-1">
+        // Scroll is owned by the outer ModalShell now (the shared shell's
+        // body sets overflow-y-auto + a fixed max-height). The old inner
+        // `max-h-[68vh] overflow-y-auto` here was a pre-shell stopgap that
+        // capped the tier list to ~68vh inside a 90vh shell — wasting ~22vh
+        // and creating nested scroll containers. Just space the rows now.
+        <div className="space-y-3">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={visible.map(t => t.localId)} strategy={verticalListSortingStrategy}>
               {visible.map(t => (
@@ -663,9 +440,9 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
                   onRemove={() => removeTier(t._idx)}
                   onDuplicate={() => duplicateTier(t._idx)}
                   onToggle={() => toggleExpand(t._idx)}
-                  onOpenForm={() => openTierForm(t.id)}
                   showMemberPricing={!!showMemberPricing}
                   showToast={showToast}
+                  registerMemberPricingRef={registerMemberPricingRef}
                 />
               ))}
             </SortableContext>
@@ -733,523 +510,5 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
       document.body,
     )}
     </>
-  );
-}
-
-// ─── Sortable wrapper (dnd-kit) ──────────────────────────────────────────
-
-/**
- * Adapter that gives TierCard the dnd-kit hooks. Keeps TierCard itself
- * presentation-only — it only knows it has a drag handle to render.
- */
-function SortableTierCard(props: TierCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.t.localId });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.6 : 1,
-    zIndex: isDragging ? 10 : undefined,
-    position: "relative",
-  };
-  return (
-    <div ref={setNodeRef} style={style}>
-      <TierCard {...props} dragAttributes={attributes} dragListeners={listeners} />
-    </div>
-  );
-}
-
-// ─── Per-tier card ───────────────────────────────────────────────────────
-
-interface TierCardProps {
-  t: DraftTier & { _idx: number };
-  communityTag: string;
-  canDelete: boolean;
-  canDuplicate: boolean;
-  onUpdate: (patch: Partial<DraftTier>) => void;
-  onRemove: () => void;
-  onDuplicate: () => void;
-  onToggle: () => void;
-  onOpenForm: () => void;
-  /** Render MemberPricingSection inside the expanded body. Community-
-   *  only — admin sets true, community-app /manage omits. */
-  showMemberPricing: boolean;
-  showToast: (msg: string) => void;
-  dragAttributes?: any;
-  dragListeners?: any;
-}
-
-function TierCard({ t, communityTag, canDelete, canDuplicate, onUpdate, onRemove, onDuplicate, onToggle, onOpenForm, showMemberPricing, showToast, dragAttributes, dragListeners }: TierCardProps) {
-  const sym = getSymbol(t.currency);
-  const locked = !!t.id && t.salesCount > 0;
-  const capCap = t.capacity ? parseInt(t.capacity, 10) : null;
-  const soldLabel = locked
-    ? capCap != null
-      ? `${t.salesCount}/${capCap}`
-      : `${t.salesCount} sold`
-    : null;
-  return (
-    <div className="group rounded-xl border border-zinc-200 bg-white overflow-hidden">
-      {/* Compact header row — name on the left, price summary on the right, expand chevron + delete */}
-      <div className="flex items-center gap-2 px-4 py-3">
-        {/* Drag handle — appears on hover. Skip when there's nothing else to drag against. */}
-        {dragListeners && (
-          <button
-            type="button"
-            aria-label="Drag to reorder"
-            className="p-1 -ml-2 -my-1 text-zinc-300 hover:text-zinc-600 cursor-grab active:cursor-grabbing shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            {...dragAttributes}
-            {...dragListeners}
-            onClick={e => e.preventDefault()}
-          >
-            <GripVertical className="w-4 h-4" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={t.expanded ? "Collapse" : "Expand"}
-          className="p-1 -m-1 text-zinc-400 hover:text-zinc-700 cursor-pointer transition-colors shrink-0"
-        >
-          <ChevronDown className={`w-4 h-4 transition-transform ${t.expanded ? "" : "-rotate-90"}`} />
-        </button>
-        <input
-          type="text"
-          value={t.name}
-          onChange={e => onUpdate({ name: e.target.value })}
-          placeholder="Tier name"
-          className="flex-1 min-w-0 px-0 py-1 text-[14px] font-semibold text-zinc-900 placeholder:text-zinc-400 bg-transparent border-0 focus:outline-none focus:ring-0"
-        />
-        {/* Badges */}
-        {t.hasForm && (
-          <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">Form</span>
-        )}
-        {t.priceMode === "pwyw" && (
-          <span className="text-[10px] font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full shrink-0">PWYW</span>
-        )}
-        {/* Compact summary when collapsed: price + sold count if any */}
-        {!t.expanded && (
-          <span className="flex items-center gap-2 shrink-0">
-            {soldLabel && (
-              <span className="text-[11px] font-medium text-zinc-500 tabular-nums">{soldLabel}</span>
-            )}
-            <span className="text-[13px] font-semibold text-zinc-700 tabular-nums">
-              {t.price && parseFloat(t.price) > 0 ? `${sym}${t.price}` : "Free"}
-            </span>
-          </span>
-        )}
-        {canDuplicate && (
-          <button
-            onClick={onDuplicate}
-            className="p-1.5 text-zinc-400 hover:text-zinc-700 cursor-pointer rounded-md hover:bg-zinc-100 transition-colors shrink-0"
-            title="Duplicate tier"
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {canDelete && (
-          <button
-            onClick={onRemove}
-            className="p-1.5 text-zinc-400 hover:text-red-500 cursor-pointer rounded-md hover:bg-red-50 transition-colors shrink-0"
-            title="Remove tier"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-
-      {/* Expanded body — wrapped in Collapse for smooth height-auto animation */}
-      <Collapse open={t.expanded}>
-        <div className="border-t border-zinc-100">
-          {/* Lock banner — shown when paid attendees exist on this tier */}
-          {locked && (
-            <div className="flex items-start gap-2 px-4 py-2.5 bg-amber-50/70 border-b border-amber-100">
-              <Lock className="w-3.5 h-3.5 mt-0.5 text-amber-600 shrink-0" />
-              <p className="text-[12px] text-amber-700">
-                <span className="font-medium">{t.salesCount} ticket{t.salesCount !== 1 ? "s" : ""} sold</span>
-                {" — price and currency are locked. Refund all sales first to change them."}
-              </p>
-            </div>
-          )}
-
-          {/* Description */}
-          <div className="px-4 pt-3 pb-2">
-            <Eyebrow>Description</Eyebrow>
-            <input
-              type="text"
-              value={t.description}
-              onChange={e => onUpdate({ description: e.target.value })}
-              placeholder="What's included (optional)"
-              className="w-full mt-1 px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
-            />
-          </div>
-
-          {/* Pricing model: fixed vs pay-what-you-want. PWYW means the tier's
-              listed price is a placeholder — buyer chooses an amount above
-              the optional minimum at checkout. Locked once paid attendees
-              exist (server-side too). */}
-          <div className="px-4 pt-3 pb-1">
-            <Eyebrow>Pricing model</Eyebrow>
-            <div className="grid grid-cols-2 gap-2 mt-1.5">
-              <button
-                type="button"
-                onClick={() => !locked && onUpdate({ priceMode: "fixed" })}
-                disabled={locked}
-                className={`px-3 py-2 text-[13px] rounded-lg border transition-colors ${t.priceMode === "fixed" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"} ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-              >Fixed price</button>
-              <button
-                type="button"
-                onClick={() => !locked && onUpdate({ priceMode: "pwyw" })}
-                disabled={locked}
-                className={`px-3 py-2 text-[13px] rounded-lg border transition-colors ${t.priceMode === "pwyw" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"} ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-              >Pay what you want</button>
-            </div>
-            {t.priceMode === "pwyw" && (
-              <p className="text-[11px] text-zinc-500 mt-1.5">
-                Buyer chooses the amount at checkout. The price below acts as a suggested default.
-              </p>
-            )}
-          </div>
-
-          {/* Price / Currency / Capacity */}
-          <div className="grid grid-cols-[1fr_110px_100px] gap-2.5 px-4 py-2">
-            <div>
-              <Eyebrow>{t.priceMode === "pwyw" ? "Suggested price" : "Price"}</Eyebrow>
-              <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-zinc-400 pointer-events-none">{sym}</span>
-                <input
-                  type="number" min="0" step="0.01" value={t.price}
-                  onChange={e => onUpdate({ price: e.target.value })}
-                  placeholder="0.00"
-                  disabled={locked}
-                  title={locked ? "Refund all sales first to change price" : undefined}
-                  className={`w-full pl-7 pr-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
-                />
-              </div>
-            </div>
-            <div>
-              <Eyebrow>Currency</Eyebrow>
-              <Select value={t.currency} onValueChange={v => onUpdate({ currency: v })} disabled={locked}>
-                <SelectTrigger className={`h-[38px] mt-1 text-[13px] ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : ""}`}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_CURRENCIES.map(c => (
-                    <SelectItem key={c.code} value={c.code}>
-                      <span className="text-zinc-500 mr-1">{c.symbol}</span>{c.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Eyebrow>Capacity</Eyebrow>
-              <input
-                type="number" min={locked ? t.salesCount : 0} step="1" value={t.capacity}
-                onChange={e => onUpdate({ capacity: e.target.value })}
-                placeholder="∞"
-                className="w-full mt-1 px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              {locked && (
-                <p className="text-[10px] text-zinc-400 mt-1">Min {t.salesCount} (already sold)</p>
-              )}
-            </div>
-          </div>
-
-          {/* PWYW minimum (only when priceMode is pwyw). Optional. */}
-          <Collapse open={t.priceMode === "pwyw"}>
-            <div className="px-4 pb-2">
-              <Eyebrow>Minimum amount (optional)</Eyebrow>
-              <div className="relative mt-1 max-w-[220px]">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-zinc-400 pointer-events-none">{sym}</span>
-                <input
-                  type="number" min="0" step="0.01" value={t.pwywMin}
-                  onChange={e => onUpdate({ pwywMin: e.target.value })}
-                  placeholder="No minimum"
-                  disabled={locked}
-                  className={`w-full pl-7 pr-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
-                />
-              </div>
-            </div>
-          </Collapse>
-
-          {/* Installment plan — opt-in toggle + 3 inputs (events skip
-              accessDurationMonths; event date bounds access). Backend
-              enforces three-or-none + range bounds; the same checks
-              run client-side in save() so the host sees inline errors.
-              Locked once paid attendees exist — server-side too. */}
-          <div className="px-4 pt-3 pb-2 border-t border-zinc-100">
-            <label className={`flex items-center gap-2 ${locked ? "cursor-not-allowed" : "cursor-pointer"}`}>
-              <input
-                type="checkbox"
-                checked={t.installmentEnabled}
-                disabled={locked}
-                onChange={e => onUpdate({ installmentEnabled: e.target.checked })}
-                className="w-3.5 h-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400 disabled:cursor-not-allowed"
-              />
-              <span className={`text-[12px] font-medium ${locked ? "text-zinc-400" : "text-zinc-700"}`}>
-                Offer an installment plan
-              </span>
-            </label>
-            <p className="text-[11px] text-zinc-500 mt-1">
-              Let buyers pay this tier in equal monthly charges instead of one upfront payment.
-            </p>
-            <Collapse open={t.installmentEnabled}>
-              <div className="grid grid-cols-3 gap-2.5 mt-2">
-                <div>
-                  <Eyebrow>Total ({sym})</Eyebrow>
-                  <input
-                    type="number" min="0" step="0.01" value={t.installmentTotal}
-                    onChange={e => onUpdate({ installmentTotal: e.target.value })}
-                    placeholder="300"
-                    disabled={locked}
-                    className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
-                  />
-                </div>
-                <div>
-                  <Eyebrow>Charges</Eyebrow>
-                  <input
-                    type="number" min="2" step="1" value={t.installmentCount}
-                    onChange={e => onUpdate({ installmentCount: e.target.value })}
-                    placeholder="3"
-                    disabled={locked}
-                    className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
-                  />
-                </div>
-                <div>
-                  <Eyebrow>Every (months)</Eyebrow>
-                  <input
-                    type="number" min="1" step="1" value={t.installmentInterval}
-                    onChange={e => onUpdate({ installmentInterval: e.target.value })}
-                    placeholder="1"
-                    disabled={locked}
-                    className={`w-full mt-1 px-3 py-2 text-[13px] border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : "text-zinc-900"}`}
-                  />
-                </div>
-              </div>
-              {t.installmentEnabled
-                && t.installmentTotal
-                && t.installmentCount
-                && parseInt(t.installmentCount, 10) >= 2 && (
-                <p className="text-[11px] text-zinc-500 mt-1.5">
-                  Buyer pays {sym}{(parseFloat(t.installmentTotal) / parseInt(t.installmentCount, 10)).toFixed(2)} every {t.installmentInterval || "1"} month{(t.installmentInterval || "1") !== "1" ? "s" : ""} for {t.installmentCount} charges.
-                </p>
-              )}
-            </Collapse>
-            {locked && t.installmentEnabled && (
-              <p className="text-[10px] text-amber-600 mt-1">
-                Installment plan is locked while tickets are sold. Refund all sales first to change.
-              </p>
-            )}
-          </div>
-
-          {/* Member pricing — community-only, saved-tiers only. The
-              section fetches its own data + commits per-row on its own
-              Save button, so it doesn't thread through the outer modal
-              save loop. Unsaved drafts (no `t.id`) skip it entirely
-              since the backend needs a real tier id. */}
-          {showMemberPricing && t.id && (
-            <MemberPricingSection
-              communityTag={communityTag}
-              tierId={t.id}
-              currencyCode={t.currency}
-              currencySymbol={sym}
-              showToast={showToast}
-            />
-          )}
-
-          {/* Form footer */}
-          <button
-            type="button"
-            onClick={onOpenForm}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 border-t border-zinc-100 bg-zinc-50/60 text-left hover:bg-zinc-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!t.id}
-            title={!t.id ? "Save this tier first to add a form" : undefined}
-          >
-            <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-medium text-zinc-700">
-                Registration form
-                {t.hasForm && (
-                  <span className="ml-1.5 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                    {t.formFieldCount} field{t.formFieldCount !== 1 ? "s" : ""} · Linked
-                  </span>
-                )}
-                {!t.id && t.sourceTierId && (
-                  <span className="ml-1.5 text-[10px] font-semibold text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Copying from {t.sourceTierName || "source"}</span>
-                )}
-              </p>
-              <p className="text-[11px] text-zinc-400 truncate">
-                {!t.id && t.sourceTierId
-                  ? `Form will copy from "${t.sourceTierName || "source tier"}" when you save`
-                  : t.hasForm
-                    ? "Edit the questions attendees fill out at this tier"
-                    : t.id
-                      ? "Add custom questions for attendees at this tier"
-                      : "Save tier to add a form"}
-              </p>
-            </div>
-            <span className="text-[11px] font-medium text-zinc-500 shrink-0">{t.hasForm ? "Manage →" : "Add →"}</span>
-          </button>
-        </div>
-      </Collapse>
-    </div>
-  );
-}
-
-// ─── Small UI primitives used inside the tier card ──────────────────────
-
-function Eyebrow({ children }: { children: React.ReactNode }) {
-  return <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block">{children}</label>;
-}
-
-/**
- * Collapse — animates height-auto reveals using the grid-template-rows
- * 0fr/1fr trick. No measurement, no JS, no dependency. The inner div has
- * overflow-hidden so children clip during the transition.
- *
- * Usage: <Collapse open={someBool}>...</Collapse>
- */
-function Collapse({ open, children }: { open: boolean; children: React.ReactNode }) {
-  return (
-    <div
-      className="grid transition-[grid-template-rows] duration-200 ease-out"
-      style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
-      aria-hidden={!open}
-    >
-      <div className="overflow-hidden">{children}</div>
-    </div>
-  );
-}
-
-// ─── Donations section ───────────────────────────────────────────────
-
-interface DonationsSectionProps {
-  donation: DonationDraft;
-  onUpdate: (patch: Partial<DonationDraft>) => void;
-  defaultCurrency: string;
-}
-
-/**
- * Sidecar donation config (saved separately from tiers via PUT /donations).
- * Two modes:
- *   - Suggested amounts: chip list. Buyer picks one at checkout.
- *   - Pay-what-you-want (PWYW): buyer enters any amount; optional minimum.
- * Currency follows the tier currency by default — if it diverges, hosts
- * can override. (Currency override is intentionally simple here; deeper
- * cross-currency donation logic can come later.)
- */
-function DonationsSection({ donation, onUpdate, defaultCurrency }: DonationsSectionProps) {
-  const sym = getSymbol(donation.currency || defaultCurrency);
-
-  function addAmount() {
-    onUpdate({ amounts: [...donation.amounts, ""] });
-  }
-  function updateAmount(idx: number, value: string) {
-    const next = [...donation.amounts];
-    next[idx] = value;
-    onUpdate({ amounts: next });
-  }
-  function removeAmount(idx: number) {
-    onUpdate({ amounts: donation.amounts.filter((_, i) => i !== idx) });
-  }
-
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-      <div className="px-4 py-3 flex items-center gap-3 border-b border-zinc-100">
-        <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-semibold text-zinc-900">Donations</p>
-          <p className="text-[11px] text-zinc-500 mt-0.5">
-            Optional add-on at checkout. Independent of tiers — same prompt regardless of which tier the buyer picks.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => onUpdate({ enabled: !donation.enabled })}
-          className={`relative shrink-0 rounded-full cursor-pointer transition-colors duration-200 ease-out ${donation.enabled ? "bg-zinc-900" : "bg-zinc-200"}`}
-          style={{ width: 38, height: 22 }}
-          aria-pressed={donation.enabled}
-          aria-label="Toggle donations"
-        >
-          <span
-            className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200 ease-out"
-            style={{ transform: donation.enabled ? "translateX(18px)" : "translateX(2px)" }}
-          />
-        </button>
-      </div>
-
-      <Collapse open={donation.enabled}>
-        <div className="px-4 py-3 space-y-3">
-          {/* Mode */}
-          <div>
-            <Eyebrow>Mode</Eyebrow>
-            <div className="grid grid-cols-2 gap-2 mt-1.5">
-              <button
-                type="button"
-                onClick={() => onUpdate({ mode: "fixed" })}
-                className={`px-3 py-2 text-[13px] rounded-lg border cursor-pointer transition-colors ${donation.mode === "fixed" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
-              >Suggested amounts</button>
-              <button
-                type="button"
-                onClick={() => onUpdate({ mode: "pwyw" })}
-                className={`px-3 py-2 text-[13px] rounded-lg border cursor-pointer transition-colors ${donation.mode === "pwyw" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
-              >Pay what you want</button>
-            </div>
-          </div>
-
-          {/* Fixed: chip list */}
-          <Collapse open={donation.mode === "fixed"}>
-            <div>
-              <Eyebrow>Suggested amounts</Eyebrow>
-              <div className="flex flex-wrap gap-2 mt-1.5">
-                {donation.amounts.map((a, i) => (
-                  <div key={i} className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[12px] text-zinc-400 pointer-events-none">{sym}</span>
-                    <input
-                      type="number" min="0" step="0.01" value={a}
-                      onChange={e => updateAmount(i, e.target.value)}
-                      placeholder="10"
-                      className="w-[88px] pl-6 pr-7 py-1.5 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    {donation.amounts.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeAmount(i)}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-zinc-300 hover:text-red-500 cursor-pointer"
-                        aria-label="Remove amount"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {donation.amounts.length < 8 && (
-                  <button
-                    type="button"
-                    onClick={addAmount}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 border border-dashed border-zinc-300 rounded-lg hover:border-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> Add
-                  </button>
-                )}
-              </div>
-            </div>
-          </Collapse>
-
-          {/* PWYW: optional minimum */}
-          <Collapse open={donation.mode === "pwyw"}>
-            <div>
-              <Eyebrow>Minimum (optional)</Eyebrow>
-              <div className="relative max-w-[220px] mt-1.5">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-zinc-400 pointer-events-none">{sym}</span>
-                <input
-                  type="number" min="0" step="0.01" value={donation.minAmount}
-                  onChange={e => onUpdate({ minAmount: e.target.value })}
-                  placeholder="No minimum"
-                  className="w-full pl-7 pr-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-              </div>
-            </div>
-          </Collapse>
-        </div>
-      </Collapse>
-    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
 
@@ -24,9 +24,12 @@ import { useEventManagementConfig, useJsonHeaders } from "../config";
  * edits community-owned items today), community-app `/manage` passes
  * false / omits (user-owned items don't get the section).
  *
- * Self-contained: this component manages its own dirty state + has
- * its own save button. The parent modal's Save button doesn't touch
- * member-pricing rows. Keeps the threading shallow.
+ * **Commit model** — Phase A1/PR2 of the redesign:
+ * This component no longer renders its own Save button. Instead the
+ * parent modal holds a ref per mounted section and invokes the
+ * `commit()` imperative API during its single modal-level save flow.
+ * Eliminates the dual-Save UX issue (modal-level Save + per-section
+ * Save) the user flagged in the redesign feedback.
  */
 
 interface CommunitySegment {
@@ -71,6 +74,17 @@ export interface MemberPricingSectionProps {
   showToast: (msg: string) => void;
 }
 
+export interface MemberPricingSectionHandle {
+  /** Called by the parent modal during its global Save. Throws on
+   *  validation or API failure so the parent can surface the error in
+   *  its own confirm-state machine. Resolves once all dirty rows have
+   *  been written and local "initial" baselines reset. */
+  commit(): Promise<void>;
+  /** Whether any row diverges from its initial snapshot. Lets the parent
+   *  decide whether to skip the commit() round-trip entirely. */
+  isDirty(): boolean;
+}
+
 function toSmallestUnit(majorAmount: number, currency: string): number {
   return currency === "JPY" ? Math.round(majorAmount) : Math.round(majorAmount * 100);
 }
@@ -80,13 +94,35 @@ function fromSmallestUnit(amount: number | null | undefined, currency: string): 
   return String(currency === "JPY" ? amount : amount / 100);
 }
 
-export function MemberPricingSection({
-  communityTag, tierId, currencySymbol, currencyCode, showToast,
-}: MemberPricingSectionProps) {
+function rowIsDirty(r: MemberPricingRow): boolean {
+  if (!r.initial) return r.enabled;
+  return r.enabled !== r.initial.enabled
+    || r.mode !== r.initial.mode
+    || r.value.trim() !== r.initial.value.trim()
+    || r.priority.trim() !== r.initial.priority.trim();
+}
+
+function validateRow(r: MemberPricingRow): string | null {
+  if (!r.enabled) return null;
+  if (r.mode === "FREE") return null;
+  const v = parseFloat(r.value);
+  if (isNaN(v) || v < 0) return `${r.segmentName}: value must be a non-negative number.`;
+  if (r.mode === "PERCENT_OFF" && (v < 1 || v > 100)) {
+    return `${r.segmentName}: percent off must be between 1 and 100.`;
+  }
+  return null;
+}
+
+export const MemberPricingSection = forwardRef<
+  MemberPricingSectionHandle,
+  MemberPricingSectionProps
+>(function MemberPricingSection(
+  { communityTag, tierId, currencySymbol, currencyCode },
+  ref,
+) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<MemberPricingRow[]>([]);
 
@@ -144,30 +180,13 @@ export function MemberPricingSection({
     setRows(rs => rs.map((r, i) => i === idx ? { ...r, ...patch } : r));
   }
 
-  function rowIsDirty(r: MemberPricingRow): boolean {
-    if (!r.initial) return r.enabled; // newly enabled
-    return r.enabled !== r.initial.enabled
-      || r.mode !== r.initial.mode
-      || r.value.trim() !== r.initial.value.trim()
-      || r.priority.trim() !== r.initial.priority.trim();
-  }
-
-  function validateRow(r: MemberPricingRow): string | null {
-    if (!r.enabled) return null;
-    if (r.mode === "FREE") return null;
-    const v = parseFloat(r.value);
-    if (isNaN(v) || v < 0) return `${r.segmentName}: value must be a non-negative number.`;
-    if (r.mode === "PERCENT_OFF" && (v < 1 || v > 100)) {
-      return `${r.segmentName}: percent off must be between 1 and 100.`;
-    }
-    return null;
-  }
-
-  async function save() {
-    setSaving(true);
-    setError(null);
-    try {
-      // Validate first so we don't get half a commit.
+  // Imperative API consumed by the parent modal's global Save handler.
+  // Reads the latest rows from a closure-stable ref so callers always
+  // see current state regardless of when they called commit().
+  useImperativeHandle(ref, () => ({
+    isDirty: () => rows.some(rowIsDirty),
+    commit: async () => {
+      setError(null);
       for (const r of rows) {
         const err = validateRow(r);
         if (err) throw new Error(err);
@@ -192,7 +211,7 @@ export function MemberPricingSection({
         // conversion: FLAT_OFF / FIXED_PRICE expect smallest unit,
         // PERCENT_OFF expects 1-100 (no conversion).
         if (r.enabled) {
-          let backendValue: number = 0;
+          let backendValue = 0;
           if (r.mode === "PERCENT_OFF") {
             backendValue = parseInt(r.value, 10);
           } else if (r.mode === "FLAT_OFF" || r.mode === "FIXED_PRICE") {
@@ -211,10 +230,6 @@ export function MemberPricingSection({
             const e = await res.json().catch(() => ({}));
             throw new Error(e.error || `Failed to save override for ${r.segmentName}`);
           }
-          // Stash returned id on the row so subsequent saves UPDATE
-          // the same row instead of upserting fresh.
-          const saved = await res.json().catch(() => null);
-          if (saved?.id) updateRow(rows.indexOf(r), { id: saved.id });
         }
       }
 
@@ -229,13 +244,12 @@ export function MemberPricingSection({
           id: r.id ?? r.initial?.id,
         },
       })));
-      showToast("Member pricing updated");
-    } catch (e: any) {
-      setError(e.message || "Failed to save member pricing");
-    } finally {
-      setSaving(false);
-    }
-  }
+    },
+  // The ref handle should re-bind whenever `rows` changes so commit()
+  // sees the latest draft state. authHeaders/jsonHeaders are stable
+  // closures from the config provider so excluding them is intentional.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [rows, apiBaseUrl, communityTag, tierId, currencyCode]);
 
   const dirtyCount = rows.filter(rowIsDirty).length;
 
@@ -267,15 +281,16 @@ export function MemberPricingSection({
             Discount this tier for buyers in specific community segments.
           </p>
         </div>
+        {/* Inline dirty indicator — replaces the old per-section Save
+            button. The parent modal's Save button commits all dirty
+            rows via the imperative ref API. */}
         {dirtyCount > 0 && (
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="text-[11px] font-semibold px-3 py-1.5 bg-zinc-900 text-white rounded-md hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          <span
+            className="text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"
+            title="Unsaved member-pricing changes — commit by clicking Save on the outer modal."
           >
-            {saving ? "Saving…" : `Save (${dirtyCount})`}
-          </button>
+            {dirtyCount} unsaved
+          </span>
         )}
       </div>
       {error && (
@@ -284,14 +299,27 @@ export function MemberPricingSection({
       <div className="divide-y divide-zinc-100 mt-2 -mx-4">
         {rows.map((r, idx) => (
           <div key={r.segmentId} className="px-4 py-2">
+            {/* The leftmost checkbox toggles whether THIS SEGMENT gets
+                an override (any override, regardless of mode). The
+                old label simply showed the segment name, which made
+                hosts read the row's selected mode (e.g. "FREE") as
+                the action — confusing because FREE means "override
+                price to zero", not "disable the override". The label
+                now explicitly names what the checkbox does. */}
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={r.enabled}
                 onChange={e => updateRow(idx, { enabled: e.target.checked })}
                 className="w-3.5 h-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
+                aria-label={`Offer member pricing for ${r.segmentName}`}
               />
               <span className="text-[12px] font-medium text-zinc-700">{r.segmentName}</span>
+              {!r.enabled && (
+                <span className="text-[10px] text-zinc-400 ml-auto">
+                  No override
+                </span>
+              )}
               {r.enabled && (
                 <span className="text-[10px] uppercase tracking-wide text-zinc-400 ml-auto">
                   {r.mode.replace(/_/g, " ").toLowerCase()}
@@ -303,9 +331,9 @@ export function MemberPricingSection({
                 <Select value={r.mode} onValueChange={v => updateRow(idx, { mode: v as Mode })}>
                   <SelectTrigger className="h-[30px] text-[12px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="FREE">Free</SelectItem>
-                    <SelectItem value="PERCENT_OFF">% off</SelectItem>
-                    <SelectItem value="FLAT_OFF">Flat off</SelectItem>
+                    <SelectItem value="FREE">Free for these members</SelectItem>
+                    <SelectItem value="PERCENT_OFF">% off list price</SelectItem>
+                    <SelectItem value="FLAT_OFF">Flat amount off</SelectItem>
                     <SelectItem value="FIXED_PRICE">Fixed price</SelectItem>
                   </SelectContent>
                 </Select>
@@ -319,14 +347,14 @@ export function MemberPricingSection({
                     `${currencySymbol}10`
                   }
                   disabled={r.mode === "FREE"}
-                  className="px-2.5 py-1.5 text-[12px] text-zinc-900 border border-zinc-200 rounded focus:outline-none focus:border-zinc-400 disabled:bg-zinc-50 disabled:text-zinc-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="px-3 py-2 text-[12px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 disabled:bg-zinc-50 disabled:text-zinc-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 <input
                   type="number" step="1" value={r.priority}
                   onChange={e => updateRow(idx, { priority: e.target.value })}
                   placeholder="0"
                   title="Higher priority wins when a buyer is in multiple matching segments"
-                  className="px-2.5 py-1.5 text-[12px] text-zinc-900 border border-zinc-200 rounded focus:outline-none focus:border-zinc-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="px-3 py-2 text-[12px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
             )}
@@ -335,4 +363,4 @@ export function MemberPricingSection({
       </div>
     </div>
   );
-}
+});
