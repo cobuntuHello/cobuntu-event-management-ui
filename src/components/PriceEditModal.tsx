@@ -24,6 +24,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { useEventManagementConfig, useJsonHeaders } from "../config";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
 import { MemberPricingSection, type MemberPricingSectionHandle } from "./MemberPricingSection";
+import {
+  SUPPORTED_CURRENCIES,
+  type DonationDraft,
+  type DraftTier,
+  type OriginalTierSnapshot,
+  type Tier,
+} from "./PriceEditModal/types";
+import {
+  blankDonation,
+  blankTier,
+  buildDonationBody,
+  buildTierBody,
+  findTiersWithMaterialChanges,
+  fromSmallestUnit,
+  getSymbol,
+  hasPaidTier,
+  isTierLocked,
+  loadDonationFromEvent,
+  toDisplay,
+  toSmallestUnit,
+  validateDonation,
+  validateTier,
+} from "./PriceEditModal/helpers";
 
 /**
  * Single source of truth for ticket-tier management on an event.
@@ -50,150 +73,11 @@ import { MemberPricingSection, type MemberPricingSectionHandle } from "./MemberP
  * recurring; events do not.
  */
 
-const SUPPORTED_CURRENCIES = [
-  { code: "EUR", name: "Euro", symbol: "€" },
-  { code: "USD", name: "US Dollar", symbol: "$" },
-  { code: "GBP", name: "British Pound", symbol: "£" },
-  { code: "BRL", name: "Brazilian Real", symbol: "R$" },
-  { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
-  { code: "CAD", name: "Canadian Dollar", symbol: "$" },
-  { code: "AUD", name: "Australian Dollar", symbol: "$" },
-  { code: "JPY", name: "Japanese Yen", symbol: "¥" },
-];
-
-function getSymbol(code: string) { return SUPPORTED_CURRENCIES.find(c => c.code === code)?.symbol || code; }
-function toDisplay(price: number, currency: string) { return currency === "JPY" ? price : price / 100; }
-function toSmallestUnit(majorAmount: number, currency: string): number {
-  return currency === "JPY" ? Math.round(majorAmount) : Math.round(majorAmount * 100);
-}
-function fromSmallestUnit(smallestAmount: number, currency: string): string {
-  if (smallestAmount == null) return "";
-  return String(currency === "JPY" ? smallestAmount : smallestAmount / 100);
-}
-
-interface Tier {
-  id: string;
-  name: string;
-  description: string | null;
-  capacity: number | null;
-  salesCount?: number;     // non-refunded sales — backend adds this to GET /tiers
-  priceMode?: "fixed" | "pwyw" | null;
-  pwywMinAmount?: number | null;
-  products: {
-    id: string;
-    price: number;
-    currency: string;
-    // Installment plan fields — backend returns them on every GET /tiers
-    // response since the member-pricing + installments umbrella shipped.
-    // Three-or-none: all three null = no plan offered; all three set =
-    // buyer can opt into "Pay €X total in N × monthly installments" at
-    // checkout. accessDurationMonths is intentionally absent (events
-    // bound access by event date).
-    installmentTotalPrice?: number | null;
-    installmentCount?: number | null;
-    installmentIntervalMonths?: number | null;
-  };
-}
-
-interface DraftTier {
-  localId: string;        // stable client-side key (drag id, react key) — survives reorders
-  id?: string;            // existing tier id (undefined = new)
-  name: string;
-  description: string;
-  price: string;
-  currency: string;
-  capacity: string;
-  hasForm: boolean;       // whether the saved tier already has a form attached
-  formFieldCount: number; // number of fields in the linked form (0 when not linked)
-  salesCount: number;     // non-refunded sales — drives sold display + lock UI
-  // Pricing model. 'fixed' = listed price is the price. 'pwyw' = listed
-  // price is ignored at checkout; buyer chooses an amount above pwywMin
-  // (display-unit, e.g. "10" = 10€). Used for sliding-scale workshops.
-  priceMode: "fixed" | "pwyw";
-  pwywMin: string;
-  // Installment plan. Enabled iff all three numeric values are non-empty
-  // valid numbers — the backend's three-or-none validator rejects
-  // partial config. Total + count + interval are display-unit (e.g.
-  // "300", "3", "1") so the UI is consistent with the price field
-  // above; they get converted to smallest unit + integers on save.
-  installmentEnabled: boolean;
-  installmentTotal: string;       // display unit (e.g. "300" = €300 total)
-  installmentCount: string;        // integer string (e.g. "3" = 3 charges)
-  installmentInterval: string;     // integer string (e.g. "1" = monthly)
-  expanded: boolean;
-  deleted?: boolean;
-  // When this draft was created via "Duplicate" of an existing tier, holds
-  // the source's tier id. The POST body sends it as copyFormFromTierId so
-  // the backend clones the source's registration form onto the new tier in
-  // the same transaction. Lives only on unsaved drafts (no id yet).
-  sourceTierId?: string;
-  sourceTierName?: string;
-}
-
-// Sidecar donation config — saved separately from tiers via PUT /donations.
-// Mirrors the shape stored in events.donationConfig + products.donationConfig.
-interface DonationDraft {
-  enabled: boolean;
-  mode: "fixed" | "pwyw";
-  // Display-unit amounts (e.g. 5, 10, 25 for euros). Converted to smallest
-  // unit on save.
-  amounts: string[];
-  // Display-unit floor for pwyw mode.
-  minAmount: string;
-  currency: string;
-  label: string;
-}
-
-function blankDonation(currency = "EUR"): DonationDraft {
-  return {
-    enabled: false,
-    mode: "fixed",
-    amounts: ["5", "10", "25"],
-    minAmount: "",
-    currency,
-    label: "",
-  };
-}
-
-function loadDonationFromEvent(event: any): DonationDraft {
-  const cfg = event?.donationConfig;
-  if (!cfg || typeof cfg !== "object") return blankDonation(event?.currency || "EUR");
-  const currency: string = cfg.currency || event?.currency || "EUR";
-  const mode: "fixed" | "pwyw" = cfg.mode === "pwyw" ? "pwyw" : "fixed";
-  const amounts: string[] = Array.isArray(cfg.amounts) && cfg.amounts.length > 0
-    ? cfg.amounts.map((a: number) => fromSmallestUnit(a, currency))
-    : ["5", "10", "25"];
-  const minAmount: string = cfg.minAmount != null ? fromSmallestUnit(cfg.minAmount, currency) : "";
-  return {
-    enabled: !!cfg.enabled,
-    mode,
-    amounts,
-    minAmount,
-    currency,
-    label: cfg.label || "",
-  };
-}
-
-function blankTier(currency = "EUR", indexHint = 1): DraftTier {
-  return {
-    localId: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `local-${Math.random().toString(36).slice(2)}`,
-    name: indexHint === 1 ? "Standard" : `Tier ${indexHint}`,
-    description: "",
-    price: "",
-    currency,
-    capacity: "",
-    hasForm: false,
-    formFieldCount: 0,
-    salesCount: 0,
-    priceMode: "fixed",
-    pwywMin: "",
-    installmentEnabled: false,
-    installmentTotal: "",
-    installmentCount: "",
-    installmentInterval: "1",
-    expanded: true,
-  };
-}
+// Currency table, currency conversion helpers, blank-row builders, and
+// the Tier / DraftTier / DonationDraft shapes live in
+// ./PriceEditModal/types.ts + ./PriceEditModal/helpers.ts. Imported
+// above. The standalone helper tests exercise them in isolation —
+// see src/__tests__/PriceEditModal.helpers.test.ts.
 
 export interface PriceEditModalProps {
   event: any;
@@ -222,12 +106,6 @@ export interface PriceEditModalProps {
    */
   showMemberPricing?: boolean;
 }
-
-// Snapshot of an existing tier captured at load time. Used to decide
-// whether the host changed something attendees should be notified about
-// (name or price). New tiers — and changes to non-material fields like
-// description or capacity — don't enter this map.
-type OriginalTierSnapshot = { name: string; price: string; currency: string };
 
 export function PriceEditModal({ event, communityTag, onClose, onSaved, showToast, onOpenTierForm, showMemberPricing }: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
@@ -421,32 +299,16 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   }
 
   const visible = drafts.map((t, idx) => ({ ...t, _idx: idx })).filter(t => !t.deleted);
-  const hasPaid = visible.some(t => parseFloat(t.price || "0") > 0);
+  const hasPaid = hasPaidTier(drafts);
 
   if (!loading && stripe.loading === false && !stripe.chargesEnabled && hasPaid) {
     return <StripeRequiredWarning communityTag={communityTag} onClose={onClose} />;
   }
 
-  // Returns the list of existing tiers (those with an `id`) whose name or
-  // price changed materially compared to what was loaded. New, deleted,
-  // and unchanged tiers are excluded — those don't trigger an attendee
-  // email regardless of `notifyAttendees`.
-  function tiersWithMaterialChanges(): DraftTier[] {
-    return drafts.filter(t => {
-      if (!t.id || t.deleted) return false;
-      const orig = originalTiers.get(t.id);
-      if (!orig) return false;
-      const nameChanged = (orig.name || "").trim() !== (t.name || "").trim();
-      const priceChanged = (orig.price || "") !== (t.price || "")
-        || (orig.currency || "") !== (t.currency || "");
-      return nameChanged || priceChanged;
-    });
-  }
-
   async function onSaveClicked() {
     // If there's at least one existing tier with a material change, ask
     // the host whether to notify enrolled attendees. Otherwise just save.
-    if (tiersWithMaterialChanges().length > 0) {
+    if (findTiersWithMaterialChanges(drafts, originalTiers).length > 0) {
       setConfirmState("options");
       return;
     }
@@ -469,54 +331,17 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   async function save(notifyAttendees: boolean = false, opts: { suppressFinalToast?: boolean } = {}) {
     setSaving(true);
     try {
-      // Validate tiers
+      // Validate tiers — pure helper returns the first failure message,
+      // or null when the draft is valid. Three-or-none installment rules
+      // + pwyw min bounds live in helpers.ts so they're test-covered in
+      // isolation (PriceEditModal.helpers.test.ts).
       for (const t of drafts.filter(x => !x.deleted)) {
-        if (!t.name.trim()) throw new Error("Tier name is required");
-        if (t.price === "" || isNaN(parseFloat(t.price))) throw new Error(`Price required for "${t.name}"`);
-        if (t.priceMode === "pwyw" && t.pwywMin.trim()) {
-          const min = parseFloat(t.pwywMin);
-          if (isNaN(min) || min < 0) throw new Error(`Minimum amount for "${t.name}" must be a non-negative number.`);
-        }
-        // Installment plan — three-or-none + same range bounds as the
-        // backend validator (totalPrice > 0, count >= 2, interval >= 1).
-        // Catching it client-side gives the host an inline message
-        // instead of a generic 400 toast.
-        if (t.installmentEnabled) {
-          const total = parseFloat(t.installmentTotal);
-          const count = parseInt(t.installmentCount, 10);
-          const interval = parseInt(t.installmentInterval, 10);
-          if (isNaN(total) || total <= 0) {
-            throw new Error(`Installment total for "${t.name}" must be a positive number.`);
-          }
-          if (isNaN(count) || count < 2) {
-            throw new Error(`Installment count for "${t.name}" must be at least 2.`);
-          }
-          if (isNaN(interval) || interval < 1) {
-            throw new Error(`Installment interval for "${t.name}" must be at least 1 month.`);
-          }
-        }
+        const err = validateTier(t);
+        if (err) throw new Error(err);
       }
 
-      // Validate donation config (when enabled)
-      if (donation.enabled) {
-        if (donation.mode === "fixed") {
-          // Reject blank-or-zero rows up front so the host sees the error
-          // here rather than getting a silent "kept the valid ones" save.
-          const trimmed = donation.amounts.map(a => a.trim());
-          const hasBlank = trimmed.some(a => a === "");
-          if (hasBlank) throw new Error("Fill in or remove blank donation amounts.");
-          const invalid = trimmed.find(a => {
-            const n = parseFloat(a);
-            return isNaN(n) || n <= 0;
-          });
-          if (invalid !== undefined) throw new Error(`Donation amount "${invalid}" must be a positive number.`);
-          if (trimmed.length === 0) throw new Error("At least one donation amount is required when fixed mode is enabled.");
-        }
-        if (donation.mode === "pwyw" && donation.minAmount.trim()) {
-          const n = parseFloat(donation.minAmount);
-          if (isNaN(n) || n < 0) throw new Error("Minimum donation must be a non-negative number.");
-        }
-      }
+      const donationErr = validateDonation(donation);
+      if (donationErr) throw new Error(donationErr);
 
       // Apply: tier deletes, updates, creates. The notify-attendees flag is
       // only relevant on PUT updates of existing tiers (the only path the
@@ -526,11 +351,11 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "DELETE", headers: authHeaders() });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to delete "${t.name}"`); }
         } else if (t.id) {
-          const body = buildBody(t, { notifyAttendees });
+          const body = buildTierBody(t, { notifyAttendees });
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body) });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to update "${t.name}"`); }
         } else if (!t.deleted) {
-          const body = buildBody(t);
+          const body = buildTierBody(t);
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to create "${t.name}"`); }
         }
@@ -552,11 +377,10 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
         }
       }
 
-      // Persist donation sidecar config (separate API call — independent of tiers)
+      // Persist donation sidecar config (separate API call — independent of tiers).
+      // PUT receives null when disabled so the backend clears server state.
       if (donationDirty) {
-        const donationBody = donation.enabled
-          ? buildDonationBody()
-          : null;
+        const donationBody = buildDonationBody(donation, drafts[0]?.currency || "EUR");
         const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/donations`, {
           method: "PUT",
           headers: jsonHeaders(),
@@ -580,78 +404,6 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
       showToast(e.message || "Failed to save");
     }
     finally { setSaving(false); }
-  }
-
-  function buildBody(t: DraftTier, extras: { notifyAttendees?: boolean } = {}): Record<string, unknown> {
-    // When a tier already has paid attendees, price + currency are locked
-    // server-side. Skip them client-side too so users (and DevTools) can't
-    // bounce off a 400. Capacity is still sent (the backend enforces a
-    // floor of salesCount). Brand-new tiers (no id) always send everything.
-    const locked = !!t.id && t.salesCount > 0;
-    const pwywMinSmallest = t.priceMode === "pwyw" && t.pwywMin.trim()
-      ? toSmallestUnit(parseFloat(t.pwywMin), t.currency)
-      : null;
-    // Installment fields — three-or-none. Send the trio (smallest unit
-     // for total + ints for count/interval) when enabled, all-null when
-     // disabled. Locked once sales exist; skip the keys so the existing
-     // lock-when-sold guard doesn't 400 a no-op save.
-    const installmentBody = locked
-      ? {}
-      : t.installmentEnabled
-        ? {
-            installmentTotalPrice: toSmallestUnit(parseFloat(t.installmentTotal), t.currency),
-            installmentCount: parseInt(t.installmentCount, 10),
-            installmentIntervalMonths: parseInt(t.installmentInterval, 10),
-          }
-        : {
-            installmentTotalPrice: null,
-            installmentCount: null,
-            installmentIntervalMonths: null,
-          };
-    return {
-      name: t.name.trim(),
-      description: t.description.trim() || null,
-      ...(locked ? {} : { price: parseFloat(t.price), currency: t.currency }),
-      capacity: t.capacity ? parseInt(t.capacity, 10) : null,
-      // priceMode is locked server-side once sales exist (changing fixed↔pwyw
-      // would retroactively reinterpret what buyers paid). Skip on locked
-      // tiers so the existing 400 doesn't bounce a no-op save.
-      ...(locked ? {} : { priceMode: t.priceMode, pwywMinAmount: pwywMinSmallest }),
-      ...installmentBody,
-      // isRecurring/recurringInterval are intentionally NOT sent for events.
-      // Marketplace products handle recurring; events do not.
-      // Only meaningful for unsaved drafts created via "Duplicate" — the
-      // backend clones the source tier's registration form onto this new
-      // tier in the same transaction.
-      ...(t.sourceTierId && !t.id ? { copyFormFromTierId: t.sourceTierId } : {}),
-      // Only relevant on PUT update — the backend ignores it on POST.
-      // When true, attendees enrolled in this tier receive an "event
-      // updated" email listing the changed name and/or price.
-      ...(extras.notifyAttendees ? { notifyAttendees: true } : {}),
-    };
-  }
-
-  function buildDonationBody(): Record<string, unknown> {
-    const currency = donation.currency || drafts[0]?.currency || "EUR";
-    const base: Record<string, unknown> = {
-      enabled: donation.enabled,
-      mode: donation.mode,
-      currency,
-    };
-    if (donation.mode === "fixed") {
-      const amounts = donation.amounts
-        .map(a => parseFloat(a))
-        .filter(a => !isNaN(a) && a > 0)
-        .map(a => toSmallestUnit(a, currency));
-      base.amounts = amounts;
-    } else if (donation.mode === "pwyw") {
-      const minRaw = donation.minAmount ? parseFloat(donation.minAmount) : null;
-      if (minRaw != null && !isNaN(minRaw)) {
-        base.minAmount = toSmallestUnit(minRaw, currency);
-      }
-    }
-    if (donation.label.trim()) base.label = donation.label.trim();
-    return base;
   }
 
   const isEmpty = drafts.every(t => t.deleted) || (drafts.length === 1 && !drafts[0].id && !drafts[0].price);
@@ -811,7 +563,7 @@ interface TierCardProps {
 
 function TierCard({ t, communityTag, canDelete, canDuplicate, onUpdate, onRemove, onDuplicate, onToggle, onOpenForm, showMemberPricing, showToast, registerMemberPricingRef, dragAttributes, dragListeners }: TierCardProps) {
   const sym = getSymbol(t.currency);
-  const locked = !!t.id && t.salesCount > 0;
+  const locked = isTierLocked(t);
   const capCap = t.capacity ? parseInt(t.capacity, 10) : null;
   const soldLabel = locked
     ? capCap != null
