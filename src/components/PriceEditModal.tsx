@@ -86,7 +86,10 @@ import {
 // see src/__tests__/PriceEditModal.helpers.test.ts.
 
 export interface PriceEditModalProps {
-  event: any;
+  /** Required outside draftMode. In draftMode `event.id` is unused —
+   *  pass null/omit; `event.donationConfig` may still be passed if the
+   *  caller wants to seed the donation section. */
+  event?: any;
   communityTag: string;
   onClose: () => void;
   onSaved: () => void;
@@ -103,12 +106,47 @@ export interface PriceEditModalProps {
    * backend; rows are hidden for unsaved drafts (no `id`).
    */
   showMemberPricing?: boolean;
+  /**
+   * Draft mode — no fetches on mount, no backend writes on Save. Used
+   * by create-event flows where the event doesn't exist yet, so the
+   * parent owns the draft state and posts it as part of the
+   * create-event payload. The modal stays purely presentational.
+   *
+   * In draftMode:
+   *   - No GET /tiers (initialDraftTiers seeds drafts instead)
+   *   - No GET /stripe/connected (gate happens at parent's submit time)
+   *   - No GET /tiers/:id/form (no saved tier ids exist)
+   *   - Member-pricing + Form section Edit buttons stay disabled
+   *     ("Save tier first" copy already covers this naturally)
+   *   - On Save: validate locally, then call onDraftCommit instead of
+   *     POSTing
+   *   - Notify-attendees prompt never fires (no enrolled attendees)
+   */
+  draftMode?: boolean;
+  /** Initial drafts (from parent's form state). draftMode only. */
+  initialDraftTiers?: DraftTier[];
+  /** Initial donation (from parent's form state). draftMode only. */
+  initialDraftDonation?: DonationDraft;
+  /** Called on Save in draftMode. Parent persists the result in its
+   *  own form state. Modal then closes via onSaved. */
+  onDraftCommit?: (payload: { tiers: DraftTier[]; donation: DonationDraft }) => void;
 }
 
-export function PriceEditModal({ event, communityTag, onClose, onSaved, showToast, showMemberPricing }: PriceEditModalProps) {
+export function PriceEditModal({
+  event,
+  communityTag,
+  onClose,
+  onSaved,
+  showToast,
+  showMemberPricing,
+  draftMode,
+  initialDraftTiers,
+  initialDraftDonation,
+  onDraftCommit,
+}: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
-  const stripe = useStripeStatus(communityTag);
+  const stripe = useStripeStatus(communityTag, { enabled: !draftMode });
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<DraftTier[]>([]);
   const [originalTiers, setOriginalTiers] = useState<Map<string, OriginalTierSnapshot>>(new Map());
@@ -121,8 +159,10 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   const [confirmError, setConfirmError] = useState("");
   // Donation sidecar — loaded from event.donationConfig, saved separately.
   // donationDirty tracks whether the host changed anything so we skip the
-  // PUT when nothing changed.
-  const [donation, setDonation] = useState<DonationDraft>(() => loadDonationFromEvent(event));
+  // PUT when nothing changed. In draftMode, parent owns the seed.
+  const [donation, setDonation] = useState<DonationDraft>(() =>
+    draftMode && initialDraftDonation ? initialDraftDonation : loadDonationFromEvent(event),
+  );
   const [donationDirty, setDonationDirty] = useState(false);
 
   // Three-level navigation state. Each non-null value escalates the
@@ -168,6 +208,17 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   }
 
   useEffect(() => {
+    // Draft mode: parent owns the source of truth. No fetches; seed
+    // drafts from initialDraftTiers (or a single blank tier).
+    if (draftMode) {
+      setDrafts(
+        initialDraftTiers && initialDraftTiers.length > 0
+          ? initialDraftTiers
+          : [blankTier()],
+      );
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const tierRes = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { headers: authHeaders() });
@@ -214,13 +265,14 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
       finally { setLoading(false); }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id, communityTag, apiBaseUrl]);
+  }, [event?.id, communityTag, apiBaseUrl, draftMode]);
 
   // Fetch community segments once when the modal opens with
   // showMemberPricing on. Segments are community-wide; one fetch covers
-  // every tier's section.
+  // every tier's section. Skipped in draftMode — Member pricing Edit
+  // is disabled on unsaved tiers, so there's no UI that needs them.
   useEffect(() => {
-    if (!showMemberPricing) return;
+    if (!showMemberPricing || draftMode) return;
     let cancelled = false;
     (async () => {
       try {
@@ -389,14 +441,16 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
   const visible = drafts.map((t, idx) => ({ ...t, _idx: idx })).filter(t => !t.deleted);
   const hasPaid = hasPaidTier(drafts);
 
-  if (!loading && stripe.loading === false && !stripe.chargesEnabled && hasPaid) {
+  // Stripe gate doesn't apply in draftMode — the parent's create-event
+  // submit re-runs the check at the point the event actually goes live.
+  if (!draftMode && !loading && stripe.loading === false && !stripe.chargesEnabled && hasPaid) {
     return <StripeRequiredWarning communityTag={communityTag} onClose={onClose} />;
   }
 
   async function onSaveClicked() {
-    // If there's at least one existing tier with a material change, ask
-    // the host whether to notify enrolled attendees. Otherwise just save.
-    if (findTiersWithMaterialChanges(drafts, originalTiers).length > 0) {
+    // In draftMode there's no notify-attendees prompt (no enrolled
+    // attendees exist on an unsaved event). Skip straight to save().
+    if (!draftMode && findTiersWithMaterialChanges(drafts, originalTiers).length > 0) {
       setConfirmState("options");
       return;
     }
@@ -430,6 +484,17 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
 
       const donationErr = validateDonation(donation);
       if (donationErr) throw new Error(donationErr);
+
+      // Draft mode: hand the validated drafts to the parent and close.
+      // No backend writes — the parent owns the source of truth and
+      // will POST these as part of the create-event payload.
+      if (draftMode) {
+        const liveDrafts = drafts.filter((d) => !d.deleted);
+        onDraftCommit?.({ tiers: liveDrafts, donation });
+        if (!opts.suppressFinalToast) showToast("Pricing saved");
+        onSaved();
+        return;
+      }
 
       // Apply: tier deletes, updates, creates. The notify-attendees flag is
       // only relevant on PUT updates of existing tiers (the only path the
