@@ -15,6 +15,19 @@ export {
 
 // Components
 export { PriceEditModal, type PriceEditModalProps } from "./components/PriceEditModal";
+
+// Draft-mode helpers — for consumers (e.g. admin's create-event form)
+// rendering PriceEditModal in draftMode where the parent owns state.
+export type {
+  DraftTier,
+  DonationDraft,
+} from "./components/PriceEditModal/types";
+export {
+  blankTier,
+  blankDonation,
+  buildTierBody,
+  buildDonationBody,
+} from "./components/PriceEditModal/helpers";
 export { EditEventDrawer } from "./components/EditEventDrawer";
 export { NameEditModal } from "./components/NameEditModal";
 export { DateTimeEditModal } from "./components/DateTimeEditModal";
