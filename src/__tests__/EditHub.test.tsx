@@ -94,7 +94,9 @@ describe("EditHub — step navigation", () => {
     // Step into Basics
     await user.click(screen.getAllByRole("button", { name: /^Edit/ })[0]);
     expect(screen.getByRole("heading", { name: "Basics", level: 4 })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Standard, VIP, Early-bird…")).toBeInTheDocument();
+    // Basics' description input is the first visible field in the step
+    // (the tier name has its own inline editor in the card header).
+    expect(screen.getByPlaceholderText("What's included")).toBeInTheDocument();
     // Done → back to hub (4 SectionCard titles visible again)
     await user.click(screen.getByRole("button", { name: /Done/i }));
     expect(screen.queryByRole("heading", { name: "Basics", level: 4 })).not.toBeInTheDocument();

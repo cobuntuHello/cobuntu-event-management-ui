@@ -1,55 +1,39 @@
 "use client";
 
-import { useCallback } from "react";
-import {
-  MemberPricingSection,
-  type MemberPricingSectionHandle,
-} from "../../MemberPricingSection";
+import { MemberPricingSection } from "../../MemberPricingSection";
 import type { DraftTier } from "../types";
 import { getSymbol } from "../helpers";
+import type { MemberPricingRow, MemberPricingTierState } from "../member-pricing";
 
 export interface MembersStepProps {
   t: DraftTier;
-  communityTag: string;
-  /** Imperative ref registration — the outer modal's Save loop calls
-   *  commit() on each mounted section. */
-  registerMemberPricingRef?: (tierId: string, handle: MemberPricingSectionHandle | null) => void;
+  /** Per-tier slot from the modal-level state map. Undefined when the
+   *  tier hasn't been saved yet (no id) or showMemberPricing is off
+   *  upstream. */
+  memberPricingState?: MemberPricingTierState;
+  /** Notify the modal of a member-pricing row change. */
+  onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
   showToast: (msg: string) => void;
 }
 
 /**
  * "Members" step — community-only per-segment discount overrides for
- * this tier. Wraps the existing MemberPricingSection so the imperative
- * ref API stays intact; the parent modal still commits overrides
- * under its single Save button.
+ * this tier. Renders the presentational MemberPricingSection driven by
+ * the modal-level state map (lifted out of the section itself so dirty
+ * rows survive tier collapse / step navigation / any unmount).
  *
- * Unsaved tiers (no `t.id`) can't carry overrides yet — the backend
- * needs a real tier id. The step renders a hint instead of mounting
- * an empty section.
+ * Unsaved tiers (no `t.id`) skip the section — backend keys overrides
+ * by tier id, so there's nothing to load until the tier is created.
  */
 export function MembersStep({
   t,
-  communityTag,
-  registerMemberPricingRef,
-  showToast,
+  memberPricingState,
+  onMemberPricingRowChange,
 }: MembersStepProps) {
   const sym = getSymbol(t.currency);
   const tierId = t.id;
 
-  // Stable ref-callback so React doesn't unregister+reregister the
-  // handle on every parent render. The outer modal's Save loop relies
-  // on the ref staying attached to detect dirty rows. Closes over the
-  // tier id captured at this render — when the tier id changes (rare;
-  // happens only after a brand-new tier is saved and re-fetched), the
-  // callback identity changes and React swaps the registration.
-  const refCallback = useCallback(
-    (handle: MemberPricingSectionHandle | null) => {
-      if (tierId) registerMemberPricingRef?.(tierId, handle);
-    },
-    [registerMemberPricingRef, tierId],
-  );
-
-  if (!tierId) {
+  if (!tierId || !memberPricingState) {
     return (
       <div className="px-4 py-6 rounded-lg border border-dashed border-zinc-300 text-center">
         <p className="text-[12px] font-medium text-zinc-700">Save tier first</p>
@@ -62,12 +46,9 @@ export function MembersStep({
 
   return (
     <MemberPricingSection
-      ref={refCallback}
-      communityTag={communityTag}
-      tierId={tierId}
-      currencyCode={t.currency}
+      state={memberPricingState}
+      onRowChange={(idx, patch) => onMemberPricingRowChange?.(idx, patch)}
       currencySymbol={sym}
-      showToast={showToast}
     />
   );
 }

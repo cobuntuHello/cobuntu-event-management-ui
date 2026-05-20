@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type MemberPricingSectionHandle } from "../MemberPricingSection";
+import type { MemberPricingRow, MemberPricingTierState } from "./member-pricing";
 import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
 import { Collapse } from "./_primitives";
@@ -29,11 +29,12 @@ export interface TierCardProps {
    *  /manage omits. */
   showMemberPricing: boolean;
   showToast: (msg: string) => void;
-  /** Imperative ref registration so the outer modal can call
-   *  commit()/isDirty() on this tier's MemberPricingSection during its
-   *  global Save loop. Called on mount with the handle, on unmount
-   *  with null. */
-  registerMemberPricingRef?: (tierId: string, handle: MemberPricingSectionHandle | null) => void;
+  /** Per-tier slot from the modal-level member-pricing state map.
+   *  Undefined for unsaved tiers (no id yet); the section then renders
+   *  the "Save tier first" hint. */
+  memberPricingState?: MemberPricingTierState;
+  /** Notify the modal that a member-pricing row changed. */
+  onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
   dragAttributes?: any;
   dragListeners?: any;
 }
@@ -77,7 +78,8 @@ export function TierCard({
   onToggle,
   showMemberPricing,
   showToast,
-  registerMemberPricingRef,
+  memberPricingState,
+  onMemberPricingRowChange,
   dragAttributes,
   dragListeners,
 }: TierCardProps) {
@@ -172,7 +174,8 @@ export function TierCard({
           communityTag={communityTag}
           onUpdate={onUpdate}
           showMemberPricing={showMemberPricing}
-          registerMemberPricingRef={registerMemberPricingRef}
+          memberPricingState={memberPricingState}
+          onMemberPricingRowChange={onMemberPricingRowChange}
           showToast={showToast}
         />
       </Collapse>
