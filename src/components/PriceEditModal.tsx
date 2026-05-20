@@ -23,6 +23,7 @@ import { ModalShell } from "../ui/modal-shell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
+import { MemberPricingSection } from "./MemberPricingSection";
 
 /**
  * Single source of truth for ticket-tier management on an event.
@@ -208,6 +209,18 @@ export interface PriceEditModalProps {
    * form editing is unavailable in this surface.
    */
   onOpenTierForm?: (tierId: string) => void;
+  /**
+   * When true, the MemberPricingSection is rendered inside each tier
+   * card's expanded body — letting community admins configure per-
+   * segment discount overrides for this tier. Community-only feature;
+   * admin app passes true (admin only edits community-owned events),
+   * community-app `/manage` omits / passes false (user-owned events
+   * don't get the section).
+   *
+   * Default: false. The section requires saved-tier ids to call the
+   * backend; rows are hidden for unsaved drafts (no `id`).
+   */
+  showMemberPricing?: boolean;
 }
 
 // Snapshot of an existing tier captured at load time. Used to decide
@@ -216,7 +229,7 @@ export interface PriceEditModalProps {
 // description or capacity — don't enter this map.
 type OriginalTierSnapshot = { name: string; price: string; currency: string };
 
-export function PriceEditModal({ event, communityTag, onClose, onSaved, showToast, onOpenTierForm }: PriceEditModalProps) {
+export function PriceEditModal({ event, communityTag, onClose, onSaved, showToast, onOpenTierForm, showMemberPricing }: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   const stripe = useStripeStatus(communityTag);
@@ -643,6 +656,7 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
                 <SortableTierCard
                   key={t.localId}
                   t={t}
+                  communityTag={communityTag}
                   canDelete={visible.length > 1}
                   canDuplicate={!!t.id}
                   onUpdate={patch => updateDraft(t._idx, patch)}
@@ -650,6 +664,8 @@ export function PriceEditModal({ event, communityTag, onClose, onSaved, showToas
                   onDuplicate={() => duplicateTier(t._idx)}
                   onToggle={() => toggleExpand(t._idx)}
                   onOpenForm={() => openTierForm(t.id)}
+                  showMemberPricing={!!showMemberPricing}
+                  showToast={showToast}
                 />
               ))}
             </SortableContext>
@@ -746,6 +762,7 @@ function SortableTierCard(props: TierCardProps) {
 
 interface TierCardProps {
   t: DraftTier & { _idx: number };
+  communityTag: string;
   canDelete: boolean;
   canDuplicate: boolean;
   onUpdate: (patch: Partial<DraftTier>) => void;
@@ -753,11 +770,15 @@ interface TierCardProps {
   onDuplicate: () => void;
   onToggle: () => void;
   onOpenForm: () => void;
+  /** Render MemberPricingSection inside the expanded body. Community-
+   *  only — admin sets true, community-app /manage omits. */
+  showMemberPricing: boolean;
+  showToast: (msg: string) => void;
   dragAttributes?: any;
   dragListeners?: any;
 }
 
-function TierCard({ t, canDelete, canDuplicate, onUpdate, onRemove, onDuplicate, onToggle, onOpenForm, dragAttributes, dragListeners }: TierCardProps) {
+function TierCard({ t, communityTag, canDelete, canDuplicate, onUpdate, onRemove, onDuplicate, onToggle, onOpenForm, showMemberPricing, showToast, dragAttributes, dragListeners }: TierCardProps) {
   const sym = getSymbol(t.currency);
   const locked = !!t.id && t.salesCount > 0;
   const capCap = t.capacity ? parseInt(t.capacity, 10) : null;
@@ -1018,6 +1039,21 @@ function TierCard({ t, canDelete, canDuplicate, onUpdate, onRemove, onDuplicate,
               </p>
             )}
           </div>
+
+          {/* Member pricing — community-only, saved-tiers only. The
+              section fetches its own data + commits per-row on its own
+              Save button, so it doesn't thread through the outer modal
+              save loop. Unsaved drafts (no `t.id`) skip it entirely
+              since the backend needs a real tier id. */}
+          {showMemberPricing && t.id && (
+            <MemberPricingSection
+              communityTag={communityTag}
+              tierId={t.id}
+              currencyCode={t.currency}
+              currencySymbol={sym}
+              showToast={showToast}
+            />
+          )}
 
           {/* Form footer */}
           <button
