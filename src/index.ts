@@ -33,6 +33,7 @@ export { NameEditModal } from "./components/NameEditModal";
 export { DateTimeEditModal } from "./components/DateTimeEditModal";
 export { LocationEditModal } from "./components/LocationEditModal";
 export { SlugEditModal, type SlugEditModalProps } from "./components/SlugEditModal";
+export { DistributionEditModal, type DistributionEditModalProps } from "./components/DistributionEditModal";
 export { ShareModal } from "./components/ShareModal";
 export { PublishModal } from "./components/PublishModal";
 export { DeleteModal } from "./components/DeleteModal";
