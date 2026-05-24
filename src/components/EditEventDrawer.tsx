@@ -8,6 +8,7 @@ import { EventTags } from "../ui/event-tags";
 import { RichTextEditor } from "../ui/rich-text-editor";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
+import { DistributionEditModal } from "./DistributionEditModal";
 
 /**
  * Right-side edit-event drawer. The host edits the full set of event
@@ -83,6 +84,9 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
   const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [subModal, setSubModal] = useState<SubModal>(null);
+  // Distribution lives in its own standalone modal (DistributionEditModal)
+  // — it self-saves via PUT and doesn't share the drawer's confirm flow.
+  const [distributionOpen, setDistributionOpen] = useState(false);
 
   // Temp state for sub-modals
   const [tempDesc, setTempDesc] = useState("");
@@ -406,6 +410,22 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
               <p className="text-sm text-zinc-400">Add tags...</p>
             )}
           </ClickableRow>
+
+          {/* Distribution → standalone DistributionEditModal (self-saves).
+              Surface the same row available from the event overview card so
+              admins can flip detailSource / featured without leaving the
+              edit flow. The modal handles its own PUT — the drawer's
+              Update button is independent. */}
+          <ClickableRow
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M4 4h16v6H4z" /><path d="M4 14h16v6H4z" /><circle cx="8" cy="7" r="1" fill="currentColor" /><circle cx="8" cy="17" r="1" fill="currentColor" /></svg>}
+            label="Distribution"
+            onClick={() => setDistributionOpen(true)}
+          >
+            <p className="text-sm text-zinc-600">
+              {event.detailSource === "EXTERNAL" ? "Custom landing page" : "Cobuntu event page"}
+              {event.featured ? " · ⭐ Featured" : ""}
+            </p>
+          </ClickableRow>
         </div>
 
         {/* Footer */}
@@ -442,6 +462,20 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
             )}
           </div>
         </div>
+      )}
+
+      {/* Distribution modal — opened by the row above. Self-saves; on
+          successful save, fires `onSaved` so the drawer's parent refetches
+          the event and the drawer's "Distribution" row label updates on
+          the next render. */}
+      {distributionOpen && (
+        <DistributionEditModal
+          event={event}
+          communityTag={communityTag}
+          onClose={() => setDistributionOpen(false)}
+          onSaved={() => { setDistributionOpen(false); onSaved(); }}
+          showToast={showToast}
+        />
       )}
     </>,
     document.body,
