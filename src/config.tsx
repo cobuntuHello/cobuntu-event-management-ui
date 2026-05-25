@@ -36,6 +36,40 @@ export interface EventManagementConfig {
    * storefront).
    */
   stripeConnectUrl: (communityTag: string) => string;
+
+  /**
+   * Navigation callback used by components that take the host to
+   * another page (e.g. AttendeesAndInvitationsSection's "Add Attendees"
+   * + "Invite" buttons). Each app injects its own router — admin uses
+   * Next.js `router.push`, community-app may use a different wrapper.
+   *
+   * Required from the moment AttendeesAndInvitationsSection is mounted.
+   * Components that don't navigate ignore this field.
+   */
+  navigate: (path: string) => void;
+
+  /**
+   * Component slot for rendering user avatars. Each app has its own
+   * style (admin uses a seeded-persona fallback; community-app may use
+   * a different placeholder). Defaults to a minimal initials fallback
+   * if not provided — components stay functional in a fresh consumer
+   * without forcing them to wire this up just to render an empty list.
+   *
+   * Required-ish: optional in the type, but the AttendeesAndInvitationsSection
+   * will use the built-in fallback if absent. Pass your app's component
+   * to keep visual consistency with the rest of the surface.
+   */
+  UserAvatar?: React.ComponentType<{
+    user: {
+      name?: string | null;
+      imageUrl?: string | null;
+      profileImage?: string | null;
+      usertag?: string | null;
+      email?: string | null;
+      id?: string | null;
+    };
+    className?: string;
+  }>;
 }
 
 const Ctx = React.createContext<EventManagementConfig | null>(null);
