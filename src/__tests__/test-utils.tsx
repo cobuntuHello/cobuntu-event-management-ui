@@ -9,6 +9,7 @@ const defaultConfig: EventManagementConfig = {
   apiBaseUrl: "http://api.test",
   authHeaders: () => ({ Authorization: "Bearer test-token" }),
   stripeConnectUrl: (tag) => `/${tag}/connect-stripe`,
+  navigate: () => { /* no-op in tests; override per-test when asserting nav */ },
 };
 
 export function renderWithConfig(

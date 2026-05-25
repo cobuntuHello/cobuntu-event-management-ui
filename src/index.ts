@@ -16,6 +16,14 @@ export {
 // Components
 export { PriceEditModal, type PriceEditModalProps } from "./components/PriceEditModal";
 
+// Unified Attendees + Sales section — the surface a host sees when
+// managing their event. Combines approved/pending/rejected attendees,
+// invitations, paid-event KPI cards, and the per-attendee refund
+// modal (Phase H of host-refunds-and-sales-visibility).
+export { AttendeesAndInvitationsSection } from "./components/AttendeesAndInvitationsSection";
+export { AttendeeDetailDrawer } from "./components/AttendeesAndInvitationsSection/AttendeeDetailDrawer";
+export { UserAvatarFallback } from "./ui/user-avatar-fallback";
+
 // Draft-mode helpers — for consumers (e.g. admin's create-event form)
 // rendering PriceEditModal in draftMode where the parent owns state.
 export type {

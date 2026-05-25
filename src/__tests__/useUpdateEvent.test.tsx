@@ -9,6 +9,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
       apiBaseUrl: "http://api.test",
       authHeaders: () => ({ Authorization: "Bearer t" }),
       stripeConnectUrl: () => "",
+      navigate: () => {},
     }}
   >
     {children}
