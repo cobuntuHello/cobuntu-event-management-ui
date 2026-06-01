@@ -19,6 +19,12 @@ export interface Tier {
   salesCount?: number;
   priceMode?: "fixed" | "pwyw" | null;
   pwywMinAmount?: number | null;
+  /** Publish + auto-schedule (feat/event-tier-publish-and-schedule).
+   *  All four are nullable at the schema level; null publishedAt = draft. */
+  publishedAt?: string | null;
+  salesStartAt?: string | null;
+  salesEndAt?: string | null;
+  autoScheduleEnabled?: boolean;
   products: {
     id: string;
     price: number;
@@ -70,6 +76,17 @@ export interface DraftTier {
    *  same transaction. */
   sourceTierId?: string;
   sourceTierName?: string;
+  /** Publish + auto-schedule draft state. publishedAt is the single
+   *  source of truth: ISO 8601 string when published, null when draft.
+   *  The UI toggle reads `!!publishedAt`; flipping off clears it,
+   *  flipping back on stamps `new Date().toISOString()`.
+   *  `autoScheduleEnabled` gates the start/end date pickers — the gate
+   *  is metadata, not a publish-state determinant.
+   *  salesStartAt / salesEndAt: ISO strings or "" when unset. */
+  publishedAt: string | null;
+  autoScheduleEnabled: boolean;
+  salesStartAt: string;
+  salesEndAt: string;
 }
 
 /** Sidecar donation config — saved separately from tiers via PUT

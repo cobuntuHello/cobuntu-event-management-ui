@@ -3,6 +3,7 @@
 import type { DraftTier } from "../types";
 import { getSymbol, isTierLocked } from "../helpers";
 import { Collapse, Eyebrow, StepInput } from "../_primitives";
+import { SchedulingSection } from "../../SchedulingSection";
 
 export interface OptionsStepProps {
   t: DraftTier;
@@ -146,6 +147,22 @@ export function OptionsStep({ t, onUpdate }: OptionsStepProps) {
           Switch billing mode to "Installment plan" in the Basics step to configure a payment schedule here.
         </p>
       )}
+
+      {/* Publish + auto-schedule. Lives inside the OptionsStep next to
+          capacity + pricing model because it's a tier-level rollout
+          control, not a per-buyer behavior. The status chip up top
+          ("Draft" / "Scheduled" / "On sale" / "Closed") lets the host
+          glance at the current effective state without reading the
+          toggles below. */}
+      <SchedulingSection
+        draft={{
+          publishedAt: t.publishedAt,
+          autoScheduleEnabled: t.autoScheduleEnabled,
+          salesStartAt: t.salesStartAt,
+          salesEndAt: t.salesEndAt,
+        }}
+        onChange={(patch) => onUpdate(patch as Partial<DraftTier>)}
+      />
     </div>
   );
 }

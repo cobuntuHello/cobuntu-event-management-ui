@@ -258,6 +258,15 @@ export function PriceEditModal({
               installmentCount: t.products.installmentCount != null ? String(t.products.installmentCount) : "",
               installmentInterval: t.products.installmentIntervalMonths != null ? String(t.products.installmentIntervalMonths) : "1",
               expanded: false,
+              // Publish + auto-schedule. Saved tiers preserve their existing
+              // publishedAt timestamp so unrelated edits don't overwrite the
+              // original publish moment. Draft tiers (publishedAt: null)
+              // come through as the off-toggle state. Window bounds map
+              // straight to the datetime-local-compatible ISO strings.
+              publishedAt: t.publishedAt ?? null,
+              autoScheduleEnabled: !!t.autoScheduleEnabled,
+              salesStartAt: t.salesStartAt ?? "",
+              salesEndAt: t.salesEndAt ?? "",
             };
           }));
           setOriginalTiers(snapshot);

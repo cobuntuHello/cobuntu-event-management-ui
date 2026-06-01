@@ -15,6 +15,12 @@ export {
 
 // Components
 export { PriceEditModal, type PriceEditModalProps } from "./components/PriceEditModal";
+export {
+  SchedulingSection,
+  deriveScheduleState,
+  type SchedulingSectionProps,
+  type TierScheduleState,
+} from "./components/SchedulingSection";
 
 // Unified Attendees + Sales section — the surface a host sees when
 // managing their event. Combines approved/pending/rejected attendees,

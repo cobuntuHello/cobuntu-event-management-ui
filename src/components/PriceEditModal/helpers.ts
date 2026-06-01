@@ -63,6 +63,13 @@ export function blankTier(currency = "EUR", indexHint = 1): DraftTier {
     installmentCount: "",
     installmentInterval: "1",
     expanded: true,
+    // New tiers start published — matches the natural "create + ship"
+    // flow. Hosts who want to stage a draft flip the toggle off before
+    // saving. Hidden state for the auto-schedule pickers.
+    publishedAt: new Date().toISOString(),
+    autoScheduleEnabled: false,
+    salesStartAt: "",
+    salesEndAt: "",
   };
 }
 
@@ -198,6 +205,23 @@ export function buildTierBody(
           installmentCount: null,
           installmentIntervalMonths: null,
         };
+  // Publish + auto-schedule. publishedAt is the source of truth:
+  // null → draft; non-null ISO → published at that moment. The UI
+  // toggle is just `!!publishedAt`. Auto-schedule pickers only matter
+  // when the host explicitly opts in via `autoScheduleEnabled`;
+  // disabled → send null for the window bounds so a previously-set
+  // window doesn't keep enforcing after the host turned auto-schedule
+  // off. Empty strings on the window inputs also resolve to null.
+  const scheduleBody = {
+    publishedAt: t.publishedAt ? new Date(t.publishedAt).toISOString() : null,
+    autoScheduleEnabled: !!t.autoScheduleEnabled,
+    salesStartAt: t.autoScheduleEnabled && t.salesStartAt
+      ? new Date(t.salesStartAt).toISOString()
+      : null,
+    salesEndAt: t.autoScheduleEnabled && t.salesEndAt
+      ? new Date(t.salesEndAt).toISOString()
+      : null,
+  };
   return {
     name: t.name.trim(),
     description: t.description.trim() || null,
@@ -205,6 +229,7 @@ export function buildTierBody(
     capacity: t.capacity ? parseInt(t.capacity, 10) : null,
     ...(locked ? {} : { priceMode: t.priceMode, pwywMinAmount: pwywMinSmallest }),
     ...installmentBody,
+    ...scheduleBody,
     // isRecurring/recurringInterval are intentionally NOT sent for events.
     // Marketplace products handle recurring; events do not.
     ...(t.sourceTierId && !t.id ? { copyFormFromTierId: t.sourceTierId } : {}),

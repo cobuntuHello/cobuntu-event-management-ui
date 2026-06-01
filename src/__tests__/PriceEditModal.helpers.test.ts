@@ -314,6 +314,80 @@ describe("PriceEditModal helpers — buildTierBody", () => {
       ),
     ).toMatchObject({ notifyAttendees: true });
   });
+
+  // Publish + auto-schedule round-trip (feat/event-tier-publish-and-schedule).
+  describe("publish + auto-schedule fields", () => {
+    it("blankTier is published by default with no window", () => {
+      const t = blankTier();
+      expect(t.publishedAt).toBeTruthy();
+      expect(t.autoScheduleEnabled).toBe(false);
+      expect(t.salesStartAt).toBe("");
+      expect(t.salesEndAt).toBe("");
+    });
+
+    it("buildTierBody sends publishedAt as ISO when set; null when unset", () => {
+      const publishedAt = new Date("2026-06-01T12:00:00.000Z").toISOString();
+      const published = buildTierBody({
+        ...blankTier(), name: "Std", price: "20", publishedAt,
+      });
+      expect(published).toMatchObject({ publishedAt });
+
+      const drafted = buildTierBody({
+        ...blankTier(), name: "Std", price: "20", publishedAt: null,
+      });
+      expect(drafted).toMatchObject({ publishedAt: null });
+    });
+
+    it("buildTierBody nulls sales window when autoScheduleEnabled is off, even if dates are present", () => {
+      const body = buildTierBody({
+        ...blankTier(),
+        name: "Std", price: "20",
+        publishedAt: new Date().toISOString(),
+        autoScheduleEnabled: false,
+        salesStartAt: "2026-06-01T12:00:00.000Z",
+        salesEndAt: "2026-06-05T12:00:00.000Z",
+      });
+      expect(body).toMatchObject({
+        autoScheduleEnabled: false,
+        salesStartAt: null,
+        salesEndAt: null,
+      });
+    });
+
+    it("buildTierBody sends sales window as ISO strings when autoScheduleEnabled is on", () => {
+      const start = "2026-06-01T12:00:00.000Z";
+      const end = "2026-06-05T12:00:00.000Z";
+      const body = buildTierBody({
+        ...blankTier(),
+        name: "Std", price: "20",
+        publishedAt: new Date().toISOString(),
+        autoScheduleEnabled: true,
+        salesStartAt: start,
+        salesEndAt: end,
+      });
+      expect(body).toMatchObject({
+        autoScheduleEnabled: true,
+        salesStartAt: start,
+        salesEndAt: end,
+      });
+    });
+
+    it("buildTierBody sends null for empty window inputs even when autoScheduleEnabled is on", () => {
+      const body = buildTierBody({
+        ...blankTier(),
+        name: "Std", price: "20",
+        publishedAt: new Date().toISOString(),
+        autoScheduleEnabled: true,
+        salesStartAt: "",
+        salesEndAt: "",
+      });
+      expect(body).toMatchObject({
+        autoScheduleEnabled: true,
+        salesStartAt: null,
+        salesEndAt: null,
+      });
+    });
+  });
 });
 
 describe("PriceEditModal helpers — buildDonationBody", () => {
