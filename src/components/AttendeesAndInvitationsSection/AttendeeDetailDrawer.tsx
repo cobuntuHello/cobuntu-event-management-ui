@@ -71,8 +71,14 @@ export function AttendeeDetailDrawer({ attendee, onClose }: Props) {
   const statusStyle =
     status === "REJECTED" ? "bg-red-50 text-red-600 border-red-100"
     : status === "PENDING" ? "bg-amber-50 text-amber-600 border-amber-100"
+    : status === "PENDING_PAYMENT" ? "bg-orange-50 text-orange-600 border-orange-100"
+    : status === "CANCELLED" ? "bg-zinc-100 text-zinc-500 border-zinc-200"
     : "bg-emerald-50 text-emerald-600 border-emerald-100";
-  const statusLabel = status === "APPROVED" ? "Confirmed" : status.charAt(0) + status.slice(1).toLowerCase();
+  const statusLabel =
+    status === "APPROVED" ? "Confirmed"
+    : status === "PENDING_PAYMENT" ? "Payment pending"
+    : status === "CANCELLED" ? "Cancelled"
+    : status.charAt(0) + status.slice(1).toLowerCase();
 
   return createPortal(
     <>

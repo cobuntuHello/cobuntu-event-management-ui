@@ -32,7 +32,7 @@ interface Invitation {
   invitedUser?: { id: string; name: string; usertag: string; profileImage?: string } | null;
 }
 
-type Tab = "approved" | "pending" | "rejected" | "invitations";
+type Tab = "approved" | "pending" | "payment_pending" | "rejected" | "cancelled" | "invitations";
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: "R$" };
 
@@ -51,6 +51,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const attendees = event?.attendees || [];
   const approved = attendees.filter((a: any) => !a.status || a.status === "APPROVED");
   const rejected = attendees.filter((a: any) => a.status === "REJECTED");
+  // PENDING_PAYMENT + CANCELLED — new buckets introduced with the
+  // paid+approval state machine. Surface them only on paid +
+  // requires-approval events; on other events these rows wouldn't
+  // exist by design.
+  const paymentPending = attendees.filter((a: any) => a.status === "PENDING_PAYMENT");
+  const cancelled = attendees.filter((a: any) => a.status === "CANCELLED");
 
   const [tab, setTab] = useState<Tab>("approved");
   const [stats, setStats] = useState<InvitationStats | null>(null);
@@ -175,6 +181,27 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     finally { setResending(null); }
   }
 
+  /**
+   * Re-fire the Pay-now magic-link email for an attendee sitting in
+   * PENDING_PAYMENT. The endpoint is idempotent and doesn't reset
+   * the 48h timer — the recipient sees the original deadline.
+   */
+  async function handleResendPaymentLink(attendanceId: string) {
+    setResending(attendanceId);
+    try {
+      const res = await fetch(`${API}/api/communities/${communityTag}/events/${event.id}/attendees/${attendanceId}/resend-payment-link`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      if (res.ok) showToast("Payment link resent");
+      else {
+        const body = await res.json().catch(() => ({}));
+        showToast(body?.error || "Failed to resend payment link");
+      }
+    } catch { showToast("Failed to resend payment link"); }
+    finally { setResending(null); }
+  }
+
   function exportCSV() {
     // Union form-answer fields across attendees so each becomes a CSV column.
     const fieldMap = new Map<string, string>();
@@ -256,7 +283,21 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     { key: "approved", label: "Registered", count: approved.length },
     ...(requiresApproval ? [
       { key: "pending" as Tab, label: "Pending", count: pendingAttendees.length },
+    ] : []),
+    // Payment pending: only meaningful for paid + requires-approval.
+    // Shows attendees the host approved but who haven't completed
+    // Stripe Checkout within their 48h window yet.
+    ...(requiresApproval && isPaid ? [
+      { key: "payment_pending" as Tab, label: "Payment pending", count: paymentPending.length },
+    ] : []),
+    ...(requiresApproval ? [
       { key: "rejected" as Tab, label: "Rejected", count: rejected.length },
+    ] : []),
+    // Cancelled: spans self-cancellations + admin removals + 48h
+    // payment timeouts. Always shown when there's at least one row so
+    // hosts can see the historical exits regardless of event type.
+    ...(cancelled.length > 0 ? [
+      { key: "cancelled" as Tab, label: "Cancelled", count: cancelled.length },
     ] : []),
     { key: "invitations" as Tab, label: "Invitations", count: pendingInvitations.length },
   ];
@@ -443,6 +484,21 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           )
         )}
 
+        {tab === "payment_pending" && (
+          paymentPending.length > 0 ? (
+            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+              {paymentPending.map((a: any) => (
+                <PaymentPendingRow key={a.id} a={a}
+                  resending={resending === a.id}
+                  onResend={() => handleResendPaymentLink(a.id)}
+                  onOpen={() => setDrawerAttendee(a)} />
+              ))}
+            </div>
+          ) : (
+            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No attendees awaiting payment</div>
+          )
+        )}
+
         {tab === "rejected" && (
           rejected.length > 0 ? (
             <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
@@ -452,6 +508,18 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             </div>
           ) : (
             <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No rejected attendees</div>
+          )
+        )}
+
+        {tab === "cancelled" && (
+          cancelled.length > 0 ? (
+            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+              {cancelled.map((a: any) => (
+                <CancelledRow key={a.id} a={a} onOpen={() => setDrawerAttendee(a)} />
+              ))}
+            </div>
+          ) : (
+            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No cancelled attendees</div>
           )
         )}
 
@@ -597,6 +665,76 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
         </div>
         <span className="text-[10px] font-medium text-red-400 bg-red-50 px-2 py-0.5 rounded shrink-0">Rejected</span>
+      </div>
+    );
+  }
+
+  function PaymentPendingRow({ a, resending, onResend, onOpen }: {
+    a: any;
+    resending: boolean;
+    onResend: () => void;
+    onOpen: () => void;
+  }) {
+    const subtitle: string[] = [];
+    if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
+    if (a.email) subtitle.push(a.email);
+    return (
+      <div role="button" tabIndex={0} onClick={onOpen}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+        className="group flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50">
+        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+            {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+          </div>
+          {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
+        </div>
+        {a.tier?.name && (
+          <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
+        )}
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">Payment pending</span>
+        <button
+          type="button"
+          disabled={resending}
+          onClick={(e) => { e.stopPropagation(); if (!resending) onResend(); }}
+          className="px-2 py-0.5 text-[10px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+        >
+          {resending ? "Resending…" : "Resend payment link"}
+        </button>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0" aria-hidden>
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </div>
+    );
+  }
+
+  function CancelledRow({ a, onOpen }: { a: any; onOpen: () => void }) {
+    const subtitle: string[] = [];
+    if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
+    if (a.email) subtitle.push(a.email);
+    // Reason chip — distinguishes self-cancel / admin removal / 48h payment timeout
+    // so hosts can scan exits at a glance without opening the drawer.
+    const reasonLabels: Record<string, string> = {
+      USER_REQUEST: "Self-cancelled",
+      ADMIN_REMOVAL: "Removed by host",
+      PAYMENT_TIMEOUT: "Payment timed out",
+    };
+    const reason = a.cancellationReason ? reasonLabels[a.cancellationReason] : null;
+    return (
+      <div role="button" tabIndex={0} onClick={onOpen}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+        className="group flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50 opacity-60">
+        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+          {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
+        </div>
+        {reason && (
+          <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{reason}</span>
+        )}
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 shrink-0">Cancelled</span>
       </div>
     );
   }
