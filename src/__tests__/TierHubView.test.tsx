@@ -9,10 +9,10 @@ import { renderWithConfig } from "./test-utils";
 /**
  * TierHubView — Level 2 of the 3-level takeover modal.
  *
- * Prop-driven: shows tier-name input + 4 fully-clickable SectionCards.
- * Back / Duplicate / Delete / Save live in the outer modal footer, NOT
- * in this view — so this test surface is minimal: input, summaries,
- * card click → onEnterStep.
+ * Prop-driven: shows tier-name input + an inline Save (renaming is this
+ * step's primary action) + 4 fully-clickable SectionCards in a 2×2 grid.
+ * Back / Duplicate / Delete live in the outer modal footer — so this
+ * test surface is: input, inline Save, summaries, card click → onEnterStep.
  */
 
 function newTier(overrides: Partial<DraftTier> = {}): DraftTier {
@@ -33,6 +33,7 @@ function renderHub(props: Partial<React.ComponentProps<typeof TierHubView>> = {}
       showMemberPricing={false}
       onUpdate={() => {}}
       onEnterStep={() => {}}
+      onSave={() => {}}
       {...props}
     />,
   );
@@ -88,6 +89,13 @@ describe("TierHubView — landing summary", () => {
     await userEvent.type(nameInput, "X");
     expect(onUpdate).toHaveBeenCalled();
     expect(onUpdate.mock.calls[0][0].name).toMatch(/^GA/);
+  });
+
+  it("renders an inline Save beside the name input and fires onSave", async () => {
+    const onSave = vi.fn();
+    renderHub({ onSave });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalled();
   });
 
   it("shows the lock banner when sales exist", () => {

@@ -172,28 +172,37 @@ describe("PriceEditModal — capacity lock", () => {
     expect(await screen.findByText(/7 tickets sold/i)).toBeInTheDocument();
   });
 
-  // Regression: clicking the L1 row's trash button on a locked tier
-  // surfaces a confusing "Failed to delete" toast — the backend rejects
-  // the DELETE with 409 because refunds must happen first. We hide the
-  // affordance at the source so the host doesn't think delete-while-
-  // -locked is a valid action.
-  it("hides the L1 row trash button for locked tiers (salesCount > 0)", async () => {
-    // Two tiers so canDelete is true (the parent's `visible.length > 1`
-    // gate would otherwise short-circuit the row's delete button before
-    // our isTierLocked check matters).
+  // Delete + Duplicate are detail-view actions now: the L1 rows carry NO
+  // inline Remove/Duplicate buttons (clean tap-to-open targets). Those
+  // actions live on the L2 (per-tier hub) footer instead.
+  it("L1 rows have no inline Remove/Duplicate buttons", async () => {
     const lockedTier = makeTier({ id: "tier-locked", name: "Locked", salesCount: 4 });
     const freeTier = makeTier({ id: "tier-free", name: "Free" });
     mockFetch(stubGetRoutes([lockedTier, freeTier]));
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // Wait for both rows to render.
     await screen.findByRole("button", { name: /Locked/ });
     expect(screen.getByRole("button", { name: /Free/ })).toBeInTheDocument();
 
-    // Trash buttons share the same aria-label across rows; there must
-    // be exactly one (for the free tier), not two.
-    const deleteButtons = screen.queryAllByRole("button", { name: /Remove tier/i });
-    expect(deleteButtons).toHaveLength(1);
+    expect(screen.queryAllByRole("button", { name: /Remove tier/i })).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: /Duplicate tier/i })).toHaveLength(0);
+  });
+
+  // The locked-tier delete protection moved with the Delete button to the
+  // L2 footer: entering a locked tier's detail shows a DISABLED Delete
+  // (backend rejects the DELETE with 409 until refunds happen first).
+  it("disables the L2 footer Delete for locked tiers (salesCount > 0)", async () => {
+    const user = userEvent.setup();
+    const lockedTier = makeTier({ id: "tier-locked", name: "Locked", salesCount: 4 });
+    const freeTier = makeTier({ id: "tier-free", name: "Free" });
+    mockFetch(stubGetRoutes([lockedTier, freeTier]));
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    // Open the locked tier's detail (L2).
+    await user.click(await screen.findByRole("button", { name: /Locked/ }));
+
+    const deleteBtn = await screen.findByRole("button", { name: "Delete" });
+    expect(deleteBtn).toBeDisabled();
   });
 });
 

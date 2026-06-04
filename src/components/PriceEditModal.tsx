@@ -685,6 +685,10 @@ export function PriceEditModal({
         )}
       </div>
 
+      {/* Body — a shared min-height keeps every level (L1 list / L2 hub /
+          L3 step) at the same modal size, so the detail hub no longer
+          shrinks the modal relative to the tier list. */}
+      <div className="min-h-[380px]">
       {loading ? (
         <div className="py-12 text-center text-[13px] text-zinc-400">Loading…</div>
       ) : activeDraft && activeStep ? (
@@ -718,6 +722,8 @@ export function PriceEditModal({
             if (idx != null) updateDraft(idx, patch);
           }}
           onEnterStep={(step) => setActiveStep(step)}
+          onSave={onSaveClicked}
+          saving={saving || loading || memberPricingPending}
         />
       ) : (
         // Level 1: default tier list. Add tier + Donations + Save.
@@ -730,11 +736,7 @@ export function PriceEditModal({
                 <SortableTierRow
                   key={t.localId}
                   t={t}
-                  canDelete={visible.length > 1}
-                  canDuplicate={!!t.id}
                   onSelect={() => setActiveTier(t.localId)}
-                  onRemove={() => removeTier(t._idx)}
-                  onDuplicate={() => duplicateTier(t._idx)}
                 />
               ))}
             </SortableContext>
@@ -769,6 +771,7 @@ export function PriceEditModal({
           />
         </div>
       )}
+      </div>
 
       {/* ─── Footer ─── Modal-level navigation + Save.
           L1 (tier list):   [Cancel]                           [Save]
@@ -807,7 +810,7 @@ export function PriceEditModal({
                   }
                 }}
                 disabled={isTierLocked(activeDraft)}
-                className="px-4 py-2 text-[13px] font-medium text-red-600 border border-red-100 rounded-lg hover:bg-red-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-[13px] font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 title={isTierLocked(activeDraft) ? "Refund sales before deleting" : "Delete tier"}
               >
                 Delete
@@ -820,7 +823,7 @@ export function PriceEditModal({
                   const idx = activeIdx();
                   if (idx != null) duplicateTier(idx);
                 }}
-                className="px-4 py-2 text-[13px] font-medium text-zinc-700 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+                className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer transition-colors"
               >
                 Duplicate
               </button>
@@ -836,15 +839,21 @@ export function PriceEditModal({
           </button>
         )}
         <div className="flex-1" />
-        <button
-          type="button"
-          onClick={onSaveClicked}
-          disabled={saving || loading || memberPricingPending}
-          title={memberPricingPending ? "Loading member pricing…" : undefined}
-          className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
+        {/* Footer Save shows at L1 (tier list) and L3 (step). At L2 (the
+            per-tier hub) the Save moves inline next to the Tier name input
+            — that step's primary action is renaming the tier, while the
+            section cards open their own L3 editors. */}
+        {!(activeDraft && !activeStep) && (
+          <button
+            type="button"
+            onClick={onSaveClicked}
+            disabled={saving || loading || memberPricingPending}
+            title={memberPricingPending ? "Loading member pricing…" : undefined}
+            className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        )}
       </div>
     </ModalShell>
 

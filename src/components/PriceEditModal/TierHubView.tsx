@@ -15,6 +15,11 @@ export interface TierHubViewProps {
   onUpdate: (patch: Partial<DraftTier>) => void;
   /** Click a SectionCard → modal enters Level 3 (step view). */
   onEnterStep: (step: StepId) => void;
+  /** Persist the tier — wired to the inline Save beside the name input.
+   *  This step's primary action is (re)naming the tier; the section
+   *  cards open their own L3 editors. */
+  onSave: () => void;
+  saving?: boolean;
 }
 
 /**
@@ -39,6 +44,8 @@ export function TierHubView({
   showMemberPricing,
   onUpdate,
   onEnterStep,
+  onSave,
+  saving = false,
 }: TierHubViewProps) {
   const sym = getSymbol(t.currency);
   const locked = isTierLocked(t);
@@ -55,18 +62,29 @@ export function TierHubView({
 
   return (
     <div>
-      {/* Tier name editor */}
-      <div className="space-y-3 mb-4">
-        <div>
-          <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block mb-1.5">
-            Tier name
-          </label>
-          <StepInput
-            type="text"
-            value={t.name}
-            onChange={(e) => onUpdate({ name: e.target.value })}
-            placeholder="Standard, VIP, Early-bird…"
-          />
+      {/* Tier name editor — Save sits inline because renaming the tier is
+          this step's primary action (section cards open their own steps). */}
+      <div className="mb-4">
+        <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block mb-1.5">
+          Tier name
+        </label>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <StepInput
+              type="text"
+              value={t.name}
+              onChange={(e) => onUpdate({ name: e.target.value })}
+              placeholder="Standard, VIP, Early-bird…"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="shrink-0 px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
         </div>
       </div>
 
@@ -82,7 +100,8 @@ export function TierHubView({
         </div>
       )}
 
-      <div className="space-y-2">
+      {/* 2×2 grid of section cards (was a single column). */}
+      <div className="grid grid-cols-2 gap-2">
         <SectionCard
           title="Basics"
           description={`${priceDisplay}${billingSummary ? ` · ${billingSummary}` : ""}`}
