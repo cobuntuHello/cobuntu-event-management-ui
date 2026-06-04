@@ -451,6 +451,22 @@ export function PriceEditModal({
   const visible = drafts.map((t, idx) => ({ ...t, _idx: idx })).filter(t => !t.deleted);
   const hasPaid = hasPaidTier(drafts);
 
+  // Member-pricing fetches are async per saved tier. If the host clicks
+  // Save before any of them resolve, the save loop iterates an
+  // incomplete map and silently omits per-tier overrides — the host's
+  // intended config is dropped. We block Save until every saved tier
+  // either has its rows loaded or has errored (errored slots are
+  // skipped by the save loop, so they're safe to allow).
+  //
+  // Only matters when showMemberPricing is on; admin-only feature.
+  // Brand-new (unsaved) tiers don't have a slot in the map and so
+  // can't race — `id` filter below skips them.
+  const memberPricingPending = !!showMemberPricing && drafts.some((d) => {
+    if (!d.id || d.deleted) return false;
+    const state = memberPricingByTier.get(d.id);
+    return !state || state.loading;
+  });
+
   // Stripe gate doesn't apply in draftMode — the parent's create-event
   // submit re-runs the check at the point the event actually goes live.
   if (!draftMode && !loading && stripe.loading === false && !stripe.chargesEnabled && hasPaid) {
@@ -482,6 +498,14 @@ export function PriceEditModal({
 
   async function save(notifyAttendees: boolean = false, opts: { suppressFinalToast?: boolean } = {}) {
     setSaving(true);
+    // Defer onSaved() until after we've cleared local state (setSaving,
+    // any pending toast). The parent typically unmounts the modal in
+    // response to onSaved, so calling it inline causes the toast call
+    // + setSaving(false) to land on an unmounted component (warning +
+    // the success toast never reaches the toast host because the modal
+    // subtree it came from is gone). Hoisting onSaved to "after we're
+    // done with our own setState" keeps the success toast visible.
+    let onSavedPending = false;
     try {
       // Validate tiers — pure helper returns the first failure message,
       // or null when the draft is valid. Three-or-none installment rules
@@ -502,9 +526,8 @@ export function PriceEditModal({
         const liveDrafts = drafts.filter((d) => !d.deleted);
         onDraftCommit?.({ tiers: liveDrafts, donation });
         if (!opts.suppressFinalToast) showToast("Pricing saved");
-        onSaved();
-        return;
-      }
+        onSavedPending = true;
+      } else {
 
       // Apply: tier deletes, updates, creates. The notify-attendees flag is
       // only relevant on PUT updates of existing tiers (the only path the
@@ -598,7 +621,8 @@ export function PriceEditModal({
       }
 
       if (!opts.suppressFinalToast) showToast("Pricing updated");
-      onSaved();
+      onSavedPending = true;
+      }
     } catch (e: any) {
       // When the caller is the confirm modal it wants the exception so it
       // can switch into its error state. The plain Save button path catches
@@ -609,6 +633,12 @@ export function PriceEditModal({
       showToast(e.message || "Failed to save");
     }
     finally { setSaving(false); }
+    // onSaved() fires AFTER the finally cleanup so the parent's
+    // unmount-the-modal reaction doesn't strand setSaving(false) on a
+    // dead component. The toast already fired inside the try block
+    // (before this point) so it reaches the toast host while the modal
+    // is still mounted.
+    if (onSavedPending) onSaved();
   }
 
   const isEmpty = drafts.every(t => t.deleted) || (drafts.length === 1 && !drafts[0].id && !drafts[0].price);
@@ -809,7 +839,8 @@ export function PriceEditModal({
         <button
           type="button"
           onClick={onSaveClicked}
-          disabled={saving || loading}
+          disabled={saving || loading || memberPricingPending}
+          title={memberPricingPending ? "Loading member pricing…" : undefined}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
         >
           {saving ? "Saving…" : "Save"}

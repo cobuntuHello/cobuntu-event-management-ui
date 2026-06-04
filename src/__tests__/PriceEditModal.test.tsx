@@ -171,4 +171,123 @@ describe("PriceEditModal — capacity lock", () => {
     await user.click(await screen.findByRole("button", { name: /GA/ }));
     expect(await screen.findByText(/7 tickets sold/i)).toBeInTheDocument();
   });
+
+  // Regression: clicking the L1 row's trash button on a locked tier
+  // surfaces a confusing "Failed to delete" toast — the backend rejects
+  // the DELETE with 409 because refunds must happen first. We hide the
+  // affordance at the source so the host doesn't think delete-while-
+  // -locked is a valid action.
+  it("hides the L1 row trash button for locked tiers (salesCount > 0)", async () => {
+    // Two tiers so canDelete is true (the parent's `visible.length > 1`
+    // gate would otherwise short-circuit the row's delete button before
+    // our isTierLocked check matters).
+    const lockedTier = makeTier({ id: "tier-locked", name: "Locked", salesCount: 4 });
+    const freeTier = makeTier({ id: "tier-free", name: "Free" });
+    mockFetch(stubGetRoutes([lockedTier, freeTier]));
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    // Wait for both rows to render.
+    await screen.findByRole("button", { name: /Locked/ });
+    expect(screen.getByRole("button", { name: /Free/ })).toBeInTheDocument();
+
+    // Trash buttons share the same aria-label across rows; there must
+    // be exactly one (for the free tier), not two.
+    const deleteButtons = screen.queryAllByRole("button", { name: /Remove tier/i });
+    expect(deleteButtons).toHaveLength(1);
+  });
+});
+
+describe("PriceEditModal — save flow correctness", () => {
+  // Regression: save() used to call onSaved() inline, which the parent
+  // typically reacts to by unmounting the modal. Then setSaving(false)
+  // in the finally block + the success toast that follows landed on a
+  // dead component. The toast in particular was queued from the modal
+  // subtree — once the subtree was gone, the toast host never rendered
+  // it. We now show the toast first AND defer onSaved() to after the
+  // local finally so the unmount happens with state already torn down.
+  it("fires showToast BEFORE onSaved on successful save", async () => {
+    const user = userEvent.setup();
+    const tier = makeTier();
+    mockFetch([
+      ...stubGetRoutes([tier]),
+      { method: "PUT", url: /\/tiers\/tier-1$/, body: tier },
+    ]);
+    const events: string[] = [];
+    const props = baseProps({
+      showToast: (msg: string) => events.push(`toast:${msg}`),
+      onSaved: () => events.push("onSaved"),
+    });
+    renderWithConfig(<PriceEditModal {...props} />);
+
+    // Touch the tier in a non-material way so the prompt doesn't fire
+    // (we want the simple save path).
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    await user.click(await screen.findByRole("button", { name: /Options/ }));
+    const capInput = await screen.findByPlaceholderText("∞") as HTMLInputElement;
+    await user.type(capInput, "50");
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(events).toContain("onSaved"));
+    const toastIdx = events.findIndex((e) => e.startsWith("toast:"));
+    const savedIdx = events.indexOf("onSaved");
+    expect(toastIdx).toBeGreaterThanOrEqual(0);
+    expect(savedIdx).toBeGreaterThanOrEqual(0);
+    expect(toastIdx).toBeLessThan(savedIdx);
+    expect(events[toastIdx]).toBe("toast:Pricing updated");
+  });
+
+  // Regression: per-tier member-pricing fetches are async (one GET per
+  // saved tier). Clicking Save before they resolve used to iterate an
+  // empty map and silently drop the host's intended overrides. We now
+  // disable Save until every saved tier's slot is either loaded or has
+  // errored (errored slots are skipped by the save loop anyway).
+  it("disables Save while member-pricing fetches are in flight", async () => {
+    const tier = makeTier();
+    // Hang the member-pricing GET forever so the loading state pins.
+    let resolveMP: ((res: Response) => void) | null = null;
+    const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
+      const method = (init?.method || "GET").toUpperCase();
+      if (/\/api\/communities\/c-1\/events\/evt-1\/tiers$/.test(url) && method === "GET") {
+        return new Response(JSON.stringify([tier]), { status: 200 });
+      }
+      if (/\/api\/communities\/c-1\/tiers\/tier-1\/form$/.test(url)) {
+        return new Response("{}", { status: 404 });
+      }
+      if (/\/api\/communities\/c-1\/stripe\/connected$/.test(url)) {
+        return new Response(JSON.stringify({ connected: true, chargesEnabled: true }), { status: 200 });
+      }
+      if (/\/api\/communities\/c-1\/segments$/.test(url)) {
+        return new Response(JSON.stringify([{ id: "seg-1", name: "VIPs" }]), { status: 200 });
+      }
+      if (/\/tiers\/tier-1\/member-pricing$/.test(url) && method === "GET") {
+        // Pin in flight — Save must stay disabled until this resolves.
+        return new Promise<Response>((r) => { resolveMP = r; });
+      }
+      throw new Error(`Unmocked: ${method} ${url}`);
+    });
+    global.fetch = fetchFn as unknown as typeof fetch;
+
+    renderWithConfig(
+      <PriceEditModal {...baseProps({ showMemberPricing: true })} />,
+    );
+
+    // Wait for the tier row to render — proves the initial /tiers GET
+    // resolved and segments were fetched, triggering the hanging
+    // member-pricing GET.
+    await screen.findByRole("button", { name: /GA/ });
+
+    // Save button should be disabled while the member-pricing fetch is
+    // pending.
+    await waitFor(() => {
+      const saveBtn = screen.getByRole("button", { name: /^save$/i });
+      expect(saveBtn).toBeDisabled();
+    });
+
+    // Resolve the fetch → Save becomes enabled.
+    resolveMP!(new Response(JSON.stringify([]), { status: 200 }));
+    await waitFor(() => {
+      const saveBtn = screen.getByRole("button", { name: /^save$/i });
+      expect(saveBtn).not.toBeDisabled();
+    });
+  });
 });
