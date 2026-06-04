@@ -234,6 +234,73 @@ describe("FormStep — Use default seed", () => {
   });
 });
 
+describe("FormStep — concurrent save race", () => {
+  // Regression: every mutation auto-fires a PUT. Two rapid mutations
+  // could land two PUTs in flight; the second's body was built from
+  // state the first hadn't returned for yet, and the responses arrived
+  // out of order — the second-issued (but first-resolved) PUT clobbered
+  // the first-issued (but second-resolved) PUT's payload.
+  //
+  // The fix coalesces: while a PUT is in flight, subsequent mutations
+  // stash their latest snapshot, and the in-flight call replays the
+  // stash in its finally block. End-state must reflect the LAST user
+  // intent — and only one extra request fires regardless of how many
+  // mutations queued up.
+  it("coalesces overlapping persist calls so the last intent wins", async () => {
+    const user = userEvent.setup();
+    // Hang the first PUT until we manually release it.
+    let firstResolve: ((r: Response) => void) | null = null;
+    const putBodies: string[] = [];
+    let putCount = 0;
+    const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
+      const method = (init?.method || "GET").toUpperCase();
+      if (method === "GET" && /\/api\/communities\/c-1\/tiers\/tier-1\/form$/.test(url)) {
+        return new Response("{}", { status: 404 });
+      }
+      if (method === "PUT" && /\/api\/communities\/c-1\/tiers\/tier-1\/form$/.test(url)) {
+        putBodies.push(init?.body as string);
+        putCount += 1;
+        if (putCount === 1) {
+          // Hang the first PUT so the second mutation lands while
+          // it's in flight.
+          return new Promise<Response>((r) => { firstResolve = r; });
+        }
+        return new Response("{}", { status: 200 });
+      }
+      throw new Error(`Unmocked: ${method} ${url}`);
+    });
+    global.fetch = fetchFn as unknown as typeof fetch;
+
+    renderForm();
+
+    // First mutation: seed Name + Email via the empty-state CTA.
+    const useDefault = await screen.findByRole("button", { name: /Use default/i });
+    await user.click(useDefault);
+
+    // While the first PUT is hanging, fire a second mutation: add a
+    // page break with a label. Without the coalesce guard the second
+    // mutation would PUT immediately and race the first.
+    await user.click(screen.getByRole("button", { name: /\+ Page break/i }));
+    const labelInput = screen.getByPlaceholderText(/Tell us about your business/) as HTMLInputElement;
+    await user.type(labelInput, "Step 2");
+    await user.click(screen.getByRole("button", { name: /Add page break/i }));
+
+    // Only the first PUT has fired so far — the second is queued.
+    expect(putBodies).toHaveLength(1);
+
+    // Release the first PUT → the queued snapshot replays.
+    firstResolve!(new Response("{}", { status: 200 }));
+
+    // After replay, exactly one additional PUT must fire, and its
+    // body must reflect BOTH mutations (Name + Email fields AND the
+    // page break with label "Step 2").
+    await waitFor(() => expect(putBodies).toHaveLength(2));
+    const second = JSON.parse(putBodies[1]);
+    expect(second.fields.map((f: any) => f.type)).toEqual(["SHORT_TEXT", "EMAIL"]);
+    expect(second.stepLabels).toEqual(["", "Step 2"]);
+  });
+});
+
 describe("FormStep — Page break sub-flow", () => {
   it("Add Page break opens the editor + saves with a label", async () => {
     const user = userEvent.setup();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GripVertical, X } from "lucide-react";
 import {
   DndContext,
@@ -80,6 +80,19 @@ export function FormStep({ t, communityTag, showToast }: FormStepProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<SubView>({ kind: "list" });
 
+  // Concurrent-save guard. The form auto-saves on every mutation
+  // (add / edit / delete / reorder / page-break / page-label) which
+  // means two rapid actions can fire two PUTs in flight at once. If
+  // the second action's request body is built from state that the
+  // first request hasn't yet returned for, the responses race and the
+  // second PUT can clobber the first. We coalesce instead: when a
+  // save is already in flight, queue the latest snapshot and replay
+  // it once the in-flight call resolves. The queue only keeps the
+  // *most recent* pending snapshot — earlier queued snapshots are
+  // strictly stale.
+  const inFlightRef = useRef(false);
+  const pendingRef = useRef<{ items: Item[]; step0Label: string } | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -138,6 +151,14 @@ export function FormStep({ t, communityTag, showToast }: FormStepProps) {
 
   async function persist(nextItems: Item[], nextStep0Label: string) {
     if (!t.id) return;
+    // If a save is already in flight, stash the latest snapshot and
+    // bail. The in-flight call will replay the stashed snapshot in
+    // its finally block, so the most recent user intent always wins.
+    if (inFlightRef.current) {
+      pendingRef.current = { items: nextItems, step0Label: nextStep0Label };
+      return;
+    }
+    inFlightRef.current = true;
     const { fields, stepLabels } = itemsToPayload(nextItems, nextStep0Label);
     setSaving(true);
     try {
@@ -153,7 +174,18 @@ export function FormStep({ t, communityTag, showToast }: FormStepProps) {
     } catch {
       showToast("Failed to save form");
     } finally {
+      inFlightRef.current = false;
       setSaving(false);
+      // Drain the most recent stashed snapshot, if any. Coalescing
+      // means only one replay regardless of how many calls landed
+      // while we were in flight.
+      const queued = pendingRef.current;
+      pendingRef.current = null;
+      if (queued) {
+        // Fire-and-forget — recursion goes at most one level deep
+        // because the guard above will requeue any further calls.
+        void persist(queued.items, queued.step0Label);
+      }
     }
   }
 

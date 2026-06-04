@@ -119,7 +119,12 @@ export function TierRow({
             <Copy className="w-3.5 h-3.5" />
           </button>
         )}
-        {canDelete && (
+        {/* Locked tiers (id + salesCount > 0) cannot be deleted —
+            backend rejects the DELETE with 409 to protect refund flows.
+            Hiding the affordance avoids a confusing failed-toast on
+            click. The L2 hub's footer Delete button has the same
+            isTierLocked gate; this keeps L1 in sync. */}
+        {canDelete && !locked && (
           <button
             type="button"
             onClick={(e) => {
