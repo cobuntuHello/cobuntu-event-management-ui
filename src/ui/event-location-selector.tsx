@@ -123,7 +123,13 @@ export function EventLocationSelector({
       )}
 
       <div className={cn("transition-all duration-300 ease-in-out", showContent ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0 overflow-hidden")}>
-        <div className="space-y-6 px-4 pt-4 pb-4">
+        {/* In header mode the px-4/pt-4/pb-4 matches the collapsible
+            header button's own p-4 inset. In hideHeader mode the selector
+            is embedded directly in a modal/drawer body that already owns
+            the padding (e.g. px-6 py-5), so its own padding would push the
+            fields out of alignment with the modal header + Save button —
+            drop it and let the container's padding govern. */}
+        <div className={cn("space-y-6", !hideHeader && "px-4 pt-4 pb-4")}>
           {/* Physical Location */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
