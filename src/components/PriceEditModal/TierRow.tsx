@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Trash2, GripVertical, Copy, ChevronRight } from "lucide-react";
+import { GripVertical, ChevronRight } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { DraftTier } from "./types";
@@ -9,12 +9,10 @@ import { getSymbol, isTierLocked } from "./helpers";
 
 export interface TierRowProps {
   t: DraftTier & { _idx: number };
-  canDelete: boolean;
-  canDuplicate: boolean;
-  /** Click anywhere on the row → modal enters Level 2 (per-tier hub). */
+  /** Click anywhere on the row → modal enters Level 2 (per-tier hub).
+   *  Delete + Duplicate are detail-view actions now (L2 footer), not
+   *  inline on the row — keeps the list a clean set of tap targets. */
   onSelect: () => void;
-  onRemove: () => void;
-  onDuplicate: () => void;
   dragAttributes?: any;
   dragListeners?: any;
 }
@@ -31,11 +29,7 @@ export interface TierRowProps {
  */
 export function TierRow({
   t,
-  canDelete,
-  canDuplicate,
   onSelect,
-  onRemove,
-  onDuplicate,
   dragAttributes,
   dragListeners,
 }: TierRowProps) {
@@ -84,7 +78,7 @@ export function TierRow({
         </div>
         {t.hasForm && (
           <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
-            Form
+            Form Enabled
           </span>
         )}
         {t.priceMode === "pwyw" && (
@@ -105,39 +99,9 @@ export function TierRow({
         <span className="text-[13px] font-semibold text-zinc-700 tabular-nums shrink-0">
           {t.price && parseFloat(t.price) > 0 ? `${sym}${t.price}` : "Free"}
         </span>
-        {canDuplicate && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDuplicate();
-            }}
-            className="p-1.5 text-zinc-400 hover:text-zinc-700 cursor-pointer rounded-md hover:bg-zinc-100 transition-colors shrink-0"
-            title="Duplicate tier"
-            aria-label="Duplicate tier"
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {/* Locked tiers (id + salesCount > 0) cannot be deleted —
-            backend rejects the DELETE with 409 to protect refund flows.
-            Hiding the affordance avoids a confusing failed-toast on
-            click. The L2 hub's footer Delete button has the same
-            isTierLocked gate; this keeps L1 in sync. */}
-        {canDelete && !locked && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="p-1.5 text-zinc-400 hover:text-red-500 cursor-pointer rounded-md hover:bg-red-50 transition-colors shrink-0"
-            title="Remove tier"
-            aria-label="Remove tier"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
+        {/* Chevron is a decorative affordance only — the whole row is the
+            click target (onSelect). Delete + Duplicate moved to the L2
+            detail footer; the row stays a clean "open this tier" tap. */}
         <ChevronRight className="w-4 h-4 text-zinc-300 shrink-0" aria-hidden />
       </div>
     </div>
