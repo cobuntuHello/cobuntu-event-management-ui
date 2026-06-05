@@ -722,10 +722,12 @@ export function PriceEditModal({
         )}
       </div>
 
-      {/* Body — a shared min-height keeps every level (L1 list / L2 hub /
-          L3 step) at the same modal size, so the detail hub no longer
-          shrinks the modal relative to the tier list. */}
-      <div className="min-h-[380px]">
+      {/* Body — FIXED height + internal scroll. Every level (L1 list /
+          L2 hub / L3 step) renders into the same-size box, so the modal
+          never resizes as you navigate or as inner content changes;
+          taller steps scroll inside this box rather than growing the
+          modal. Width is fixed by the ModalShell (w-[600px]). */}
+      <div className="h-[420px] overflow-y-auto overflow-x-hidden">
       {loading ? (
         <div className="py-12 text-center text-[13px] text-zinc-400">Loading…</div>
       ) : activeDraft && activeStep ? (
