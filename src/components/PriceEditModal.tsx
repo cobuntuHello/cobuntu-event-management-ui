@@ -40,6 +40,7 @@ import {
   validateTier,
 } from "./PriceEditModal/helpers";
 import { SortableTierRow } from "./PriceEditModal/TierRow";
+import { Switch } from "./PriceEditModal/_primitives";
 import { TierHubView, type StepId } from "./PriceEditModal/TierHubView";
 import { StepView } from "./PriceEditModal/StepView";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
@@ -152,6 +153,7 @@ export function PriceEditModal({
   const [drafts, setDrafts] = useState<DraftTier[]>([]);
   const [originalTiers, setOriginalTiers] = useState<Map<string, OriginalTierSnapshot>>(new Map());
   const [saving, setSaving] = useState(false);
+  const [publishToggling, setPublishToggling] = useState(false);
   // Notify-attendees confirmation states — mirrors EditEventDrawer so the
   // host gets the same prompt shape when they edit ticket pricing/name.
   // 'hidden' = no dialog; 'options' = prompt; loading/success/error are
@@ -348,6 +350,41 @@ export function PriceEditModal({
 
   function updateDraft(idx: number, patch: Partial<DraftTier>) {
     setDrafts(d => d.map((t, i) => i === idx ? { ...t, ...patch } : t));
+  }
+
+  /**
+   * Per-tier publish toggle for the L2 (tier-hub) footer. Publishing is a
+   * top-level rollout action, so the Switch hits the backend IMMEDIATELY
+   * (no Save): a saved tier PUTs { publishedAt } — an ISO string to
+   * publish, null to unpublish (the endpoint's explicit-clear contract).
+   * The draft flips optimistically and reverts if the request fails. A
+   * brand-new (unsaved) tier has no id to PUT against, so the toggle just
+   * stages publishedAt on the draft; it persists on the tier's first save.
+   */
+  async function togglePublish(idx: number) {
+    const tier = drafts[idx];
+    if (!tier) return;
+    const prevPublishedAt = tier.publishedAt;
+    const nextPublishedAt = tier.publishedAt ? null : new Date().toISOString();
+    updateDraft(idx, { publishedAt: nextPublishedAt });
+    if (!tier.id) return; // unsaved → persists when the tier is first saved
+    setPublishToggling(true);
+    try {
+      const res = await fetch(
+        `${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${tier.id}`,
+        { method: "PUT", headers: jsonHeaders(), body: JSON.stringify({ publishedAt: nextPublishedAt }) },
+      );
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || "Failed to update publish state");
+      }
+      showToast(nextPublishedAt ? "Tier published" : "Tier unpublished");
+    } catch (e: any) {
+      updateDraft(idx, { publishedAt: prevPublishedAt }); // revert optimistic flip
+      showToast(e.message || "Failed to update publish state");
+    } finally {
+      setPublishToggling(false);
+    }
   }
   function addTier() {
     setDrafts(d => {
@@ -839,10 +876,30 @@ export function PriceEditModal({
           </button>
         )}
         <div className="flex-1" />
-        {/* Footer Save shows at L1 (tier list) and L3 (step). At L2 (the
-            per-tier hub) the Save moves inline next to the Tier name input
-            — that step's primary action is renaming the tier, while the
-            section cards open their own L3 editors. */}
+        {/* L2 (per-tier hub): a Publish switch sits where Save would be.
+            Publishing is a top-level rollout action that hits the backend
+            instantly (no Save) — see togglePublish. The tier-name Save is
+            inline next to the input. */}
+        {activeDraft && !activeStep && (
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-medium text-zinc-600">
+              {activeDraft.publishedAt ? "Published" : "Draft"}
+            </span>
+            <Switch
+              checked={!!activeDraft.publishedAt}
+              disabled={publishToggling}
+              onChange={() => {
+                const idx = activeIdx();
+                if (idx != null) togglePublish(idx);
+              }}
+              label="Published"
+            />
+          </div>
+        )}
+        {/* Footer Save shows at L1 (tier list) and L3 (step). At L2 the
+            Save moves inline next to the Tier name input — that step's
+            primary action is renaming the tier, while the section cards
+            open their own L3 editors. */}
         {!(activeDraft && !activeStep) && (
           <button
             type="button"

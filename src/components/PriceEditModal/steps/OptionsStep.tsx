@@ -31,7 +31,7 @@ export function OptionsStep({ t, onUpdate }: OptionsStepProps) {
           <StepInput
             type="number" min={locked ? t.salesCount : 0} step="1" value={t.capacity}
             onChange={(e) => onUpdate({ capacity: e.target.value })}
-            placeholder="∞"
+            placeholder="Unlimited"
           />
         </div>
         {locked && (

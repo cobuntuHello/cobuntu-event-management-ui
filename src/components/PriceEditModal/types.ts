@@ -116,15 +116,17 @@ export interface SupportedCurrency {
   code: string;
   name: string;
   symbol: string;
+  /** Country/region flag emoji shown in the currency dropdown. */
+  flag: string;
 }
 
 export const SUPPORTED_CURRENCIES: ReadonlyArray<SupportedCurrency> = [
-  { code: "EUR", name: "Euro", symbol: "€" },
-  { code: "USD", name: "US Dollar", symbol: "$" },
-  { code: "GBP", name: "British Pound", symbol: "£" },
-  { code: "BRL", name: "Brazilian Real", symbol: "R$" },
-  { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
-  { code: "CAD", name: "Canadian Dollar", symbol: "$" },
-  { code: "AUD", name: "Australian Dollar", symbol: "$" },
-  { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+  { code: "EUR", name: "Euro", symbol: "€", flag: "🇪🇺" },
+  { code: "USD", name: "US Dollar", symbol: "$", flag: "🇺🇸" },
+  { code: "GBP", name: "British Pound", symbol: "£", flag: "🇬🇧" },
+  { code: "BRL", name: "Brazilian Real", symbol: "R$", flag: "🇧🇷" },
+  { code: "CHF", name: "Swiss Franc", symbol: "CHF", flag: "🇨🇭" },
+  { code: "CAD", name: "Canadian Dollar", symbol: "$", flag: "🇨🇦" },
+  { code: "AUD", name: "Australian Dollar", symbol: "$", flag: "🇦🇺" },
+  { code: "JPY", name: "Japanese Yen", symbol: "¥", flag: "🇯🇵" },
 ];

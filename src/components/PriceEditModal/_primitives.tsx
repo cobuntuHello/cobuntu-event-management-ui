@@ -80,10 +80,23 @@ export const StepInput = React.forwardRef<HTMLInputElement, StepInputProps>(
         />
       );
     }
-    // With a prefix, position the affordance inside the input's bounds.
+    // With a prefix, lay the symbol out as a real leading flex element
+    // rather than an absolute overlay. The old overlay assumed a 1-char
+    // symbol and reserved a fixed `pl-7`; multi-char symbols (R$, CHF,
+    // CA$) overflowed it and collided with the value/placeholder — the
+    // "broken" look. As a flex sibling the input always starts cleanly
+    // after the symbol regardless of its width. The border + focus ring
+    // move to the wrapper (focus-within) so the field reads as one unit.
     return (
-      <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-zinc-400 pointer-events-none">
+      <div
+        className={[
+          "flex items-center w-full text-[13px] rounded-lg border border-zinc-200",
+          isDisabled
+            ? "bg-zinc-50 cursor-not-allowed"
+            : "bg-white focus-within:border-zinc-400 focus-within:ring-1 focus-within:ring-zinc-200",
+        ].join(" ")}
+      >
+        <span className={`pl-3 pr-1.5 shrink-0 select-none ${isDisabled ? "text-zinc-300" : "text-zinc-400"}`}>
           {prefix}
         </span>
         <input
@@ -91,9 +104,8 @@ export const StepInput = React.forwardRef<HTMLInputElement, StepInputProps>(
           {...rest}
           disabled={isDisabled}
           className={[
-            STEP_INPUT_BASE,
-            "pl-7 pr-3 py-2",
-            isDisabled ? STEP_INPUT_LOCKED : "text-zinc-900 placeholder:text-zinc-400",
+            "min-w-0 flex-1 bg-transparent py-2 pr-3 rounded-r-lg focus:outline-none",
+            isDisabled ? "text-zinc-400" : "text-zinc-900 placeholder:text-zinc-400",
             "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
             className ?? "",
           ].join(" ")}
@@ -102,3 +114,45 @@ export const StepInput = React.forwardRef<HTMLInputElement, StepInputProps>(
     );
   },
 );
+
+/**
+ * Switch — a compact on/off toggle. Used where flipping the control
+ * IS the action (e.g. publish a tier) rather than staging a value for a
+ * later Save. Accessible: role="switch" + aria-checked.
+ */
+export function Switch({
+  checked,
+  onChange,
+  disabled = false,
+  id,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  id?: string;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      id={id}
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      className={[
+        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+        checked ? "bg-zinc-900" : "bg-zinc-300",
+        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+      ].join(" ")}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+          checked ? "translate-x-[18px]" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
