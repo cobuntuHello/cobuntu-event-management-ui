@@ -127,10 +127,10 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     const props = baseProps();
     renderWithConfig(<PriceEditModal {...props} />);
 
-    // L1 → click row → L2 → click Options card → L3.
-    // Capacity lives in OptionsStep.
+    // L1 → click row → L2 → click Basics card → L3.
+    // Capacity now lives in the Basics step (Options was merged in).
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Options/ }));
+    await user.click(await screen.findByRole("button", { name: /Basics/ }));
 
     const capInput = await screen.findByPlaceholderText("Unlimited") as HTMLInputElement;
     await user.type(capInput, "50");
@@ -188,21 +188,36 @@ describe("PriceEditModal — capacity lock", () => {
     expect(screen.queryAllByRole("button", { name: /Duplicate tier/i })).toHaveLength(0);
   });
 
-  // The locked-tier delete protection moved with the Delete button to the
-  // L2 footer: entering a locked tier's detail shows a DISABLED Delete
-  // (backend rejects the DELETE with 409 until refunds happen first).
-  it("disables the L2 footer Delete for locked tiers (salesCount > 0)", async () => {
+  // Delete is ALWAYS visible + enabled now (no hidden/disabled features
+  // without explanation). When it can't proceed it explains via a toast.
+  it("locked tier: clicking Delete shows a refund-first toast, doesn't delete", async () => {
     const user = userEvent.setup();
+    const toasts: string[] = [];
     const lockedTier = makeTier({ id: "tier-locked", name: "Locked", salesCount: 4 });
     const freeTier = makeTier({ id: "tier-free", name: "Free" });
-    mockFetch(stubGetRoutes([lockedTier, freeTier]));
-    renderWithConfig(<PriceEditModal {...baseProps()} />);
+    const fetchMock = mockFetch(stubGetRoutes([lockedTier, freeTier]));
+    renderWithConfig(<PriceEditModal {...baseProps({ showToast: (m: string) => toasts.push(m) })} />);
 
-    // Open the locked tier's detail (L2).
     await user.click(await screen.findByRole("button", { name: /Locked/ }));
-
     const deleteBtn = await screen.findByRole("button", { name: "Delete" });
-    expect(deleteBtn).toBeDisabled();
+    expect(deleteBtn).toBeEnabled();
+    await user.click(deleteBtn);
+
+    expect(toasts.some((t) => /refund/i.test(t))).toBe(true);
+    expect(fetchMock.mock.calls.some((c: any) => c[1]?.method === "DELETE")).toBe(false);
+  });
+
+  it("only tier: clicking Delete shows 'needs at least one tier' toast", async () => {
+    const user = userEvent.setup();
+    const toasts: string[] = [];
+    const tier = makeTier();
+    mockFetch(stubGetRoutes([tier]));
+    renderWithConfig(<PriceEditModal {...baseProps({ showToast: (m: string) => toasts.push(m) })} />);
+
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+
+    expect(toasts.some((t) => /at least one tier/i.test(t))).toBe(true);
   });
 });
 
@@ -231,7 +246,7 @@ describe("PriceEditModal — save flow correctness", () => {
     // Touch the tier in a non-material way so the prompt doesn't fire
     // (we want the simple save path).
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Options/ }));
+    await user.click(await screen.findByRole("button", { name: /Basics/ }));
     const capInput = await screen.findByPlaceholderText("Unlimited") as HTMLInputElement;
     await user.type(capInput, "50");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
