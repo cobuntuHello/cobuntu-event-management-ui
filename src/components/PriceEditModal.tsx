@@ -714,20 +714,23 @@ export function PriceEditModal({
   return (
     <>
     <ModalShell onClose={onClose} width="w-[600px]">
+      {/* Fixed-height flex column → the modal ALWAYS has the same
+          dimensions. Header + footer are shrink-0; the body is the only
+          thing that flexes, and it scrolls internally. Nothing the user
+          does (navigating levels, longer content, the subtitle showing
+          only on L1) changes the outer size. Width is fixed by ModalShell. */}
+      <div className="flex flex-col h-[540px] max-h-[78vh]">
       {/* ─── Header ─── */}
-      <div className="mb-5">
+      <div className="shrink-0 mb-4">
         <h3 className="text-[16px] font-semibold text-zinc-900">{title}</h3>
         {subtitle && (
           <p className="text-[12px] text-zinc-500 mt-0.5">{subtitle}</p>
         )}
       </div>
 
-      {/* Body — FIXED height + internal scroll. Every level (L1 list /
-          L2 hub / L3 step) renders into the same-size box, so the modal
-          never resizes as you navigate or as inner content changes;
-          taller steps scroll inside this box rather than growing the
-          modal. Width is fixed by the ModalShell (w-[600px]). */}
-      <div className="h-[420px] overflow-y-auto overflow-x-hidden">
+      {/* Body — the sole flexible region; scrolls when a level's content
+          is taller than the fixed column. */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
       {loading ? (
         <div className="py-12 text-center text-[13px] text-zinc-400">Loading…</div>
       ) : activeDraft && activeStep ? (
@@ -814,7 +817,7 @@ export function PriceEditModal({
           Back / Cancel / Delete / Duplicate live here so the action
           surface stays predictable across levels — no inline pill-shaped
           affordances inside the body. */}
-      <div className="flex items-center gap-2 mt-5 pt-4 border-t border-zinc-100">
+      <div className="shrink-0 flex items-center gap-2 mt-4 pt-4 border-t border-zinc-100">
         {activeDraft && activeStep ? (
           <button
             type="button"
@@ -900,19 +903,24 @@ export function PriceEditModal({
             />
           </div>
         )}
-        {/* Footer Save at every level — a standard action-bar Save that
-            commits the whole modal. (The old inline Save next to the tier
-            name read as "save the title only"; identity now lives in the
-            Details step, so this is the single, unambiguous Save.) */}
-        <button
-          type="button"
-          onClick={onSaveClicked}
-          disabled={saving || loading || memberPricingPending}
-          title={memberPricingPending ? "Loading member pricing…" : undefined}
-          className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
+        {/* Save shows at L1 (tier list) and L3 (step) — where you actually
+            edit. The L2 hub is a pure navigation menu (no fields of its
+            own), so it has no Save: edits made in a step commit via that
+            step's Save (which commits the whole modal), and the list has
+            its own Save. The hub keeps only Back / Delete / Duplicate /
+            Published. */}
+        {!(activeDraft && !activeStep) && (
+          <button
+            type="button"
+            onClick={onSaveClicked}
+            disabled={saving || loading || memberPricingPending}
+            title={memberPricingPending ? "Loading member pricing…" : undefined}
+            className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        )}
+      </div>
       </div>
     </ModalShell>
 

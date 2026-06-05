@@ -117,6 +117,10 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
       expect(screen.getByRole("button", { name: /Member pricing/ })).toBeInTheDocument(),
     );
 
+    // 5b. The hub is a pure menu with no Save — Back once more to the
+    //     tier list (L1), where the outer Save lives.
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+
     // 6. Click the outer modal's Save. Should commit BOTH the tier
     //    update (PUT) AND the member-pricing override (POST).
     await user.click(screen.getByRole("button", { name: /^save$/i }));
