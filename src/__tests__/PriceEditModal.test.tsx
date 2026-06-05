@@ -367,3 +367,71 @@ describe("PriceEditModal — per-tier publish toggle (L2 footer)", () => {
     });
   });
 });
+
+describe("PriceEditModal — header breadcrumb + single title/subtitle", () => {
+  it("L1 has no breadcrumb; L2 shows the tier crumb + name; L3 shows step crumb trail + step title", async () => {
+    const user = userEvent.setup();
+    const tier = makeTier({ name: "GA" });
+    mockFetch([...stubGetRoutes([tier])]);
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    // L1 — single list title, no breadcrumb nav.
+    expect(await screen.findByRole("heading", { name: "Edit pricing", level: 3 })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+
+    // L2 — breadcrumb back to the list, title = tier name.
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    const nav2 = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    expect(within(nav2).getByRole("button", { name: "Pricing tiers" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "GA", level: 3 })).toBeInTheDocument();
+
+    // L3 (Config step) — crumb trail [Pricing tiers › GA], title "Config".
+    await user.click(await screen.findByRole("button", { name: /Config/ }));
+    const nav3 = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    expect(within(nav3).getByRole("button", { name: "Pricing tiers" })).toBeInTheDocument();
+    expect(within(nav3).getByRole("button", { name: "GA" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Config", level: 3 })).toBeInTheDocument();
+    // The auto-schedule control now lives in the Config step.
+    expect(screen.getByRole("switch", { name: "Auto-schedule sales window" })).toBeInTheDocument();
+  });
+
+  it("clicking the tier-name crumb pops L3 → L2; clicking the list crumb pops back to L1", async () => {
+    const user = userEvent.setup();
+    const tier = makeTier({ name: "GA" });
+    mockFetch([...stubGetRoutes([tier])]);
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    await user.click(await screen.findByRole("button", { name: /Config/ }));
+
+    // Crumb "GA" → back to the hub (Config tile visible again).
+    const nav3 = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    await user.click(within(nav3).getByRole("button", { name: "GA" }));
+    expect(await screen.findByRole("heading", { name: "Config", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "GA", level: 3 })).toBeInTheDocument();
+
+    // Crumb "Pricing tiers" → back to L1 list (no breadcrumb).
+    const nav2 = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    await user.click(within(nav2).getByRole("button", { name: "Pricing tiers" }));
+    expect(await screen.findByRole("heading", { name: "Edit pricing", level: 3 })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+  });
+
+  it("Description input lives in the Details step, not Pricing configuration", async () => {
+    const user = userEvent.setup();
+    const tier = makeTier({ name: "GA" });
+    mockFetch([...stubGetRoutes([tier])]);
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+
+    // Details → Description field present.
+    await user.click(await screen.findByRole("button", { name: /Details/ }));
+    expect(await screen.findByPlaceholderText("What's included")).toBeInTheDocument();
+
+    // Back to hub → Pricing configuration → no Description field there.
+    await user.click(screen.getByRole("button", { name: /^back$/i }));
+    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
+    expect(screen.queryByPlaceholderText("What's included")).not.toBeInTheDocument();
+  });
+});

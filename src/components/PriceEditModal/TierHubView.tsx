@@ -5,7 +5,23 @@ import { SectionCard } from "@cobuntu/management-ui-shared";
 import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
 
-export type StepId = "details" | "basics" | "form";
+export type StepId = "details" | "basics" | "config" | "form";
+
+/** Step metadata — shared by the modal header (breadcrumb + title +
+ *  subtitle) and the hub tiles so they never drift. */
+export const STEP_TITLES: Record<StepId, string> = {
+  details: "Details",
+  basics: "Pricing configuration",
+  config: "Config",
+  form: "Registration form",
+};
+
+export const STEP_SUBTITLES: Record<StepId, string> = {
+  details: "Name, description, and attendance capacity for this tier.",
+  basics: "Price, billing, and member discounts.",
+  config: "Set the timeframe this tier is available for sale.",
+  form: "Attach a form buyers complete when they register.",
+};
 
 export interface TierHubViewProps {
   t: DraftTier;
@@ -16,9 +32,9 @@ export interface TierHubViewProps {
 /**
  * Level 2 (per-tier hub takeover) of the redesigned PriceEditModal.
  *
- * A pure navigation menu of tiles — Details / Basics / Member pricing /
- * Registration form — for one tier. Each tile is fully clickable (whole
- * row is the tap target) and enters Level 3 for editing. The hub itself
+ * A pure navigation menu of tiles — Details / Pricing configuration /
+ * Config / Registration form — for one tier. Each tile is fully clickable
+ * (whole row is the tap target) and enters Level 3 for editing. The hub itself
  * has NO editable fields and NO Save: identity (name + capacity) lives in
  * the Details step now, so the footer Save behaves consistently across
  * every level (it was previously a misleading inline "Save" next to the
@@ -79,6 +95,14 @@ export function TierHubView({
           }
           action={chevron}
           onClick={() => onEnterStep("basics")}
+          variant="default"
+        />
+
+        <SectionCard
+          title="Config"
+          description={t.autoScheduleEnabled ? "Auto-scheduled window" : "Always available"}
+          action={chevron}
+          onClick={() => onEnterStep("config")}
           variant="default"
         />
 
