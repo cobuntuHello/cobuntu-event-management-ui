@@ -10,7 +10,8 @@ export interface DetailsStepProps {
 }
 
 /**
- * "Details" step — the tier's identity fields: name + capacity. Split out
+ * "Details" step — the tier's identity fields: name + description +
+ * capacity. Split out
  * of the tier hub so the hub stays a pure navigation menu of tiles. The
  * old hub had the name input + an inline Save that read as "save the title"
  * when it actually committed the whole modal; routing the name (and the
@@ -31,6 +32,19 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
             value={t.name}
             onChange={(e) => onUpdate({ name: e.target.value })}
             placeholder="Standard, VIP, Early-bird…"
+          />
+        </div>
+      </div>
+
+      {/* Description — tier info, lives with the identity fields. */}
+      <div>
+        <Eyebrow>Description (optional)</Eyebrow>
+        <div className="mt-1">
+          <StepInput
+            type="text"
+            value={t.description}
+            onChange={(e) => onUpdate({ description: e.target.value })}
+            placeholder="What's included"
           />
         </div>
       </div>

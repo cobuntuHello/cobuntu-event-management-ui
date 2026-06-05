@@ -8,7 +8,6 @@ import {
 import { SUPPORTED_CURRENCIES, type DraftTier } from "../types";
 import { getSymbol, isTierLocked } from "../helpers";
 import { Collapse, Eyebrow, StepInput } from "../_primitives";
-import { SchedulingSection } from "../../SchedulingSection";
 import { MembersStep } from "./MembersStep";
 import type { MemberPricingRow, MemberPricingTierState } from "../member-pricing";
 
@@ -24,11 +23,12 @@ export interface BasicsStepProps {
 }
 
 /**
- * "Basics" step — the single per-tier pricing surface. Field order is
- * deliberate: pricing model → price → billing mode → auto-schedule, so
- * the host decides HOW the tier is priced before typing the amount.
- * (Capacity moved up to the tier hub, next to the name, so it's visible
- * without opening this step.)
+ * "Pricing configuration" step — the per-tier pricing surface. Field
+ * order is deliberate: pricing model → price → billing mode → member
+ * pricing, so the host decides HOW the tier is priced before typing the
+ * amount. (Capacity + name live in the Details step; the auto-schedule
+ * sales window lives in the Config step — it's an availability rule, not
+ * price config.)
  *
  * Events expose ONE_TIME + INSTALLMENT_PLAN only (events checkout uses
  * Stripe mode='payment'; RECURRING would silently no-op). Billing mode is
@@ -51,18 +51,7 @@ export function BasicsStep({
 
   return (
     <div className="space-y-4">
-      {/* Description */}
-      <div>
-        <Eyebrow>Description (optional)</Eyebrow>
-        <div className="mt-1">
-          <StepInput
-            type="text"
-            value={t.description}
-            onChange={(e) => onUpdate({ description: e.target.value })}
-            placeholder="What's included"
-          />
-        </div>
-      </div>
+      {/* (Description moved to the Details step — it's tier info, not pricing.) */}
 
       {/* Pricing model — fixed vs PWYW. Above the price so the host picks
           the model before typing the amount. Locked once sales exist. */}
@@ -237,16 +226,8 @@ export function BasicsStep({
         </div>
       </Collapse>
 
-      {/* Auto-schedule sales window. */}
-      <SchedulingSection
-        draft={{
-          publishedAt: t.publishedAt,
-          autoScheduleEnabled: t.autoScheduleEnabled,
-          salesStartAt: t.salesStartAt,
-          salesEndAt: t.salesEndAt,
-        }}
-        onChange={(patch) => onUpdate(patch as Partial<DraftTier>)}
-      />
+      {/* (Auto-schedule sales window moved to its own "Config" step — it's
+          an availability rule, not price config.) */}
 
       {/* Member pricing — community-only per-segment discount overrides.
           Folded in here so this step owns ALL pricing config. */}

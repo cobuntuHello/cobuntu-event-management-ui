@@ -38,16 +38,30 @@ function renderHub(props: Partial<React.ComponentProps<typeof TierHubView>> = {}
 }
 
 describe("TierHubView — tile menu", () => {
-  it("renders Details + Pricing configuration + Registration form (Member pricing folded into Pricing config)", () => {
+  it("renders Details + Pricing configuration + Config + Registration form (Member pricing folded into Pricing config)", () => {
     renderHub();
     expect(screen.getByRole("heading", { name: "Details", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Pricing configuration", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Config", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Registration form", level: 3 })).toBeInTheDocument();
     // Member pricing is no longer a separate tile — it lives inside Pricing config.
     expect(screen.queryByRole("heading", { name: "Member pricing", level: 3 })).not.toBeInTheDocument();
     // No editable fields / inline Save on the hub.
     expect(screen.queryByPlaceholderText("Standard, VIP, Early-bird…")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+
+  it("Config tile summarises availability and enters the config step", async () => {
+    const onEnterStep = vi.fn();
+    renderHub({ t: newTier({ autoScheduleEnabled: false }), onEnterStep });
+    expect(screen.getByText("Always available")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Config/ }));
+    expect(onEnterStep).toHaveBeenCalledWith("config");
+  });
+
+  it("Config tile shows the scheduled window when auto-schedule is on", () => {
+    renderHub({ t: newTier({ autoScheduleEnabled: true }) });
+    expect(screen.getByText("Auto-scheduled window")).toBeInTheDocument();
   });
 
   it("Pricing config card description: price · billing summary", () => {

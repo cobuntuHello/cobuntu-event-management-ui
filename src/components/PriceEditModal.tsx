@@ -41,7 +41,7 @@ import {
 } from "./PriceEditModal/helpers";
 import { SortableTierRow } from "./PriceEditModal/TierRow";
 import { Switch } from "./PriceEditModal/_primitives";
-import { TierHubView, type StepId } from "./PriceEditModal/TierHubView";
+import { TierHubView, STEP_TITLES, STEP_SUBTITLES, type StepId } from "./PriceEditModal/TierHubView";
 import { StepView } from "./PriceEditModal/StepView";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
 import {
@@ -696,20 +696,51 @@ export function PriceEditModal({
     return idx >= 0 ? idx : null;
   }
 
-  // Title adapts to which level the user is on. Level 2 / 3 use the
-  // tier name so the modal chrome reinforces the focus context.
+  // ─── Header model — ONE title + ONE subtitle per level, plus a
+  // breadcrumb trail so the user always knows where they are and can hop
+  // back. Previously each surface rendered its own heading (modal title +
+  // step eyebrow + step h3 = three titles stacked); now the modal owns
+  // the single source of truth and the steps render body-only.
+  //
+  //   L1 (tier list): no breadcrumb · title "Pricing tiers" / "Edit
+  //                   pricing" / "Add pricing" · descriptive subtitle.
+  //   L2 (tier hub):  breadcrumb [Pricing tiers] · title = tier name ·
+  //                   subtitle "Choose what to configure".
+  //   L3 (step):      breadcrumb [Pricing tiers › {tier}] · title =
+  //                   STEP_TITLES[step] · subtitle = STEP_SUBTITLES[step].
+  const tierName = activeDraft?.name?.trim() || "Untitled tier";
   const title =
-    activeDraft
-      ? `Editing ${activeDraft.name || "tier"}`
-      : isEmpty
-        ? "Add pricing"
-        : visible.length === 1
-          ? "Edit pricing"
-          : "Pricing tiers";
+    activeDraft && activeStep
+      ? STEP_TITLES[activeStep]
+      : activeDraft
+        ? tierName
+        : isEmpty
+          ? "Add pricing"
+          : visible.length === 1
+            ? "Edit pricing"
+            : "Pricing tiers";
   const subtitle =
-    activeDraft
-      ? null
-      : "Tickets, donations, and per-tier registration forms.";
+    activeDraft && activeStep
+      ? STEP_SUBTITLES[activeStep]
+      : activeDraft
+        ? "Choose what to configure for this tier."
+        : "Tickets, donations, and per-tier registration forms.";
+
+  // Breadcrumb segments — each is clickable except the last (current
+  // level). L1 has none. Clicking a crumb pops navigation back to it.
+  const crumbs: Array<{ label: string; onClick?: () => void }> = [];
+  if (activeDraft) {
+    crumbs.push({
+      label: "Pricing tiers",
+      onClick: () => {
+        setActiveStep(null);
+        setActiveTier(null);
+      },
+    });
+    if (activeStep) {
+      crumbs.push({ label: tierName, onClick: () => setActiveStep(null) });
+    }
+  }
 
   return (
     <>
@@ -719,8 +750,24 @@ export function PriceEditModal({
         when the body overflows. */}
     <ModalShell onClose={onClose} width="w-[600px]">
       <div className="flex flex-col max-h-[78vh]">
-      {/* ─── Header ─── */}
+      {/* ─── Header ─── ONE breadcrumb + ONE title + ONE subtitle. */}
       <div className="shrink-0 mb-4">
+        {crumbs.length > 0 && (
+          <nav className="flex items-center flex-wrap gap-1 mb-1.5 text-[12px]" aria-label="Breadcrumb">
+            {crumbs.map((c, i) => (
+              <span key={i} className="flex items-center gap-1">
+                {i > 0 && <span className="text-zinc-300" aria-hidden>›</span>}
+                <button
+                  type="button"
+                  onClick={c.onClick}
+                  className="text-zinc-500 hover:text-zinc-900 hover:underline cursor-pointer transition-colors"
+                >
+                  {c.label}
+                </button>
+              </span>
+            ))}
+          </nav>
+        )}
         <h3 className="text-[16px] font-semibold text-zinc-900">{title}</h3>
         {subtitle && (
           <p className="text-[12px] text-zinc-500 mt-0.5">{subtitle}</p>
