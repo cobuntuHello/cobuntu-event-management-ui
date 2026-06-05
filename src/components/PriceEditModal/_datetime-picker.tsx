@@ -125,7 +125,10 @@ export function DateTimePicker({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-[260px] rounded-xl border border-zinc-200 bg-white shadow-lg p-3">
+        // In-flow panel (not an absolute overlay) so it's never clipped by
+        // the modal's fixed-height scroll body — it expands the content and
+        // the body scrolls to it, like an accordion.
+        <div className="mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-sm p-3">
           {/* Month header */}
           <div className="flex items-center justify-between mb-2">
             <button
