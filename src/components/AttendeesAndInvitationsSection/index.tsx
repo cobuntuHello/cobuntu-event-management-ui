@@ -13,6 +13,17 @@ interface Props {
   isPast: boolean;
   refreshKey?: number;
   onInviteClick?: () => void;
+  /**
+   * Optional URL slug (or id) for the event, available to the parent
+   * before the `event` GET resolves. When supplied, the section fires
+   * its supplementary fetches (invitations, stats, pending, sales) in
+   * parallel with the parent's event fetch instead of waiting for it.
+   * Cuts the load shape from `wave1 + wave2` down to `max(wave1, wave2)`.
+   *
+   * Falls back to `event.id` / `event.slug` once those become available
+   * (no behaviour change for callers that haven't been updated).
+   */
+  eventIdOrSlug?: string;
 }
 
 interface InvitationStats {
@@ -36,7 +47,7 @@ type Tab = "approved" | "pending" | "payment_pending" | "rejected" | "cancelled"
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: "R$" };
 
-export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick }: Props) {
+export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, eventIdOrSlug }: Props) {
   const config = useEventManagementConfig();
   const API = config.apiBaseUrl;
   const authHeaders = config.authHeaders;
@@ -79,16 +90,60 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 2500); }
 
+  // The event-detail page used to do this serially:
+  //   1. parent fetches /events/<id>  → renders OverviewView
+  //   2. this section mounts          → fires invitations/stats + sales
+  // wave-2 was bottlenecked behind wave-1 even though every wave-2
+  // endpoint only needs the eventId/slug from the URL (NOT the
+  // resolved event row). Splitting the fetches into two effects:
+  //
+  //   a) wave-2a — always-on. Fires on mount with the URL slug, in
+  //      PARALLEL with the parent's event GET. invitations + stats
+  //      don't depend on requiresApproval / isPaid so they can race
+  //      wave-1.
+  //   b) wave-2b — conditional (requiresApproval ⇒ /pending-attendees,
+  //      isPaid ⇒ /sales). Waits for `event` to resolve since those
+  //      flags come off it.
+  //
+  // Net shape: max(wave1, wave2a) + wave2b-if-needed, instead of
+  // wave1 + (wave2a ‖ wave2b). For free events that's ~half the wait.
+  // For paid+approval events it still helps because wave2a races
+  // wave1 and the heavy /sales fires immediately after wave1.
+  //
+  // `loading` flips false ONLY when the always-on fetches return —
+  // the conditional ones manage their own state inline.
+  const lookupId = eventIdOrSlug || event?.id || event?.slug;
   useEffect(() => {
-    if (!event?.id || !communityTag) return;
+    if (!lookupId || !communityTag) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const fetches: Promise<Response>[] = [
-          fetch(`${API}/api/communities/${communityTag}/events/${event.id}/invitations/stats`, { headers: authHeaders() }),
-          fetch(`${API}/api/communities/${communityTag}/events/${event.id}/invitations`, { headers: authHeaders() }),
-        ];
+        const [statsRes, invRes] = await Promise.all([
+          fetch(`${API}/api/communities/${communityTag}/events/${lookupId}/invitations/stats`, { headers: authHeaders() }),
+          fetch(`${API}/api/communities/${communityTag}/events/${lookupId}/invitations`, { headers: authHeaders() }),
+        ]);
+        if (cancelled) return;
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (invRes.ok) {
+          const data = await invRes.json();
+          setInvitations(data.invitations || []);
+        }
+      } catch { /* */ }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [lookupId, communityTag, refreshKey]);
+
+  // wave-2b — depends on resolved event flags. Fires the moment the
+  // parent's event GET lands; never blocks wave-2a.
+  useEffect(() => {
+    if (!event?.id || !communityTag) return;
+    if (!requiresApproval && !isPaid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetches: Promise<Response>[] = [];
         if (requiresApproval) {
           fetches.push(fetch(`${API}/api/communities/${communityTag}/events/${event.id}/pending-attendees`, { headers: authHeaders() }));
         }
@@ -97,15 +152,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         }
         const responses = await Promise.all(fetches);
         if (cancelled) return;
-
         let idx = 0;
-        if (responses[idx].ok) setStats(await responses[idx].json());
-        idx++;
-        if (responses[idx].ok) {
-          const data = await responses[idx].json();
-          setInvitations(data.invitations || []);
-        }
-        idx++;
         if (requiresApproval) {
           if (responses[idx]?.ok) setPendingAttendees(await responses[idx].json());
           idx++;
@@ -146,10 +193,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           setSalesByBuyer(map);
         }
       } catch { /* */ }
-      finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [event?.id, communityTag, refreshKey, requiresApproval, isPaid, currency, salesRefreshTick]);
+  }, [event?.id, communityTag, requiresApproval, isPaid, currency, salesRefreshTick]);
 
   async function handleAttendeeAction(attendanceId: string, action: "approve" | "reject") {
     setLoadingAction(attendanceId);
@@ -246,14 +292,15 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     URL.revokeObjectURL(url);
   }
 
-  // Pre-fix this was `return null` — while the wave-2 fetches
-  // (/invitations/stats, /invitations, /pending-attendees, /sales) were
-  // in flight the entire section vanished from the page. Hosts landing
-  // on a published event would see the hero card and then a blank gap
-  // where the attendees panel belongs until the fetches resolved. The
-  // skeleton below mirrors the post-load shape (header + tabs row +
-  // four attendee rows) so the layout stays stable.
-  if (loading && !stats) return <AttendeesSectionSkeleton />;
+  // Render the skeleton while EITHER:
+  //  • wave-2a (invitations + stats) is still in flight, OR
+  //  • the parent's event GET hasn't resolved yet
+  //
+  // With the parallelization above wave-2a can finish before `event`
+  // arrives. Without the `!event` guard we'd briefly render an empty
+  // "No attendees yet" state (since attendees come from `event.attendees`)
+  // before the real list pops in, which reads as a content flash.
+  if (!event || (loading && !stats)) return <AttendeesSectionSkeleton />;
 
   const totalInvited = stats?.totalInvited ?? 0;
   const accepted = stats?.accepted ?? 0;
