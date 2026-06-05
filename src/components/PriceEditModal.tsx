@@ -838,23 +838,32 @@ export function PriceEditModal({
             >
               Back
             </button>
-            {visible.length > 1 && (
-              <button
-                type="button"
-                onClick={() => {
-                  const idx = activeIdx();
-                  if (idx != null) {
-                    removeTier(idx);
-                    setActiveTier(null);
-                  }
-                }}
-                disabled={isTierLocked(activeDraft)}
-                className="px-4 py-2 text-[13px] font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                title={isTierLocked(activeDraft) ? "Refund sales before deleting" : "Delete tier"}
-              >
-                Delete
-              </button>
-            )}
+            {/* Delete is ALWAYS shown (no hiding features without
+                explanation). When it can't proceed it says why via a toast
+                instead of being hidden/disabled:
+                  - locked tier (has sales) → refund-first message
+                  - last/only tier → "an event needs at least one tier" */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isTierLocked(activeDraft)) {
+                  showToast("Refund all sales before deleting this tier.");
+                  return;
+                }
+                if (visible.length <= 1) {
+                  showToast("An event needs at least one tier — add another before deleting this one.");
+                  return;
+                }
+                const idx = activeIdx();
+                if (idx != null) {
+                  removeTier(idx);
+                  setActiveTier(null);
+                }
+              }}
+              className="px-4 py-2 text-[13px] font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer transition-colors"
+            >
+              Delete
+            </button>
             {activeDraft.id && (
               <button
                 type="button"

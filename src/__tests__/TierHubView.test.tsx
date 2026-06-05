@@ -40,11 +40,12 @@ function renderHub(props: Partial<React.ComponentProps<typeof TierHubView>> = {}
 }
 
 describe("TierHubView — landing summary", () => {
-  it("renders 3 section cards by default (Basics / Options / Form)", () => {
+  it("renders Basics + Registration form by default (Options merged into Basics)", () => {
     renderHub();
     expect(screen.getByRole("heading", { name: "Basics", level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Options", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Registration form", level: 3 })).toBeInTheDocument();
+    // Options is no longer a separate card — its config lives in Basics.
+    expect(screen.queryByRole("heading", { name: "Options", level: 3 })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Member pricing", level: 3 })).not.toBeInTheDocument();
   });
 
@@ -60,7 +61,7 @@ describe("TierHubView — landing summary", () => {
     expect(screen.getByText(/€20 · Installment plan/)).toBeInTheDocument();
   });
 
-  it("Options card summary: capacity + pwyw + installment", () => {
+  it("Basics card summary folds in pwyw + installment + capacity", () => {
     renderHub({
       t: newTier({
         capacity: "100",
@@ -71,9 +72,9 @@ describe("TierHubView — landing summary", () => {
         installmentInterval: "1",
       }),
     });
-    expect(screen.getByText(/Cap: 100/)).toBeInTheDocument();
-    expect(screen.getByText(/Pay-what-you-want/)).toBeInTheDocument();
-    expect(screen.getByText(/3× over 1 mo/)).toBeInTheDocument();
+    expect(screen.getByText(/PWYW/)).toBeInTheDocument();
+    expect(screen.getByText(/Installment plan/)).toBeInTheDocument();
+    expect(screen.getByText(/Cap 100/)).toBeInTheDocument();
   });
 
   it("renders the tier name input as the prominent editor", () => {
@@ -117,7 +118,6 @@ describe("TierHubView — landing summary", () => {
     // Saved tiers: 4 cards = 4 buttons. Unsaved: Members + Form drop
     // out of the button role (rendered as aria-disabled divs).
     expect(screen.getByRole("button", { name: /Basics/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Options/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Member pricing/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Registration form/ })).not.toBeInTheDocument();
     // The text still renders as a heading inside the disabled card.

@@ -6,7 +6,7 @@ import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
 import { StepInput } from "./_primitives";
 
-export type StepId = "basics" | "options" | "members" | "form";
+export type StepId = "basics" | "members" | "form";
 
 export interface TierHubViewProps {
   t: DraftTier;
@@ -100,29 +100,22 @@ export function TierHubView({
         </div>
       )}
 
-      {/* 2×2 grid of section cards (was a single column). */}
+      {/* Section cards. Basics now holds all price + capacity + schedule
+          config (the old "Options" step was merged into it), so its card
+          summarises the lot. */}
       <div className="grid grid-cols-2 gap-2">
         <SectionCard
           title="Basics"
-          description={`${priceDisplay}${billingSummary ? ` · ${billingSummary}` : ""}`}
-          action={chevron}
-          onClick={() => onEnterStep("basics")}
-          variant="default"
-        />
-
-        <SectionCard
-          title="Options"
           description={
             [
-              t.capacity ? `Cap: ${t.capacity}` : "No capacity cap",
-              t.priceMode === "pwyw" ? "Pay-what-you-want" : null,
-              t.installmentEnabled && t.installmentCount && t.installmentTotal
-                ? `${t.installmentCount}× over ${t.installmentInterval || "1"} mo`
-                : null,
-            ].filter(Boolean).join(" · ") || "Defaults"
+              priceDisplay,
+              t.priceMode === "pwyw" ? "PWYW" : null,
+              billingSummary,
+              t.capacity ? `Cap ${t.capacity}` : null,
+            ].filter(Boolean).join(" · ")
           }
           action={chevron}
-          onClick={() => onEnterStep("options")}
+          onClick={() => onEnterStep("basics")}
           variant="default"
         />
 
