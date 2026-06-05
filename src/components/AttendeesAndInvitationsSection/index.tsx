@@ -669,6 +669,54 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     );
   }
 
+  /**
+   * Small badge that shows how much time remains before the 48h Pay-now
+   * window expires. The deadline = `attendance.updatedAt + 48h` —
+   * `updatedAt` is set by `approveAttendance` when the row flips to
+   * PENDING_PAYMENT and isn't reset by resends (so the recipient sees
+   * the original deadline whether they got the first email or a resend).
+   *
+   * Colour scale:
+   *   • > 24h remaining → green (calm)
+   *   • 6–24h          → amber (heads-up)
+   *   • < 6h           → red (urgent)
+   *   • past deadline  → red "Expired"
+   *
+   * The cron sweeps PENDING_PAYMENT rows ~48h after updatedAt and flips
+   * them to CANCELLED. Once that happens this row leaves the
+   * Payment-pending tab and lands in Cancelled — so a row showing
+   * "Expired" here is the brief window between deadline and sweep.
+   */
+  function PaymentExpiryBadge({ updatedAt }: { updatedAt: string | Date | null | undefined }) {
+    if (!updatedAt) return null;
+    const PAYMENT_WINDOW_MS = 48 * 60 * 60 * 1000;
+    const deadline = new Date(updatedAt).getTime() + PAYMENT_WINDOW_MS;
+    const remainingMs = deadline - Date.now();
+    let label: string;
+    let tone: "green" | "amber" | "red";
+    if (remainingMs <= 0) {
+      label = "Expired";
+      tone = "red";
+    } else {
+      const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+      const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+      label = hours >= 1 ? `Expires in ${hours}h` : `Expires in ${minutes}m`;
+      tone = hours >= 24 ? "green" : hours >= 6 ? "amber" : "red";
+    }
+    const toneClass =
+      tone === "green" ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+      : tone === "amber" ? "bg-amber-50 text-amber-700 border-amber-100"
+      : "bg-red-50 text-red-700 border-red-100";
+    return (
+      <span
+        className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${toneClass}`}
+        title={`Pay-now window ends ${new Date(deadline).toLocaleString()}`}
+      >
+        {label}
+      </span>
+    );
+  }
+
   function PaymentPendingRow({ a, resending, onResend, onOpen }: {
     a: any;
     resending: boolean;
@@ -694,6 +742,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
         )}
         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">Payment pending</span>
+        <PaymentExpiryBadge updatedAt={a.updatedAt} />
         <button
           type="button"
           disabled={resending}
