@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FormStep } from "../components/PriceEditModal/steps/FormStep";
+import { FooterSlotContext } from "../components/PriceEditModal/footer-slot";
 import { blankTier } from "../components/PriceEditModal/helpers";
 import type { DraftTier } from "../components/PriceEditModal/types";
 import { renderWithConfig, mockFetch } from "./test-utils";
@@ -17,9 +19,25 @@ function makeTier(overrides: Partial<DraftTier> = {}): DraftTier {
   };
 }
 
+/**
+ * Harness that mirrors the modal's footer slot. FormStep portals its
+ * primary actions (Add question / Page break / Use default) into the
+ * FooterSlotContext node, so the test must provide one for those buttons
+ * to render — exactly as PriceEditModal does in production.
+ */
+function FormHarness(props: React.ComponentProps<typeof FormStep>) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  return (
+    <FooterSlotContext.Provider value={slot}>
+      <FormStep {...props} />
+      <div data-testid="footer-slot" ref={setSlot} />
+    </FooterSlotContext.Provider>
+  );
+}
+
 function renderForm(props: Partial<React.ComponentProps<typeof FormStep>> = {}) {
   return renderWithConfig(
-    <FormStep
+    <FormHarness
       t={makeTier()}
       communityTag="c-1"
       showToast={() => {}}
@@ -59,11 +77,45 @@ describe("FormStep — list view", () => {
     // appears both in the header status and in the empty card, so query
     // by the button instead.
     expect(
-      await screen.findByRole("button", { name: /Add first question/i }),
+      await screen.findByRole("button", { name: /Add question/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Use default/i }),
     ).toBeInTheDocument();
+  });
+
+  it("renders primary actions in the footer slot, not in the body", async () => {
+    renderForm();
+    const slot = await screen.findByTestId("footer-slot");
+    // Empty state → Use default + Add question are portaled into the footer.
+    expect(within(slot).getByRole("button", { name: /Use default/i })).toBeInTheDocument();
+    expect(within(slot).getByRole("button", { name: /Add question/i })).toBeInTheDocument();
+    // The empty-state card itself carries NO buttons anymore — just copy.
+    expect(screen.getByText(/Use the footer to start/i)).toBeInTheDocument();
+  });
+
+  it("swaps footer actions to Page break + Question once the form has fields", async () => {
+    mockFetch([
+      {
+        method: "GET",
+        url: /\/api\/communities\/c-1\/tiers\/tier-1\/form$/,
+        body: {
+          formData: {
+            fields: [
+              { id: "f-1", type: "EMAIL", label: "Email", required: true, step: 0 },
+            ],
+            stepLabels: [""],
+          },
+        },
+      },
+    ]);
+    renderForm();
+    await screen.findAllByText("Email");
+    const slot = screen.getByTestId("footer-slot");
+    expect(within(slot).getByRole("button", { name: /\+ Page break/i })).toBeInTheDocument();
+    expect(within(slot).getByRole("button", { name: /\+ Question/i })).toBeInTheDocument();
+    // "Use default" only makes sense on an empty form.
+    expect(within(slot).queryByRole("button", { name: /Use default/i })).not.toBeInTheDocument();
   });
 
   it("renders existing fields from the backend response", async () => {
@@ -133,7 +185,7 @@ describe("FormStep — Add Question sub-flow", () => {
 
     renderForm();
     const addFirst = await screen.findByRole("button", {
-      name: /Add first question/i,
+      name: /Add question/i,
     });
 
     // Empty state CTA enters the type picker
@@ -187,7 +239,7 @@ describe("FormStep — Add Question sub-flow", () => {
     ]);
     renderForm();
     const addFirst = await screen.findByRole("button", {
-      name: /Add first question/i,
+      name: /Add question/i,
     });
     await user.click(addFirst);
     expect(
@@ -196,7 +248,7 @@ describe("FormStep — Add Question sub-flow", () => {
     await user.click(screen.getByLabelText("Back to form fields"));
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /Add first question/i }),
+        screen.getByRole("button", { name: /Add question/i }),
       ).toBeInTheDocument(),
     );
   });

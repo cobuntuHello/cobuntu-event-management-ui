@@ -43,6 +43,7 @@ import { SortableTierRow } from "./PriceEditModal/TierRow";
 import { Switch } from "./PriceEditModal/_primitives";
 import { TierHubView, STEP_TITLES, STEP_SUBTITLES, type StepId } from "./PriceEditModal/TierHubView";
 import { StepView } from "./PriceEditModal/StepView";
+import { FooterSlotContext } from "./PriceEditModal/footer-slot";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
 import {
   buildRowsFromOverrides,
@@ -179,6 +180,12 @@ export function PriceEditModal({
   // details").
   const [activeTier, setActiveTier] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<StepId | null>(null);
+
+  // Footer "step actions" slot. A step that owns primary actions (the
+  // form builder's "+ Question" etc.) portals its buttons into this DOM
+  // node so the footer stays the modal's single action bar — no buttons
+  // scattered through the body. Null until the footer mounts.
+  const [footerSlot, setFooterSlot] = useState<HTMLElement | null>(null);
 
   // Member-pricing state — lifted out of MemberPricingSection so it
   // survives tier-card collapse / hub↔step navigation / any unmount.
@@ -749,6 +756,7 @@ export function PriceEditModal({
         header + footer pinned (shrink-0) so the footer stays visible even
         when the body overflows. */}
     <ModalShell onClose={onClose} width="w-[600px]">
+      <FooterSlotContext.Provider value={footerSlot}>
       <div className="flex flex-col max-h-[78vh]">
       {/* ─── Header ─── ONE breadcrumb + ONE title + ONE subtitle. */}
       <div className="shrink-0 mb-4">
@@ -928,6 +936,12 @@ export function PriceEditModal({
           </button>
         )}
         <div className="flex-1" />
+        {/* Per-step action slot. Steps with their own primary actions
+            (e.g. the form builder's "+ Question" / "+ Page break") portal
+            their buttons in here so the footer is the modal's single
+            action bar. `contents` → buttons sit directly in this flex row,
+            left of Save. Empty (zero-width) for steps that don't use it. */}
+        <div ref={setFooterSlot} className="contents" />
         {/* L2 (per-tier hub): a Publish switch sits left of Save. Publishing
             is a top-level rollout action that hits the backend instantly
             (no Save) — see togglePublish. */}
@@ -966,6 +980,7 @@ export function PriceEditModal({
         )}
       </div>
       </div>
+      </FooterSlotContext.Provider>
     </ModalShell>
 
     {/* ─── Notify-attendees confirmation ─────────────────────────
