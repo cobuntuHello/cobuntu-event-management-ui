@@ -1,6 +1,6 @@
 {
   "name": "@cobuntu/event-management-ui",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Shared event-management UI components for the Cobuntu admin app (community-leader-facing) and community app (host-facing /manage). The single source of truth — both apps consume this as a git dependency.",
   "private": true,
   "main": "./src/index.ts",
