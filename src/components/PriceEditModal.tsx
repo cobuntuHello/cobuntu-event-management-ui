@@ -756,13 +756,7 @@ export function PriceEditModal({
         <TierHubView
           t={activeDraft}
           showMemberPricing={!!showMemberPricing}
-          onUpdate={(patch) => {
-            const idx = activeIdx();
-            if (idx != null) updateDraft(idx, patch);
-          }}
           onEnterStep={(step) => setActiveStep(step)}
-          onSave={onSaveClicked}
-          saving={saving || loading || memberPricingPending}
         />
       ) : (
         // Level 1: default tier list. Add tier + Donations + Save.
@@ -887,12 +881,11 @@ export function PriceEditModal({
           </button>
         )}
         <div className="flex-1" />
-        {/* L2 (per-tier hub): a Publish switch sits where Save would be.
-            Publishing is a top-level rollout action that hits the backend
-            instantly (no Save) — see togglePublish. The tier-name Save is
-            inline next to the input. */}
+        {/* L2 (per-tier hub): a Publish switch sits left of Save. Publishing
+            is a top-level rollout action that hits the backend instantly
+            (no Save) — see togglePublish. */}
         {activeDraft && !activeStep && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-1">
             <span className="text-[12px] font-medium text-zinc-600">
               {activeDraft.publishedAt ? "Published" : "Draft"}
             </span>
@@ -907,21 +900,19 @@ export function PriceEditModal({
             />
           </div>
         )}
-        {/* Footer Save shows at L1 (tier list) and L3 (step). At L2 the
-            Save moves inline next to the Tier name input — that step's
-            primary action is renaming the tier, while the section cards
-            open their own L3 editors. */}
-        {!(activeDraft && !activeStep) && (
-          <button
-            type="button"
-            onClick={onSaveClicked}
-            disabled={saving || loading || memberPricingPending}
-            title={memberPricingPending ? "Loading member pricing…" : undefined}
-            className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        )}
+        {/* Footer Save at every level — a standard action-bar Save that
+            commits the whole modal. (The old inline Save next to the tier
+            name read as "save the title only"; identity now lives in the
+            Details step, so this is the single, unambiguous Save.) */}
+        <button
+          type="button"
+          onClick={onSaveClicked}
+          disabled={saving || loading || memberPricingPending}
+          title={memberPricingPending ? "Loading member pricing…" : undefined}
+          className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
       </div>
     </ModalShell>
 

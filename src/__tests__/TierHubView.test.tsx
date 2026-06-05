@@ -9,10 +9,11 @@ import { renderWithConfig } from "./test-utils";
 /**
  * TierHubView — Level 2 of the 3-level takeover modal.
  *
- * Prop-driven: shows tier-name input + an inline Save (renaming is this
- * step's primary action) + 4 fully-clickable SectionCards in a 2×2 grid.
- * Back / Duplicate / Delete live in the outer modal footer — so this
- * test surface is: input, inline Save, summaries, card click → onEnterStep.
+ * It's now a pure navigation MENU of tiles (Details / Basics / Member
+ * pricing / Registration form) — no editable fields, no inline Save.
+ * Identity (name + capacity) lives in the Details step. So this surface
+ * is: which tiles render, their summaries, and card click → onEnterStep.
+ * Back / Delete / Duplicate / Published live in the outer modal footer.
  */
 
 function newTier(overrides: Partial<DraftTier> = {}): DraftTier {
@@ -31,22 +32,22 @@ function renderHub(props: Partial<React.ComponentProps<typeof TierHubView>> = {}
     <TierHubView
       t={newTier()}
       showMemberPricing={false}
-      onUpdate={() => {}}
       onEnterStep={() => {}}
-      onSave={() => {}}
       {...props}
     />,
   );
 }
 
-describe("TierHubView — landing summary", () => {
-  it("renders Basics + Registration form by default (Options merged into Basics)", () => {
+describe("TierHubView — tile menu", () => {
+  it("renders Details + Basics + Registration form by default", () => {
     renderHub();
+    expect(screen.getByRole("heading", { name: "Details", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Basics", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Registration form", level: 3 })).toBeInTheDocument();
-    // Options is no longer a separate card — its config lives in Basics.
-    expect(screen.queryByRole("heading", { name: "Options", level: 3 })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Member pricing", level: 3 })).not.toBeInTheDocument();
+    // No editable fields / inline Save on the hub anymore.
+    expect(screen.queryByPlaceholderText("Standard, VIP, Early-bird…")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 
   it("renders the Member pricing card when showMemberPricing is true", () => {
@@ -61,7 +62,7 @@ describe("TierHubView — landing summary", () => {
     expect(screen.getByText(/€20 · Installment plan/)).toBeInTheDocument();
   });
 
-  it("Basics card summary folds in pwyw + installment; capacity is a hub field", () => {
+  it("Basics card folds in pwyw + installment; Details card shows capacity", () => {
     renderHub({
       t: newTier({
         capacity: "100",
@@ -74,31 +75,8 @@ describe("TierHubView — landing summary", () => {
     });
     expect(screen.getByText(/PWYW/)).toBeInTheDocument();
     expect(screen.getByText(/Installment plan/)).toBeInTheDocument();
-    // Capacity is now an editable field in the hub (next to the name),
-    // not part of the Basics card summary.
-    expect((screen.getByPlaceholderText("Unlimited") as HTMLInputElement).value).toBe("100");
-  });
-
-  it("renders the tier name input as the prominent editor", () => {
-    renderHub({ t: newTier({ name: "VIP" }) });
-    const nameInput = screen.getByDisplayValue("VIP") as HTMLInputElement;
-    expect(nameInput.placeholder).toBe("Standard, VIP, Early-bird…");
-  });
-
-  it("calls onUpdate when the tier name changes", async () => {
-    const onUpdate = vi.fn();
-    renderHub({ onUpdate });
-    const nameInput = screen.getByDisplayValue("GA");
-    await userEvent.type(nameInput, "X");
-    expect(onUpdate).toHaveBeenCalled();
-    expect(onUpdate.mock.calls[0][0].name).toMatch(/^GA/);
-  });
-
-  it("renders an inline Save beside the name input and fires onSave", async () => {
-    const onSave = vi.fn();
-    renderHub({ onSave });
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(onSave).toHaveBeenCalled();
+    // Capacity now summarised on the Details tile (it's edited in the step).
+    expect(screen.getByText(/Capacity 100/)).toBeInTheDocument();
   });
 
   it("shows the lock banner when sales exist", () => {
@@ -106,23 +84,23 @@ describe("TierHubView — landing summary", () => {
     expect(screen.getByText(/3 tickets sold/)).toBeInTheDocument();
   });
 
-  it("each SectionCard is fully clickable — clicking the row fires onEnterStep", async () => {
+  it("clicking a tile fires onEnterStep with its id", async () => {
     const onEnterStep = vi.fn();
     renderHub({ onEnterStep });
-    // The whole Basics card renders as a button with the heading as
-    // accessible name. No nested "Edit" button.
+    await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+    expect(onEnterStep).toHaveBeenCalledWith("details");
     await userEvent.click(screen.getByRole("button", { name: /Basics/ }));
     expect(onEnterStep).toHaveBeenCalledWith("basics");
   });
 
-  it("Members + Form cards are disabled (non-button) on unsaved tier", () => {
+  it("Members + Form tiles are disabled (non-button) on an unsaved tier", () => {
     renderHub({ t: newTier({ id: undefined }), showMemberPricing: true });
-    // Saved tiers: 4 cards = 4 buttons. Unsaved: Members + Form drop
-    // out of the button role (rendered as aria-disabled divs).
+    // Details + Basics are always editable (no saved id needed); Members +
+    // Form require a saved tier id so they drop out of the button role.
+    expect(screen.getByRole("button", { name: /Details/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Basics/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Member pricing/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Registration form/ })).not.toBeInTheDocument();
-    // The text still renders as a heading inside the disabled card.
     expect(screen.getByRole("heading", { name: "Member pricing" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Registration form" })).toBeInTheDocument();
   });
