@@ -132,7 +132,7 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     await user.click(await screen.findByRole("button", { name: /GA/ }));
     await user.click(await screen.findByRole("button", { name: /Options/ }));
 
-    const capInput = await screen.findByPlaceholderText("∞") as HTMLInputElement;
+    const capInput = await screen.findByPlaceholderText("Unlimited") as HTMLInputElement;
     await user.type(capInput, "50");
 
     await user.click(screen.getByRole("button", { name: /^save$/i }));
@@ -232,7 +232,7 @@ describe("PriceEditModal — save flow correctness", () => {
     // (we want the simple save path).
     await user.click(await screen.findByRole("button", { name: /GA/ }));
     await user.click(await screen.findByRole("button", { name: /Options/ }));
-    const capInput = await screen.findByPlaceholderText("∞") as HTMLInputElement;
+    const capInput = await screen.findByPlaceholderText("Unlimited") as HTMLInputElement;
     await user.type(capInput, "50");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
@@ -297,6 +297,58 @@ describe("PriceEditModal — save flow correctness", () => {
     await waitFor(() => {
       const saveBtn = screen.getByRole("button", { name: /^save$/i });
       expect(saveBtn).not.toBeDisabled();
+    });
+  });
+});
+
+describe("PriceEditModal — per-tier publish toggle (L2 footer)", () => {
+  it("publishing a draft tier PUTs publishedAt as an ISO timestamp (no Save)", async () => {
+    const user = userEvent.setup();
+    const tier = makeTier({ publishedAt: null });
+    const fetchMock = mockFetch([
+      ...stubGetRoutes([tier]),
+      { method: "PUT", url: /\/tiers\/tier-1$/, body: tier },
+    ]);
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    const toggle = await screen.findByRole("switch", { name: "Published" });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+
+    await user.click(toggle);
+
+    await waitFor(() => {
+      const put = fetchMock.mock.calls.find(
+        (c: any) => /\/tiers\/tier-1$/.test(String(c[0])) && c[1]?.method === "PUT",
+      );
+      expect(put).toBeTruthy();
+      const body = JSON.parse(put![1]!.body as string);
+      expect(typeof body.publishedAt).toBe("string");
+    });
+  });
+
+  it("unpublishing a published tier PUTs publishedAt: null", async () => {
+    const user = userEvent.setup();
+    const tier = makeTier({ publishedAt: new Date().toISOString() });
+    const fetchMock = mockFetch([
+      ...stubGetRoutes([tier]),
+      { method: "PUT", url: /\/tiers\/tier-1$/, body: tier },
+    ]);
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    const toggle = await screen.findByRole("switch", { name: "Published" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+
+    await user.click(toggle);
+
+    await waitFor(() => {
+      const put = fetchMock.mock.calls.find(
+        (c: any) => /\/tiers\/tier-1$/.test(String(c[0])) && c[1]?.method === "PUT",
+      );
+      expect(put).toBeTruthy();
+      const body = JSON.parse(put![1]!.body as string);
+      expect(body.publishedAt).toBeNull();
     });
   });
 });

@@ -71,7 +71,7 @@ export function BasicsStep({ t, onUpdate }: BasicsStepProps) {
             <SelectContent>
               {SUPPORTED_CURRENCIES.map((c) => (
                 <SelectItem key={c.code} value={c.code}>
-                  <span className="text-zinc-500 mr-1">{c.symbol}</span>{c.code}
+                  <span className="mr-1.5">{c.flag}</span>{c.code}
                 </SelectItem>
               ))}
             </SelectContent>

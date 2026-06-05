@@ -7,21 +7,19 @@ import {
 } from "../components/SchedulingSection";
 
 /**
- * SchedulingSection — per-tier publish + auto-schedule editor.
+ * SchedulingSection — per-tier AUTO-SCHEDULE window editor.
  *
- * What's pinned here:
- *  • Status chip reflects derived state (Draft / Scheduled / On sale /
- *    Closed) so a host glancing at the card knows the current effective
- *    behavior without reading the toggles.
- *  • Publish toggle materialises an ISO timestamp on flip-on and clears
- *    publishedAt on flip-off; flip-off also wipes auto-schedule + the
- *    window so the host doesn't have to clean up by hand.
- *  • Auto-schedule disclosure: the start/end inputs only appear when
- *    the host opts in.
+ * The publish toggle moved out of this component to the tier-hub (L2)
+ * footer as an instant Switch, so it's no longer tested here. What's
+ * pinned now:
+ *  • Auto-schedule Switch flips autoScheduleEnabled; flipping off also
+ *    wipes the window so a re-enable starts fresh.
+ *  • Disclosure: the start/end date-time pickers only appear when the
+ *    host opts in.
  *  • Cross-field validation: salesEndAt must be strictly after
  *    salesStartAt.
- *  • deriveScheduleState is a pure function — covered by truth table
- *    so the chip + state stay in lockstep with the BE helper.
+ *  • deriveScheduleState is a pure function — covered by a truth table
+ *    so the footer status + state stay in lockstep with the BE helper.
  */
 
 const baseDraft = {
@@ -40,21 +38,14 @@ describe("deriveScheduleState", () => {
 
   it("publishedAt in the future → scheduled", () => {
     expect(
-      deriveScheduleState(
-        { ...baseDraft, publishedAt: "2026-06-01T12:01:00.000Z" },
-        NOW,
-      ),
+      deriveScheduleState({ ...baseDraft, publishedAt: "2026-06-01T12:01:00.000Z" }, NOW),
     ).toBe("scheduled");
   });
 
   it("publishedAt in past + salesStartAt in future → scheduled", () => {
     expect(
       deriveScheduleState(
-        {
-          ...baseDraft,
-          publishedAt: "2026-05-31T12:00:00.000Z",
-          salesStartAt: "2026-06-01T12:01:00.000Z",
-        },
+        { ...baseDraft, publishedAt: "2026-05-31T12:00:00.000Z", salesStartAt: "2026-06-01T12:01:00.000Z" },
         NOW,
       ),
     ).toBe("scheduled");
@@ -63,11 +54,7 @@ describe("deriveScheduleState", () => {
   it("salesEndAt in past → closed-ended", () => {
     expect(
       deriveScheduleState(
-        {
-          ...baseDraft,
-          publishedAt: "2026-05-31T12:00:00.000Z",
-          salesEndAt: "2026-06-01T11:59:00.000Z",
-        },
+        { ...baseDraft, publishedAt: "2026-05-31T12:00:00.000Z", salesEndAt: "2026-06-01T11:59:00.000Z" },
         NOW,
       ),
     ).toBe("closed-ended");
@@ -88,36 +75,26 @@ describe("deriveScheduleState", () => {
   });
 });
 
-describe("SchedulingSection — interactions", () => {
-  it("status chip renders 'Draft' when publishedAt is null", () => {
+describe("SchedulingSection — auto-schedule window", () => {
+  it("does NOT render a publish control (moved to the L2 footer)", () => {
     render(<SchedulingSection draft={baseDraft} onChange={vi.fn()} />);
-    expect(screen.getByText("Draft")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Published$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Publish & schedule")).not.toBeInTheDocument();
   });
 
-  it("status chip renders 'On sale' when published with no window", () => {
-    render(
-      <SchedulingSection
-        draft={{ ...baseDraft, publishedAt: new Date(Date.now() - 60_000).toISOString() }}
-        onChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("On sale")).toBeInTheDocument();
-  });
-
-  it("Publish toggle on → emits publishedAt timestamp", async () => {
+  it("auto-schedule Switch on → emits autoScheduleEnabled: true", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<SchedulingSection draft={baseDraft} onChange={onChange} />);
 
-    await user.click(screen.getByLabelText("Publish & schedule"));
+    await user.click(screen.getByRole("switch", { name: "Auto-schedule sales window" }));
 
-    expect(onChange).toHaveBeenCalled();
-    const patch = onChange.mock.calls[0][0];
-    expect(patch.publishedAt).toBeTruthy();
-    expect(typeof patch.publishedAt).toBe("string");
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ autoScheduleEnabled: true }),
+    );
   });
 
-  it("Publish toggle off → clears publishedAt + auto-schedule + window", async () => {
+  it("auto-schedule Switch off → clears the window", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
@@ -125,49 +102,35 @@ describe("SchedulingSection — interactions", () => {
         draft={{
           publishedAt: new Date(Date.now() - 60_000).toISOString(),
           autoScheduleEnabled: true,
-          salesStartAt: new Date(Date.now()).toISOString(),
+          salesStartAt: new Date().toISOString(),
           salesEndAt: new Date(Date.now() + 60_000).toISOString(),
         }}
         onChange={onChange}
       />,
     );
 
-    // The publish toggle is the first checkbox; click it.
-    const publishCheckbox = screen.getByLabelText("Publish & schedule");
-    await user.click(publishCheckbox);
+    await user.click(screen.getByRole("switch", { name: "Auto-schedule sales window" }));
 
     expect(onChange).toHaveBeenCalledWith({
-      publishedAt: null,
       autoScheduleEnabled: false,
       salesStartAt: "",
       salesEndAt: "",
     });
   });
 
-  it("auto-schedule date inputs are hidden until the toggle is on", () => {
-    render(
-      <SchedulingSection
-        draft={{ ...baseDraft, publishedAt: new Date(Date.now() - 60_000).toISOString() }}
-        onChange={vi.fn()}
-      />,
-    );
-
+  it("date pickers are hidden until auto-schedule is on", () => {
+    render(<SchedulingSection draft={baseDraft} onChange={vi.fn()} />);
     expect(screen.queryByLabelText("Sales open")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Sales close")).not.toBeInTheDocument();
   });
 
-  it("auto-schedule date inputs appear when the toggle is on", () => {
+  it("date pickers appear when auto-schedule is on", () => {
     render(
       <SchedulingSection
-        draft={{
-          ...baseDraft,
-          publishedAt: new Date(Date.now() - 60_000).toISOString(),
-          autoScheduleEnabled: true,
-        }}
+        draft={{ ...baseDraft, autoScheduleEnabled: true }}
         onChange={vi.fn()}
       />,
     );
-
     expect(screen.getByLabelText("Sales open")).toBeInTheDocument();
     expect(screen.getByLabelText("Sales close")).toBeInTheDocument();
   });
@@ -184,7 +147,6 @@ describe("SchedulingSection — interactions", () => {
         onChange={vi.fn()}
       />,
     );
-
     expect(screen.getByText(/Sales close must be after sales open/i)).toBeInTheDocument();
   });
 });
