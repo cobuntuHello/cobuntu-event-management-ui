@@ -16,15 +16,11 @@ export interface BasicsStepProps {
 }
 
 /**
- * "Basics" step — the single per-tier configuration surface. It now holds
- * everything that used to live in a separate "Options" step too, since it
- * all comes down to how the tier is priced + sold:
- *
- *   - Description, price, currency
- *   - Pricing model (fixed vs pay-what-you-want) + PWYW minimum
- *   - Billing mode (one-time vs installment plan) + installment schedule
- *   - Capacity (attendance cap)
- *   - Auto-schedule sales window
+ * "Basics" step — the single per-tier pricing surface. Field order is
+ * deliberate: pricing model → price → billing mode → auto-schedule, so
+ * the host decides HOW the tier is priced before typing the amount.
+ * (Capacity moved up to the tier hub, next to the name, so it's visible
+ * without opening this step.)
  *
  * Events expose ONE_TIME + INSTALLMENT_PLAN only (events checkout uses
  * Stripe mode='payment'; RECURRING would silently no-op). Billing mode is
@@ -51,6 +47,31 @@ export function BasicsStep({ t, onUpdate }: BasicsStepProps) {
             placeholder="What's included"
           />
         </div>
+      </div>
+
+      {/* Pricing model — fixed vs PWYW. Above the price so the host picks
+          the model before typing the amount. Locked once sales exist. */}
+      <div>
+        <Eyebrow>Pricing model</Eyebrow>
+        <div className="grid grid-cols-2 gap-2 mt-1.5">
+          <button
+            type="button"
+            onClick={() => !locked && onUpdate({ priceMode: "fixed" })}
+            disabled={locked}
+            className={`px-3 py-2 text-[13px] rounded-lg border transition-colors ${t.priceMode === "fixed" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"} ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+          >Fixed price</button>
+          <button
+            type="button"
+            onClick={() => !locked && onUpdate({ priceMode: "pwyw" })}
+            disabled={locked}
+            className={`px-3 py-2 text-[13px] rounded-lg border transition-colors ${t.priceMode === "pwyw" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"} ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+          >Pay what you want</button>
+        </div>
+        {t.priceMode === "pwyw" && (
+          <p className="text-[11px] text-zinc-500 mt-1.5">
+            Buyer chooses the amount at checkout. The price below acts as a suggested default.
+          </p>
+        )}
       </div>
 
       {/* Price + Currency */}
@@ -83,31 +104,7 @@ export function BasicsStep({ t, onUpdate }: BasicsStepProps) {
         </div>
       </div>
 
-      {/* Pricing model — fixed vs PWYW. Locked once sales exist. */}
-      <div>
-        <Eyebrow>Pricing model</Eyebrow>
-        <div className="grid grid-cols-2 gap-2 mt-1.5">
-          <button
-            type="button"
-            onClick={() => !locked && onUpdate({ priceMode: "fixed" })}
-            disabled={locked}
-            className={`px-3 py-2 text-[13px] rounded-lg border transition-colors ${t.priceMode === "fixed" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"} ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-          >Fixed price</button>
-          <button
-            type="button"
-            onClick={() => !locked && onUpdate({ priceMode: "pwyw" })}
-            disabled={locked}
-            className={`px-3 py-2 text-[13px] rounded-lg border transition-colors ${t.priceMode === "pwyw" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"} ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-          >Pay what you want</button>
-        </div>
-        {t.priceMode === "pwyw" && (
-          <p className="text-[11px] text-zinc-500 mt-1.5">
-            Buyer chooses the amount at checkout. The price above acts as a suggested default.
-          </p>
-        )}
-      </div>
-
-      {/* PWYW minimum */}
+      {/* PWYW minimum — the floor under the buyer-chosen amount. */}
       <Collapse open={t.priceMode === "pwyw"}>
         <div>
           <Eyebrow>Minimum amount (optional)</Eyebrow>
@@ -224,21 +221,6 @@ export function BasicsStep({ t, onUpdate }: BasicsStepProps) {
           )}
         </div>
       </Collapse>
-
-      {/* Capacity (attendance cap) */}
-      <div>
-        <Eyebrow>Capacity (optional)</Eyebrow>
-        <div className="mt-1">
-          <StepInput
-            type="number" min={locked ? t.salesCount : 0} step="1" value={t.capacity}
-            onChange={(e) => onUpdate({ capacity: e.target.value })}
-            placeholder="Unlimited"
-          />
-        </div>
-        {locked && (
-          <p className="text-[10px] text-zinc-400 mt-1">Min {t.salesCount} (already sold).</p>
-        )}
-      </div>
 
       {/* Auto-schedule sales window. */}
       <SchedulingSection

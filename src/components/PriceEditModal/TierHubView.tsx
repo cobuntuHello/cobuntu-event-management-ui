@@ -88,6 +88,26 @@ export function TierHubView({
         </div>
       </div>
 
+      {/* Capacity (attendance cap) — surfaced here next to the name so the
+          host sees/sets it without opening the Basics step. Capacity can be
+          raised even on a locked tier; it just can't drop below sold. */}
+      <div className="mb-4">
+        <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block mb-1.5">
+          Capacity (optional)
+        </label>
+        <StepInput
+          type="number"
+          min={locked ? t.salesCount : 0}
+          step="1"
+          value={t.capacity}
+          onChange={(e) => onUpdate({ capacity: e.target.value })}
+          placeholder="Unlimited"
+        />
+        {locked && (
+          <p className="text-[10px] text-zinc-400 mt-1">Min {t.salesCount} (already sold).</p>
+        )}
+      </div>
+
       {locked && (
         <div className="flex items-start gap-2 px-3 py-2 mb-3 rounded-lg bg-amber-50/70 border border-amber-100">
           <Lock className="w-3.5 h-3.5 mt-0.5 text-amber-600 shrink-0" />
@@ -100,9 +120,8 @@ export function TierHubView({
         </div>
       )}
 
-      {/* Section cards. Basics now holds all price + capacity + schedule
-          config (the old "Options" step was merged into it), so its card
-          summarises the lot. */}
+      {/* Section cards. Basics holds price + pricing model + billing +
+          schedule config (capacity now lives above, next to the name). */}
       <div className="grid grid-cols-2 gap-2">
         <SectionCard
           title="Basics"
@@ -111,7 +130,6 @@ export function TierHubView({
               priceDisplay,
               t.priceMode === "pwyw" ? "PWYW" : null,
               billingSummary,
-              t.capacity ? `Cap ${t.capacity}` : null,
             ].filter(Boolean).join(" · ")
           }
           action={chevron}

@@ -61,7 +61,7 @@ describe("TierHubView — landing summary", () => {
     expect(screen.getByText(/€20 · Installment plan/)).toBeInTheDocument();
   });
 
-  it("Basics card summary folds in pwyw + installment + capacity", () => {
+  it("Basics card summary folds in pwyw + installment; capacity is a hub field", () => {
     renderHub({
       t: newTier({
         capacity: "100",
@@ -74,7 +74,9 @@ describe("TierHubView — landing summary", () => {
     });
     expect(screen.getByText(/PWYW/)).toBeInTheDocument();
     expect(screen.getByText(/Installment plan/)).toBeInTheDocument();
-    expect(screen.getByText(/Cap 100/)).toBeInTheDocument();
+    // Capacity is now an editable field in the hub (next to the name),
+    // not part of the Basics card summary.
+    expect((screen.getByPlaceholderText("Unlimited") as HTMLInputElement).value).toBe("100");
   });
 
   it("renders the tier name input as the prominent editor", () => {
