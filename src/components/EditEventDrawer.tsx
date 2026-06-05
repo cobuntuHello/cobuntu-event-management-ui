@@ -9,6 +9,7 @@ import { RichTextEditor } from "../ui/rich-text-editor";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
 import { DistributionEditModal } from "./DistributionEditModal";
+import { htmlToPlainText } from "../lib/htmlToPlainText";
 
 /**
  * Right-side edit-event drawer. The host edits the full set of event
@@ -239,7 +240,9 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
     }
   }
 
-  const descPlain = form.description.replace(/<[^>]*>/g, "").trim();
+  // Strip tags AND decode entities so the preview doesn't show raw
+  // "&nbsp;" / "&amp;" from the rich-text editor.
+  const descPlain = htmlToPlainText(form.description);
 
   // ─── Sub-modal: Description ─────────────────────
   if (subModal === "description") {
