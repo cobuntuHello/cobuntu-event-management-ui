@@ -713,13 +713,13 @@ export function PriceEditModal({
 
   return (
     <>
-    <ModalShell onClose={onClose} width="w-[600px]">
-      {/* Fixed-height flex column → the modal ALWAYS has the same
-          dimensions. Header + footer are shrink-0; the body is the only
-          thing that flexes, and it scrolls internally. Nothing the user
-          does (navigating levels, longer content, the subtitle showing
-          only on L1) changes the outer size. Width is fixed by ModalShell. */}
-      <div className="flex flex-col h-[540px] max-h-[78vh]">
+    {/* FIXED dimensions: the panel itself is a fixed height (h-[640px],
+        capped at 90vh on short screens) — NOT content-driven — so the
+        modal is identical on every step. The inner column fills it
+        (h-full): header + footer shrink-0 (footer stays pinned/sticky),
+        body flex-1 scrolls. Width fixed at w-[600px]. */}
+    <ModalShell onClose={onClose} width="w-[600px]" className="h-[640px]">
+      <div className="flex flex-col h-full">
       {/* ─── Header ─── */}
       <div className="shrink-0 mb-4">
         <h3 className="text-[16px] font-semibold text-zinc-900">{title}</h3>
@@ -820,7 +820,7 @@ export function PriceEditModal({
           <button
             type="button"
             onClick={() => setActiveStep(null)}
-            className="px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+            className="px-4 py-2 text-[13px] font-medium text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer"
           >
             Back
           </button>
@@ -829,7 +829,7 @@ export function PriceEditModal({
             <button
               type="button"
               onClick={() => setActiveTier(null)}
-              className="px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+              className="px-4 py-2 text-[13px] font-medium text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer"
             >
               Back
             </button>

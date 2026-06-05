@@ -450,7 +450,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-zinc-100 flex justify-end gap-3 shrink-0 bg-white">
-          <button onClick={handleClose} className="px-5 py-2.5 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer">Close</button>
+          <button onClick={handleClose} className="px-5 py-2.5 text-[13px] font-medium text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer">Close</button>
           <button onClick={handleUpdateClick} className="px-5 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer">Update</button>
         </div>
       </div>
@@ -477,7 +477,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
                 <h3 className="text-[15px] font-semibold text-zinc-900">Update Failed</h3>
                 <p className="text-sm text-zinc-500 text-center px-4 break-words">{errorMsg}</p>
                 <p className="text-[11px] text-zinc-400 text-center mt-1">Check browser devtools console for full error.</p>
-                <button onClick={handleCancelConfirm} className="mt-3 px-5 py-2 text-[13px] font-medium border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 cursor-pointer">Dismiss</button>
+                <button onClick={handleCancelConfirm} className="mt-3 px-5 py-2 text-[13px] font-medium text-zinc-700 rounded-lg hover:bg-zinc-100 cursor-pointer">Dismiss</button>
               </div>
             )}
           </div>
