@@ -4,48 +4,34 @@ import { ChevronRight, Lock } from "lucide-react";
 import { SectionCard } from "@cobuntu/management-ui-shared";
 import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
-import { StepInput } from "./_primitives";
 
-export type StepId = "basics" | "members" | "form";
+export type StepId = "details" | "basics" | "members" | "form";
 
 export interface TierHubViewProps {
   t: DraftTier;
   /** Community-only — admin sets true, community-app /manage omits. */
   showMemberPricing: boolean;
-  onUpdate: (patch: Partial<DraftTier>) => void;
   /** Click a SectionCard → modal enters Level 3 (step view). */
   onEnterStep: (step: StepId) => void;
-  /** Persist the tier — wired to the inline Save beside the name input.
-   *  This step's primary action is (re)naming the tier; the section
-   *  cards open their own L3 editors. */
-  onSave: () => void;
-  saving?: boolean;
 }
 
 /**
  * Level 2 (per-tier hub takeover) of the redesigned PriceEditModal.
  *
- * Renders the four section-card landing (Basics / Options / Members /
- * Form) for a single tier. Each card is fully clickable (whole row is
- * the tap target — better mobile UX) and enters Level 3 for editing.
+ * A pure navigation menu of tiles — Details / Basics / Member pricing /
+ * Registration form — for one tier. Each tile is fully clickable (whole
+ * row is the tap target) and enters Level 3 for editing. The hub itself
+ * has NO editable fields and NO Save: identity (name + capacity) lives in
+ * the Details step now, so the footer Save behaves consistently across
+ * every level (it was previously a misleading inline "Save" next to the
+ * name that actually committed the whole modal).
  *
- * Back / Duplicate / Delete / Save live in the outer modal footer
- * (PriceEditModal-level), not in the body — the footer-driven nav
- * pattern keeps the action surface predictable across L1/L2/L3.
- *
- * MembersStep + FormStep mount in Level 3 (StepView) when the user
- * enters those steps; their state is held at the modal level (via
- * the member-pricing.ts state map for Members, and re-fetch on entry
- * for Form). Neither is mounted here at the hub level — keeps the
- * DOM small while the user is scanning section summaries.
+ * Back / Delete / Duplicate / Published live in the outer modal footer.
  */
 export function TierHubView({
   t,
   showMemberPricing,
-  onUpdate,
   onEnterStep,
-  onSave,
-  saving = false,
 }: TierHubViewProps) {
   const sym = getSymbol(t.currency);
   const locked = isTierLocked(t);
@@ -62,52 +48,6 @@ export function TierHubView({
 
   return (
     <div>
-      {/* Tier name editor — Save sits inline because renaming the tier is
-          this step's primary action (section cards open their own steps). */}
-      <div className="mb-4">
-        <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block mb-1.5">
-          Tier name
-        </label>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 min-w-0">
-            <StepInput
-              type="text"
-              value={t.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              placeholder="Standard, VIP, Early-bird…"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving}
-            className="shrink-0 px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
-
-      {/* Capacity (attendance cap) — surfaced here next to the name so the
-          host sees/sets it without opening the Basics step. Capacity can be
-          raised even on a locked tier; it just can't drop below sold. */}
-      <div className="mb-4">
-        <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block mb-1.5">
-          Capacity (optional)
-        </label>
-        <StepInput
-          type="number"
-          min={locked ? t.salesCount : 0}
-          step="1"
-          value={t.capacity}
-          onChange={(e) => onUpdate({ capacity: e.target.value })}
-          placeholder="Unlimited"
-        />
-        {locked && (
-          <p className="text-[10px] text-zinc-400 mt-1">Min {t.salesCount} (already sold).</p>
-        )}
-      </div>
-
       {locked && (
         <div className="flex items-start gap-2 px-3 py-2 mb-3 rounded-lg bg-amber-50/70 border border-amber-100">
           <Lock className="w-3.5 h-3.5 mt-0.5 text-amber-600 shrink-0" />
@@ -120,9 +60,17 @@ export function TierHubView({
         </div>
       )}
 
-      {/* Section cards. Basics holds price + pricing model + billing +
-          schedule config (capacity now lives above, next to the name). */}
+      {/* Section tiles. Details = name + capacity; Basics = price + pricing
+          model + billing + schedule. */}
       <div className="grid grid-cols-2 gap-2">
+        <SectionCard
+          title="Details"
+          description={t.capacity ? `Capacity ${t.capacity}` : "Name & capacity"}
+          action={chevron}
+          onClick={() => onEnterStep("details")}
+          variant="default"
+        />
+
         <SectionCard
           title="Basics"
           description={

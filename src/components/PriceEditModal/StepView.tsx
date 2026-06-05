@@ -5,6 +5,7 @@ import type {
   MemberPricingRow,
   MemberPricingTierState,
 } from "./member-pricing";
+import { DetailsStep } from "./steps/DetailsStep";
 import { BasicsStep } from "./steps/BasicsStep";
 import { MembersStep } from "./steps/MembersStep";
 import { FormStep } from "./steps/FormStep";
@@ -22,6 +23,7 @@ export interface StepViewProps {
 }
 
 const STEP_TITLES: Record<StepId, string> = {
+  details: "Details",
   basics: "Basics",
   members: "Member pricing",
   form: "Registration form",
@@ -54,6 +56,7 @@ export function StepView({
         </h3>
       </div>
 
+      {step === "details" && <DetailsStep t={t} onUpdate={onUpdate} />}
       {step === "basics" && <BasicsStep t={t} onUpdate={onUpdate} />}
       {step === "members" && (
         <MembersStep

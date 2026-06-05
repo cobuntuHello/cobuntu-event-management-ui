@@ -58,9 +58,10 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     ]);
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // L1: tier row shows the name as static text. Click the row → enter L2.
+    // L1: tier row shows the name as static text. Click the row → L2 hub.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    // L2: tier name input lives at the top of the hub.
+    // L2 hub → open the Details tile (name + capacity live there now).
+    await user.click(await screen.findByRole("button", { name: /Details/ }));
     const nameInput = (await screen.findByPlaceholderText(
       "Standard, VIP, Early-bird…",
     )) as HTMLInputElement;
@@ -127,9 +128,9 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     const props = baseProps();
     renderWithConfig(<PriceEditModal {...props} />);
 
-    // L1 → click row → L2 hub. Capacity now lives in the hub itself
-    // (next to the tier name), so no need to open a step.
+    // L1 → click row → L2 hub → open Details (name + capacity live there).
     await user.click(await screen.findByRole("button", { name: /GA/ }));
+    await user.click(await screen.findByRole("button", { name: /Details/ }));
 
     const capInput = await screen.findByPlaceholderText("Unlimited") as HTMLInputElement;
     await user.type(capInput, "50");
@@ -245,6 +246,7 @@ describe("PriceEditModal — save flow correctness", () => {
     // Touch the tier in a non-material way so the prompt doesn't fire
     // (we want the simple save path).
     await user.click(await screen.findByRole("button", { name: /GA/ }));
+    await user.click(await screen.findByRole("button", { name: /Details/ }));
     const capInput = await screen.findByPlaceholderText("Unlimited") as HTMLInputElement;
     await user.type(capInput, "50");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
