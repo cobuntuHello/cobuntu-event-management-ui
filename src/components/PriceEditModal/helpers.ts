@@ -8,6 +8,8 @@
 
 import {
   SUPPORTED_CURRENCIES,
+  TIER_NAME_MAX,
+  TIER_DESCRIPTION_MAX,
   type DonationDraft,
   type DraftTier,
 } from "./types";
@@ -113,6 +115,12 @@ export function loadDonationFromEvent(event: { donationConfig?: unknown; currenc
  *  first failure stops the loop. */
 export function validateTier(t: DraftTier): string | null {
   if (!t.name.trim()) return "Tier name is required";
+  if (t.name.length > TIER_NAME_MAX) {
+    return `Tier name must be ${TIER_NAME_MAX} characters or fewer.`;
+  }
+  if (t.description.length > TIER_DESCRIPTION_MAX) {
+    return `Description for "${t.name}" must be ${TIER_DESCRIPTION_MAX} characters or fewer.`;
+  }
   if (t.price === "" || isNaN(parseFloat(t.price))) {
     return `Price required for "${t.name}"`;
   }

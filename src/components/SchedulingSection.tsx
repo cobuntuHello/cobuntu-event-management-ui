@@ -16,7 +16,7 @@ import { Switch } from "./PriceEditModal/_primitives";
  *   - **Auto-schedule sales window** — a Switch; when on, two custom
  *     date-time pickers set [salesStartAt, salesEndAt). The window is
  *     enforced server-side at checkout (409 TIER_NOT_ON_SALE outside it).
- *     Lets a host express "Lote 1 until June 1, Lote 2 June 2–5, ..."
+ *     Lets a host express "Batch 1 until June 1, Batch 2 June 2–5, ..."
  *     without manually flipping prices at each cutover.
  *
  * State lives in PriceEditModal via DraftTier; this is a pure prop-driven
@@ -74,7 +74,7 @@ export function SchedulingSection({ draft, onChange }: SchedulingSectionProps) {
         <div className="min-w-0">
           <p className="text-[12px] font-medium text-zinc-700">Auto-schedule sales window</p>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Sales open and close automatically based on the dates below. Useful for date-driven price ladders (Lote 1 → Lote 2 → Lote 3).
+            Sales open and close automatically based on the dates below. Useful for date-driven price ladders (Batch 1 → Batch 2 → Batch 3).
           </p>
         </div>
         <Switch

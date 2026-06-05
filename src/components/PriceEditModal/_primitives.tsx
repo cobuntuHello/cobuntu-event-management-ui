@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import * as Popover from "@radix-ui/react-popover";
+import { Info } from "lucide-react";
 
 /**
  * Small UI primitives local to the PriceEditModal layout. Intentionally
@@ -9,11 +11,82 @@ import * as React from "react";
  * package's primitives target the full-width modal step layout instead.
  */
 
-export function Eyebrow({ children }: { children: React.ReactNode }) {
+/**
+ * HelpTip — the ⓘ affordance next to a field label. Click/tap toggles a
+ * short explainer popover; on desktop it also opens on hover. Portaled
+ * (Radix) so it escapes the modal's overflow clipping and layers above
+ * everything (z-[80] > modal > datetime popover). The label-context is
+ * uppercase/tracked, so the content resets to normal-case body text.
+ */
+export function HelpTip({ text, label }: { text: string; label?: string }) {
   return (
-    <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block">
-      {children}
-    </label>
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          aria-label={label ? `Help: ${label}` : "Help"}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center text-zinc-300 hover:text-zinc-500 transition-colors cursor-pointer align-middle"
+        >
+          <Info className="w-3 h-3" />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          side="top"
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="z-[80] max-w-[240px] rounded-lg bg-zinc-900 px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-relaxed text-white shadow-lg"
+        >
+          {text}
+          <Popover.Arrow className="fill-zinc-900" />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+/**
+ * Eyebrow — the uppercase field label. Optionally renders a ⓘ help
+ * popover inline, and a right-aligned live character counter (turns red
+ * past the max). Both are opt-in so the bare `<Eyebrow>Label</Eyebrow>`
+ * call-sites are unchanged.
+ */
+export function Eyebrow({
+  children,
+  help,
+  count,
+  max,
+}: {
+  children: React.ReactNode;
+  help?: string;
+  count?: number;
+  max?: number;
+}) {
+  const showCounter = typeof count === "number" && typeof max === "number";
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="flex items-center gap-1 min-w-0">
+        <label className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider truncate">
+          {children}
+        </label>
+        {help && (
+          <HelpTip
+            text={help}
+            label={typeof children === "string" ? children : undefined}
+          />
+        )}
+      </span>
+      {showCounter && (
+        <span
+          className={`text-[10px] tabular-nums shrink-0 ${count! > max! ? "text-red-500" : "text-zinc-300"}`}
+        >
+          {count}/{max}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -114,6 +187,64 @@ export const StepInput = React.forwardRef<HTMLInputElement, StepInputProps>(
     );
   },
 );
+
+/**
+ * StepFade — wraps the modal body so navigating between levels/steps
+ * cross-fades + slides in instead of hard-cutting. Re-mounts whenever
+ * `stepKey` changes (via React key), and the fresh mount animates from
+ * opacity-0/translate-y-1 to its resting state on the next frame. Uses
+ * only stock utilities (no @keyframes) so it's immune to the consumer's
+ * Tailwind-v4 arbitrary-class generation quirks. Honors reduced-motion.
+ */
+export function StepFade({
+  stepKey,
+  children,
+}: {
+  stepKey: string;
+  children: React.ReactNode;
+}) {
+  return <FadeMount key={stepKey}>{children}</FadeMount>;
+}
+
+function FadeMount({ children }: { children: React.ReactNode }) {
+  const [shown, setShown] = React.useState(false);
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <div
+      className={`transition duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none ${
+        shown ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * StepTextarea — the multi-line sibling of StepInput. Same border/focus
+ * treatment and density; used for free-text fields like a tier's
+ * description where one line isn't enough. Vertically resizable with a
+ * sensible min height.
+ */
+export const StepTextarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>(function StepTextarea({ className, ...rest }, ref) {
+  return (
+    <textarea
+      ref={ref}
+      {...rest}
+      className={[
+        STEP_INPUT_BASE,
+        "px-3 py-2 text-zinc-900 placeholder:text-zinc-400 resize-y min-h-[72px]",
+        className ?? "",
+      ].join(" ")}
+    />
+  );
+});
 
 /**
  * Switch — a compact on/off toggle. Used where flipping the control

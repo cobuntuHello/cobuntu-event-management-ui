@@ -56,7 +56,9 @@ export function BasicsStep({
       {/* Pricing model — fixed vs PWYW. Above the price so the host picks
           the model before typing the amount. Locked once sales exist. */}
       <div>
-        <Eyebrow>Pricing model</Eyebrow>
+        <Eyebrow help="Fixed price charges everyone the same. Pay-what-you-want lets each buyer choose their amount at checkout (with an optional minimum).">
+          Pricing model
+        </Eyebrow>
         <div className="grid grid-cols-2 gap-2 mt-1.5">
           <button
             type="button"
@@ -129,7 +131,9 @@ export function BasicsStep({
           runs Stripe in mode='payment' and a subscription tier would
           silently no-op. Marketplace products surface all three modes. */}
       <div>
-        <Eyebrow>Billing mode</Eyebrow>
+        <Eyebrow help="One-time charges the full price at checkout. Installment plan splits it into equal monthly charges you configure below.">
+          Billing mode
+        </Eyebrow>
         <div className="mt-1.5">
           <BillingRadio
             value={billingMode}

@@ -29,4 +29,38 @@ describe("DetailsStep", () => {
     await userEvent.type(screen.getByPlaceholderText("Unlimited"), "5");
     expect(onUpdate.mock.calls.some((c) => "capacity" in c[0])).toBe(true);
   });
+
+  it("description is a multi-line textarea with the right max length", () => {
+    render(<DetailsStep t={tier({ description: "Brunch + talk" })} onUpdate={vi.fn()} />);
+    const desc = screen.getByPlaceholderText("What's included") as HTMLTextAreaElement;
+    expect(desc.tagName).toBe("TEXTAREA");
+    expect(desc.value).toBe("Brunch + talk");
+    expect(desc.maxLength).toBe(200);
+  });
+
+  it("name input is capped at 80 characters", () => {
+    render(<DetailsStep t={tier()} onUpdate={vi.fn()} />);
+    const name = screen.getByPlaceholderText("Standard, VIP, Early-bird…") as HTMLInputElement;
+    expect(name.maxLength).toBe(80);
+  });
+
+  it("shows live character counters for name + description", () => {
+    render(<DetailsStep t={tier({ name: "GA", description: "hi" })} onUpdate={vi.fn()} />);
+    expect(screen.getByText("2/80")).toBeInTheDocument();   // name "GA"
+    expect(screen.getByText("2/200")).toBeInTheDocument();  // description "hi"
+  });
+
+  it("renders ⓘ help affordances for the fields", () => {
+    render(<DetailsStep t={tier()} onUpdate={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Help: Tier name/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Help: Description/i })).toBeInTheDocument();
+  });
+
+  it("clicking a ⓘ reveals its explainer popover", async () => {
+    render(<DetailsStep t={tier()} onUpdate={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /Help: Tier name/i }));
+    expect(
+      await screen.findByText(/public label buyers see at checkout/i),
+    ).toBeInTheDocument();
+  });
 });
