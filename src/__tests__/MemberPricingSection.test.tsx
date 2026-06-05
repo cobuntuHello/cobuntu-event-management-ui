@@ -64,7 +64,7 @@ describe("MemberPricingSection (presentational)", () => {
         currencySymbol="€"
       />,
     );
-    expect(screen.getByText(/No segments configured/i)).toBeInTheDocument();
+    expect(screen.getByText(/No community segments yet/i)).toBeInTheDocument();
   });
 
   it("renders a row per segment + the 'No override' hint when disabled", () => {
