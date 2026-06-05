@@ -340,6 +340,23 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
     );
   }
 
+  // ─── Distribution (standalone modal) ────────────
+  // Mutually exclusive with the drawer, same as the sub-modals above:
+  // while it's open we render ONLY the modal (early return) instead of
+  // stacking it on top of the drawer. Closing it falls through to the
+  // drawer render below.
+  if (distributionOpen) {
+    return (
+      <DistributionEditModal
+        event={event}
+        communityTag={communityTag}
+        onClose={() => setDistributionOpen(false)}
+        onSaved={() => { setDistributionOpen(false); onSaved(); }}
+        showToast={showToast}
+      />
+    );
+  }
+
   // ─── Drawer ─────────────────────────────────────
   if (!visible && !showStripeWarning) return null;
   if (!visible && showStripeWarning) return <StripeRequiredWarning communityTag={communityTag} onClose={() => setShowStripeWarning(false)} />;
@@ -467,19 +484,6 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
         </div>
       )}
 
-      {/* Distribution modal — opened by the row above. Self-saves; on
-          successful save, fires `onSaved` so the drawer's parent refetches
-          the event and the drawer's "Distribution" row label updates on
-          the next render. */}
-      {distributionOpen && (
-        <DistributionEditModal
-          event={event}
-          communityTag={communityTag}
-          onClose={() => setDistributionOpen(false)}
-          onSaved={() => { setDistributionOpen(false); onSaved(); }}
-          showToast={showToast}
-        />
-      )}
     </>,
     document.body,
   );
