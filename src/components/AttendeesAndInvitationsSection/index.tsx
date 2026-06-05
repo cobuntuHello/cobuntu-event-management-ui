@@ -246,7 +246,14 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     URL.revokeObjectURL(url);
   }
 
-  if (loading && !stats) return null;
+  // Pre-fix this was `return null` — while the wave-2 fetches
+  // (/invitations/stats, /invitations, /pending-attendees, /sales) were
+  // in flight the entire section vanished from the page. Hosts landing
+  // on a published event would see the hero card and then a blank gap
+  // where the attendees panel belongs until the fetches resolved. The
+  // skeleton below mirrors the post-load shape (header + tabs row +
+  // four attendee rows) so the layout stays stable.
+  if (loading && !stats) return <AttendeesSectionSkeleton />;
 
   const totalInvited = stats?.totalInvited ?? 0;
   const accepted = stats?.accepted ?? 0;
@@ -828,4 +835,51 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       </div>
     );
   }
+}
+
+/**
+ * Placeholder layout shown while wave-2 fetches (/invitations/stats,
+ * /invitations, /pending-attendees, /sales) are in flight. Mirrors the
+ * resolved component: section header with action buttons, the tabs row,
+ * and four attendee rows. animate-pulse on every shaded block. Kept
+ * structure-only so it slots in without re-layout when the real data
+ * lands.
+ */
+function AttendeesSectionSkeleton() {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden" aria-busy="true" aria-label="Loading attendees">
+      {/* Header row — "Attendees (n)" + Export / Add / Invite buttons. */}
+      <div className="flex items-center justify-between px-6 pt-6 pb-4">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 rounded-full bg-zinc-100 animate-pulse" />
+          <div className="h-5 w-28 rounded bg-zinc-100 animate-pulse" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-20 rounded-md bg-zinc-100 animate-pulse" />
+          <div className="h-9 w-28 rounded-md bg-zinc-100 animate-pulse" />
+          <div className="h-9 w-16 rounded-md bg-zinc-900/80 animate-pulse" />
+        </div>
+      </div>
+      {/* Tabs row. */}
+      <div className="flex items-center gap-2 px-6 pb-3 border-b border-zinc-100">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-7 w-24 rounded-full bg-zinc-100 animate-pulse" />
+        ))}
+      </div>
+      {/* Attendee rows. */}
+      <div className="divide-y divide-zinc-100">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-6 py-3">
+            <div className="w-9 h-9 rounded-full bg-zinc-100 animate-pulse" />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <div className="h-3.5 w-40 rounded bg-zinc-100 animate-pulse" />
+              <div className="h-2.5 w-56 rounded bg-zinc-100/70 animate-pulse" />
+            </div>
+            <div className="h-5 w-20 rounded-full bg-zinc-100 animate-pulse" />
+            <div className="h-5 w-24 rounded-full bg-zinc-100 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
