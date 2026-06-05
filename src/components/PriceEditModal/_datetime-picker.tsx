@@ -21,7 +21,6 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 const MIN_STEPS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-const POP_W = 288;
 const POP_H = 388;
 
 function pad(n: number): string {
@@ -49,7 +48,7 @@ export function DateTimePicker({
   const parsed = value ? new Date(value) : null;
   const valid = !!parsed && !Number.isNaN(parsed.getTime());
   const [open, setOpen] = React.useState(false);
-  const [coords, setCoords] = React.useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
   const [view, setView] = React.useState(() => {
     const base = valid ? (parsed as Date) : new Date();
     return { year: base.getFullYear(), month: base.getMonth() };
@@ -66,8 +65,12 @@ export function DateTimePicker({
     const top = spaceBelow >= POP_H + 8 || spaceBelow >= r.top
       ? r.bottom + 6
       : Math.max(8, r.top - POP_H - 6);
-    const left = Math.min(Math.max(8, r.left), window.innerWidth - POP_W - 8);
-    setCoords({ top, left });
+    // Match the trigger's EXACT width + left edge so the popover is
+    // perfectly aligned with its input (same left + same width = same
+    // right). The calendar grid is responsive and fits the input width.
+    const width = r.width;
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8);
+    setCoords({ top, left, width });
   }, []);
 
   React.useEffect(() => {
@@ -154,7 +157,7 @@ export function DateTimePicker({
       {open && coords && typeof document !== "undefined" && createPortal(
         <div
           ref={popRef}
-          style={{ position: "fixed", top: coords.top, left: coords.left, width: POP_W }}
+          style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
           className="z-[60] rounded-xl border border-zinc-200 bg-white shadow-xl p-3"
         >
           {/* Month header */}

@@ -713,13 +713,12 @@ export function PriceEditModal({
 
   return (
     <>
-    {/* FIXED dimensions: the panel itself is a fixed height (h-[640px],
-        capped at 90vh on short screens) — NOT content-driven — so the
-        modal is identical on every step. The inner column fills it
-        (h-full): header + footer shrink-0 (footer stays pinned/sticky),
-        body flex-1 scrolls. Width fixed at w-[600px]. */}
-    <ModalShell onClose={onClose} width="w-[600px]" className="h-[640px]">
-      <div className="flex flex-col h-full">
+    {/* Fixed WIDTH (w-[600px]); height VARIES with each step's content.
+        The column caps at 78vh and the body scrolls past that, with the
+        header + footer pinned (shrink-0) so the footer stays visible even
+        when the body overflows. */}
+    <ModalShell onClose={onClose} width="w-[600px]">
+      <div className="flex flex-col max-h-[78vh]">
       {/* ─── Header ─── */}
       <div className="shrink-0 mb-4">
         <h3 className="text-[16px] font-semibold text-zinc-900">{title}</h3>
