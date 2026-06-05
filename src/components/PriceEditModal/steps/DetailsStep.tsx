@@ -1,8 +1,8 @@
 "use client";
 
-import type { DraftTier } from "../types";
+import { TIER_NAME_MAX, TIER_DESCRIPTION_MAX, type DraftTier } from "../types";
 import { isTierLocked } from "../helpers";
-import { Eyebrow, StepInput } from "../_primitives";
+import { Eyebrow, StepInput, StepTextarea } from "../_primitives";
 
 export interface DetailsStepProps {
   t: DraftTier;
@@ -25,11 +25,18 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
     <div className="space-y-4">
       {/* Tier name */}
       <div>
-        <Eyebrow>Tier name</Eyebrow>
+        <Eyebrow
+          help="The public label buyers see at checkout, e.g. “Early bird” or “VIP”."
+          count={t.name.length}
+          max={TIER_NAME_MAX}
+        >
+          Tier name
+        </Eyebrow>
         <div className="mt-1">
           <StepInput
             type="text"
             value={t.name}
+            maxLength={TIER_NAME_MAX}
             onChange={(e) => onUpdate({ name: e.target.value })}
             placeholder="Standard, VIP, Early-bird…"
           />
@@ -38,13 +45,20 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
 
       {/* Description — tier info, lives with the identity fields. */}
       <div>
-        <Eyebrow>Description (optional)</Eyebrow>
+        <Eyebrow
+          help="Shown on the public ticket card — a short note on what this tier includes."
+          count={t.description.length}
+          max={TIER_DESCRIPTION_MAX}
+        >
+          Description (optional)
+        </Eyebrow>
         <div className="mt-1">
-          <StepInput
-            type="text"
+          <StepTextarea
             value={t.description}
+            maxLength={TIER_DESCRIPTION_MAX}
             onChange={(e) => onUpdate({ description: e.target.value })}
             placeholder="What's included"
+            rows={3}
           />
         </div>
       </div>
@@ -52,7 +66,9 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
       {/* Capacity (attendance cap) — raisable even on a locked tier; just
           can't drop below sold. */}
       <div>
-        <Eyebrow>Capacity (optional)</Eyebrow>
+        <Eyebrow help="The maximum number of tickets sold for this tier. Leave blank for unlimited.">
+          Capacity (optional)
+        </Eyebrow>
         <div className="mt-1">
           <StepInput
             type="number"

@@ -48,6 +48,34 @@ describe("PriceEditModal helpers — validateTier", () => {
     ).toMatch(/Tier name is required/);
   });
 
+  it("rejects an over-long name (> 80 chars)", () => {
+    expect(
+      validateTier({ ...blankTier(), name: "x".repeat(81), price: "10" }),
+    ).toMatch(/80 characters or fewer/);
+  });
+
+  it("rejects an over-long description (> 200 chars)", () => {
+    expect(
+      validateTier({
+        ...blankTier(),
+        name: "Standard",
+        price: "10",
+        description: "y".repeat(201),
+      }),
+    ).toMatch(/200 characters or fewer/);
+  });
+
+  it("accepts name + description at the limits", () => {
+    expect(
+      validateTier({
+        ...blankTier(),
+        name: "x".repeat(80),
+        price: "10",
+        description: "y".repeat(200),
+      }),
+    ).toBeNull();
+  });
+
   it("rejects blank or NaN price", () => {
     expect(
       validateTier({ ...blankTier(), name: "Standard", price: "" }),

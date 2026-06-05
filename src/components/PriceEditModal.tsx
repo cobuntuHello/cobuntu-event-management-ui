@@ -40,7 +40,7 @@ import {
   validateTier,
 } from "./PriceEditModal/helpers";
 import { SortableTierRow } from "./PriceEditModal/TierRow";
-import { Switch } from "./PriceEditModal/_primitives";
+import { Switch, StepFade } from "./PriceEditModal/_primitives";
 import { TierHubView, STEP_TITLES, STEP_SUBTITLES, type StepId } from "./PriceEditModal/TierHubView";
 import { StepView } from "./PriceEditModal/StepView";
 import { FooterSlotContext } from "./PriceEditModal/footer-slot";
@@ -785,6 +785,9 @@ export function PriceEditModal({
       {/* Body — the sole flexible region; scrolls when a level's content
           is taller than the fixed column. */}
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      {/* Cross-fade between levels/steps. Keyed on the current view so
+          each navigation re-mounts and animates in (see StepFade). */}
+      <StepFade stepKey={`${activeTier ?? "list"}:${activeStep ?? "hub"}:${loading ? "loading" : "ready"}`}>
       {loading ? (
         <div className="py-12 text-center text-[13px] text-zinc-400">Loading…</div>
       ) : activeDraft && activeStep ? (
@@ -859,6 +862,7 @@ export function PriceEditModal({
           />
         </div>
       )}
+      </StepFade>
       </div>
 
       {/* ─── Footer ─── Modal-level navigation + Save.

@@ -35,6 +35,15 @@ export interface Tier {
   };
 }
 
+/**
+ * Character limits for a tier's name + description. The backend columns
+ * are unbounded `text` and the API does no length check today, so these
+ * are the product-chosen ceilings the UI enforces (maxLength + counter)
+ * and validateTier guards. Keep in sync if backend validation is added.
+ */
+export const TIER_NAME_MAX = 80;
+export const TIER_DESCRIPTION_MAX = 200;
+
 /** Local draft state for a single tier card. Fields are display-unit
  *  strings (e.g. "20" for €20) so the input rows can be authored as-is
  *  without conversion. Save flips them to smallest-unit ints. */
