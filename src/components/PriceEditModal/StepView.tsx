@@ -7,7 +7,6 @@ import type {
 } from "./member-pricing";
 import { DetailsStep } from "./steps/DetailsStep";
 import { BasicsStep } from "./steps/BasicsStep";
-import { MembersStep } from "./steps/MembersStep";
 import { FormStep } from "./steps/FormStep";
 import type { StepId } from "./TierHubView";
 
@@ -16,7 +15,9 @@ export interface StepViewProps {
   step: StepId;
   communityTag: string;
   onUpdate: (patch: Partial<DraftTier>) => void;
-  /** Forwarded to MembersStep so it can render the MemberPricingSection. */
+  /** Community-only — gates the member-pricing block inside Pricing config. */
+  showMemberPricing?: boolean;
+  /** Forwarded to the member-pricing block inside the Pricing config step. */
   memberPricingState?: MemberPricingTierState;
   onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
   showToast: (msg: string) => void;
@@ -24,8 +25,7 @@ export interface StepViewProps {
 
 const STEP_TITLES: Record<StepId, string> = {
   details: "Details",
-  basics: "Basics",
-  members: "Member pricing",
+  basics: "Pricing configuration",
   form: "Registration form",
 };
 
@@ -41,6 +41,7 @@ export function StepView({
   step,
   communityTag,
   onUpdate,
+  showMemberPricing,
   memberPricingState,
   onMemberPricingRowChange,
   showToast,
@@ -57,10 +58,11 @@ export function StepView({
       </div>
 
       {step === "details" && <DetailsStep t={t} onUpdate={onUpdate} />}
-      {step === "basics" && <BasicsStep t={t} onUpdate={onUpdate} />}
-      {step === "members" && (
-        <MembersStep
+      {step === "basics" && (
+        <BasicsStep
           t={t}
+          onUpdate={onUpdate}
+          showMemberPricing={showMemberPricing}
           memberPricingState={memberPricingState}
           onMemberPricingRowChange={onMemberPricingRowChange}
           showToast={showToast}

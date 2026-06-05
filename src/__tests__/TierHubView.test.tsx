@@ -31,7 +31,6 @@ function renderHub(props: Partial<React.ComponentProps<typeof TierHubView>> = {}
   return renderWithConfig(
     <TierHubView
       t={newTier()}
-      showMemberPricing={false}
       onEnterStep={() => {}}
       {...props}
     />,
@@ -39,30 +38,26 @@ function renderHub(props: Partial<React.ComponentProps<typeof TierHubView>> = {}
 }
 
 describe("TierHubView — tile menu", () => {
-  it("renders Details + Basics + Registration form by default", () => {
+  it("renders Details + Pricing configuration + Registration form (Member pricing folded into Pricing config)", () => {
     renderHub();
     expect(screen.getByRole("heading", { name: "Details", level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Basics", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pricing configuration", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Registration form", level: 3 })).toBeInTheDocument();
+    // Member pricing is no longer a separate tile — it lives inside Pricing config.
     expect(screen.queryByRole("heading", { name: "Member pricing", level: 3 })).not.toBeInTheDocument();
-    // No editable fields / inline Save on the hub anymore.
+    // No editable fields / inline Save on the hub.
     expect(screen.queryByPlaceholderText("Standard, VIP, Early-bird…")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 
-  it("renders the Member pricing card when showMemberPricing is true", () => {
-    renderHub({ showMemberPricing: true });
-    expect(screen.getByRole("heading", { name: "Member pricing", level: 3 })).toBeInTheDocument();
-  });
-
-  it("Basics card description: price · billing summary", () => {
+  it("Pricing config card description: price · billing summary", () => {
     renderHub({
       t: newTier({ price: "20", installmentEnabled: true, installmentTotal: "60", installmentCount: "3" }),
     });
     expect(screen.getByText(/€20 · Installment plan/)).toBeInTheDocument();
   });
 
-  it("Basics card folds in pwyw + installment; Details card shows capacity", () => {
+  it("Pricing config card folds in pwyw + installment; Details card shows capacity", () => {
     renderHub({
       t: newTier({
         capacity: "100",
@@ -89,19 +84,18 @@ describe("TierHubView — tile menu", () => {
     renderHub({ onEnterStep });
     await userEvent.click(screen.getByRole("button", { name: /Details/ }));
     expect(onEnterStep).toHaveBeenCalledWith("details");
-    await userEvent.click(screen.getByRole("button", { name: /Basics/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Pricing configuration/ }));
     expect(onEnterStep).toHaveBeenCalledWith("basics");
   });
 
-  it("Members + Form tiles are disabled (non-button) on an unsaved tier", () => {
-    renderHub({ t: newTier({ id: undefined }), showMemberPricing: true });
-    // Details + Basics are always editable (no saved id needed); Members +
-    // Form require a saved tier id so they drop out of the button role.
+  it("Form tile is disabled (non-button) on an unsaved tier", () => {
+    renderHub({ t: newTier({ id: undefined }) });
+    // Details + Pricing config are always editable (no saved id needed);
+    // the Form tile requires a saved tier id so it drops out of button role.
     expect(screen.getByRole("button", { name: /Details/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Basics/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Member pricing/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pricing configuration/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Registration form/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Member pricing" })).toBeInTheDocument();
+    // The Form text still renders as a heading inside the disabled card.
     expect(screen.getByRole("heading", { name: "Registration form" })).toBeInTheDocument();
   });
 });
