@@ -29,15 +29,19 @@ export interface ModalShellProps {
   children: React.ReactNode;
   onClose: () => void;
   width?: string;
+  /** Forwarded to the shared panel — e.g. a fixed height like "h-[640px]"
+   *  so the modal keeps the same dimensions regardless of content. */
+  className?: string;
 }
 
-export function ModalShell({ children, onClose, width }: ModalShellProps) {
+export function ModalShell({ children, onClose, width, className }: ModalShellProps) {
   return (
     <Shared
       onClose={onClose}
       width={width ?? "w-[420px]"}
       hideCloseButton
       maxHeight="90vh"
+      className={className}
     >
       {children}
     </Shared>
