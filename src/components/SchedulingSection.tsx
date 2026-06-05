@@ -64,6 +64,9 @@ export function SchedulingSection({ draft, onChange }: SchedulingSectionProps) {
     && Number.isFinite(startMs)
     && Number.isFinite(endMs)
     && endMs <= startMs;
+  // Enabled with neither bound is a no-op window — save is blocked
+  // (validateTier), so flag it inline too.
+  const noDates = draft.autoScheduleEnabled && !draft.salesStartAt && !draft.salesEndAt;
 
   return (
     <div className="pt-3 border-t border-zinc-100">
@@ -112,6 +115,11 @@ export function SchedulingSection({ draft, onChange }: SchedulingSectionProps) {
           {invalidWindow && (
             <p className="col-span-2 text-[11px] text-red-600">
               Sales close must be after sales open.
+            </p>
+          )}
+          {noDates && (
+            <p className="col-span-2 text-[11px] text-amber-600">
+              Set a sales-open or sales-close date, or turn off auto-schedule.
             </p>
           )}
           {!published && (

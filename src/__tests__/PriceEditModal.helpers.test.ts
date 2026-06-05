@@ -130,6 +130,40 @@ describe("PriceEditModal helpers — validateTier", () => {
       }),
     ).toBeNull();
   });
+
+  // ── Auto-schedule sales window ──
+  const sched = (over: Record<string, unknown>) =>
+    validateTier({ ...blankTier(), name: "Std", price: "10", autoScheduleEnabled: true, salesStartAt: "", salesEndAt: "", ...over });
+
+  it("rejects auto-schedule enabled with no dates at all", () => {
+    expect(sched({})).toMatch(/turn off auto-schedule/);
+  });
+
+  it("accepts auto-schedule with only a start date (open-ended)", () => {
+    expect(sched({ salesStartAt: "2026-06-01T12:00:00.000Z" })).toBeNull();
+  });
+
+  it("accepts auto-schedule with only an end date (opens on publish)", () => {
+    expect(sched({ salesEndAt: "2026-06-05T12:00:00.000Z" })).toBeNull();
+  });
+
+  it("rejects a window where close <= open", () => {
+    expect(
+      sched({ salesStartAt: "2026-06-05T12:00:00.000Z", salesEndAt: "2026-06-01T12:00:00.000Z" }),
+    ).toMatch(/close must be after sales open/);
+  });
+
+  it("accepts a window where close > open", () => {
+    expect(
+      sched({ salesStartAt: "2026-06-01T12:00:00.000Z", salesEndAt: "2026-06-05T12:00:00.000Z" }),
+    ).toBeNull();
+  });
+
+  it("ignores the window rules when auto-schedule is off", () => {
+    expect(
+      validateTier({ ...blankTier(), name: "Std", price: "10", autoScheduleEnabled: false, salesStartAt: "", salesEndAt: "" }),
+    ).toBeNull();
+  });
 });
 
 describe("PriceEditModal helpers — validateDonation", () => {

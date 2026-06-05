@@ -136,6 +136,22 @@ export function validateTier(t: DraftTier): string | null {
       return `Installment interval for "${t.name}" must be at least 1 month.`;
     }
   }
+  // Auto-schedule sales window. Enabling it with no bounds at all is a
+  // no-op (opens-on-publish + open-ended = same as off) — block it so the
+  // host doesn't think they scheduled something. When both bounds are set,
+  // close must be strictly after open.
+  if (t.autoScheduleEnabled) {
+    if (!t.salesStartAt && !t.salesEndAt) {
+      return `Set a sales-open or sales-close date for "${t.name}", or turn off auto-schedule.`;
+    }
+    if (t.salesStartAt && t.salesEndAt) {
+      const start = new Date(t.salesStartAt).getTime();
+      const end = new Date(t.salesEndAt).getTime();
+      if (Number.isFinite(start) && Number.isFinite(end) && end <= start) {
+        return `Sales close must be after sales open for "${t.name}".`;
+      }
+    }
+  }
   return null;
 }
 

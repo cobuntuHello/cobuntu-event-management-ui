@@ -1,17 +1,18 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 
 /**
- * Self-contained date + time picker used by the tier auto-schedule
- * window. Replaces the native <input type="datetime-local"> (which
- * renders inconsistently across browsers/OSes and clashes with the
- * modal's visual language). A button shows the formatted value; clicking
- * opens a popover with a month calendar grid + an hour/minute selector.
+ * Self-contained date + time picker for the tier auto-schedule window.
  *
- * Value contract mirrors the old inputs: an ISO 8601 string when set,
- * "" when cleared — so the surrounding draft/save plumbing is unchanged.
+ * The calendar opens as a **portaled popover** (fixed-positioned at
+ * document.body, z above the modal) rather than expanding in-flow — so it
+ * never pushes/extends the modal and is never clipped by the modal's
+ * fixed-height scroll body. Time uses the app's custom Select (no native
+ * <select>). Value contract: ISO 8601 string when set, "" when cleared.
  */
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -20,6 +21,8 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 const MIN_STEPS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+const POP_W = 288;
+const POP_H = 388;
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -46,27 +49,50 @@ export function DateTimePicker({
   const parsed = value ? new Date(value) : null;
   const valid = !!parsed && !Number.isNaN(parsed.getTime());
   const [open, setOpen] = React.useState(false);
+  const [coords, setCoords] = React.useState<{ top: number; left: number } | null>(null);
   const [view, setView] = React.useState(() => {
     const base = valid ? (parsed as Date) : new Date();
     return { year: base.getFullYear(), month: base.getMonth() };
   });
-  const ref = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const popRef = React.useRef<HTMLDivElement>(null);
 
-  // Close on outside click.
+  const computeCoords = React.useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    // Prefer below; flip above when there isn't room below but there is above.
+    const top = spaceBelow >= POP_H + 8 || spaceBelow >= r.top
+      ? r.bottom + 6
+      : Math.max(8, r.top - POP_H - 6);
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - POP_W - 8);
+    setCoords({ top, left });
+  }, []);
+
   React.useEffect(() => {
     if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
+    computeCoords();
+    if (valid && parsed) setView({ year: parsed.getFullYear(), month: parsed.getMonth() });
 
-  // Land the calendar on the selected month each time it opens.
-  React.useEffect(() => {
-    if (open && valid && parsed) {
-      setView({ year: parsed.getFullYear(), month: parsed.getMonth() });
+    function reposition() { computeCoords(); }
+    function onDocPointer(e: MouseEvent) {
+      const target = e.target as Element | null;
+      if (!target) return;
+      if (triggerRef.current?.contains(target) || popRef.current?.contains(target)) return;
+      // Ignore clicks inside the custom Select's portaled dropdown.
+      if (target.closest?.("[data-radix-popper-content-wrapper]")) return;
+      setOpen(false);
     }
+    // capture: also catch scrolls on the modal's inner scroll container.
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    document.addEventListener("mousedown", onDocPointer);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+      document.removeEventListener("mousedown", onDocPointer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -97,8 +123,9 @@ export function DateTimePicker({
     valid && (parsed as Date).getFullYear() === year && (parsed as Date).getMonth() === month && (parsed as Date).getDate() === day;
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={ariaLabel}
         onClick={() => setOpen((o) => !o)}
@@ -124,11 +151,12 @@ export function DateTimePicker({
         )}
       </button>
 
-      {open && (
-        // In-flow panel (not an absolute overlay) so it's never clipped by
-        // the modal's fixed-height scroll body — it expands the content and
-        // the body scrolls to it, like an accordion.
-        <div className="mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-sm p-3">
+      {open && coords && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popRef}
+          style={{ position: "fixed", top: coords.top, left: coords.left, width: POP_W }}
+          className="z-[60] rounded-xl border border-zinc-200 bg-white shadow-xl p-3"
+        >
           {/* Month header */}
           <div className="flex items-center justify-between mb-2">
             <button
@@ -183,30 +211,31 @@ export function DateTimePicker({
             })}
           </div>
 
-          {/* Time */}
+          {/* Time — custom Select dropdowns (no native <select>). The
+              dropdown content sits at z-[70] so it's above this popover. */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-100">
             <span className="text-[11px] text-zinc-400">Time</span>
-            <select
-              value={hours}
-              onChange={(e) => setTime(parseInt(e.target.value, 10), minutes)}
-              className="text-[12px] border border-zinc-200 rounded-md px-1.5 py-1 cursor-pointer focus:outline-none focus:border-zinc-400"
-              aria-label="Hour"
-            >
-              {Array.from({ length: 24 }).map((_, h) => (
-                <option key={h} value={h}>{pad(h)}</option>
-              ))}
-            </select>
+            <Select value={String(hours)} onValueChange={(v) => setTime(parseInt(v, 10), minutes)}>
+              <SelectTrigger className="h-8 w-[60px] px-2 py-1 bg-white text-[12px]" aria-label="Hour">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-[70]">
+                {Array.from({ length: 24 }).map((_, h) => (
+                  <SelectItem key={h} value={String(h)}>{pad(h)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="text-zinc-400">:</span>
-            <select
-              value={minutes}
-              onChange={(e) => setTime(hours, parseInt(e.target.value, 10))}
-              className="text-[12px] border border-zinc-200 rounded-md px-1.5 py-1 cursor-pointer focus:outline-none focus:border-zinc-400"
-              aria-label="Minute"
-            >
-              {minuteOpts.map((m) => (
-                <option key={m} value={m}>{pad(m)}</option>
-              ))}
-            </select>
+            <Select value={String(minutes)} onValueChange={(v) => setTime(hours, parseInt(v, 10))}>
+              <SelectTrigger className="h-8 w-[60px] px-2 py-1 bg-white text-[12px]" aria-label="Minute">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-[70]">
+                {minuteOpts.map((m) => (
+                  <SelectItem key={m} value={String(m)}>{pad(m)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <button
               type="button"
               onClick={() => setOpen(false)}
@@ -215,8 +244,9 @@ export function DateTimePicker({
               Done
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
