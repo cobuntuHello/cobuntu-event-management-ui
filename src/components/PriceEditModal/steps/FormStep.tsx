@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { GripVertical, X } from "lucide-react";
 import {
   DndContext,
@@ -36,6 +37,7 @@ import {
 import { FieldTypePickerFlow, FIELD_ICONS } from "../sub-flows/FieldTypePickerFlow";
 import { EditFieldFlow } from "../sub-flows/EditFieldFlow";
 import { EditPageBreakFlow } from "../sub-flows/EditPageBreakFlow";
+import { FooterSlotContext } from "../footer-slot";
 
 export interface FormStepProps {
   t: DraftTier;
@@ -73,6 +75,9 @@ type SubView =
 export function FormStep({ t, communityTag, showToast }: FormStepProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
+  // The form builder's primary actions live in the modal footer, not in
+  // the body — portaled into this slot. See ../footer-slot.tsx.
+  const footerSlot = useContext(FooterSlotContext);
 
   const [items, setItems] = useState<Item[]>([]);
   const [step0Label, setStep0Label] = useState("");
@@ -311,29 +316,56 @@ export function FormStep({ t, communityTag, showToast }: FormStepProps) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      {/* Primary actions (Add question / Page break / Use default) live
+          in the modal footer — portaled into the shared footer slot so
+          the body stays button-free. Only rendered for the list view
+          (the sub-flow early-returns above never reach here). */}
+      {footerSlot && createPortal(
+        items.length === 0 ? (
+          <>
+            <button
+              type="button"
+              onClick={seedDefault}
+              className="px-3 py-2 text-[13px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+            >
+              Use default
+            </button>
+            <button
+              type="button"
+              onClick={() => setView({ kind: "add-field" })}
+              className="px-3 py-2 text-[13px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+            >
+              Add question
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setView({ kind: "edit-page-break" })}
+              className="px-3 py-2 text-[13px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+            >
+              + Page break
+            </button>
+            <button
+              type="button"
+              onClick={() => setView({ kind: "add-field" })}
+              className="px-3 py-2 text-[13px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+            >
+              + Question
+            </button>
+          </>
+        ),
+        footerSlot,
+      )}
+
+      <div className="flex items-center mb-3">
         <p className="text-[12px] text-zinc-500">
           {fieldsFlat.length === 0
             ? "No questions yet."
             : `${fieldsFlat.length} question${fieldsFlat.length === 1 ? "" : "s"}.`}
           {saving && <span className="ml-2 text-zinc-400">Saving…</span>}
         </p>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setView({ kind: "edit-page-break" })}
-            className="px-2.5 py-1.5 text-[11px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
-          >
-            + Page break
-          </button>
-          <button
-            type="button"
-            onClick={() => setView({ kind: "add-field" })}
-            className="px-2.5 py-1.5 text-[11px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
-          >
-            + Question
-          </button>
-        </div>
       </div>
 
       {fieldsFlat.length > 0 && !hasEmail && (
@@ -345,23 +377,9 @@ export function FormStep({ t, communityTag, showToast }: FormStepProps) {
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-4 py-8 text-center">
           <p className="text-[13px] font-medium text-zinc-700 mb-1">No questions yet</p>
-          <p className="text-[11px] text-zinc-400 mb-4">Start with the minimum or add questions one-by-one.</p>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={seedDefault}
-              className="px-3 py-1.5 text-[12px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
-            >
-              Use default (Name + Email)
-            </button>
-            <button
-              type="button"
-              onClick={() => setView({ kind: "add-field" })}
-              className="px-3 py-1.5 text-[12px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
-            >
-              Add first question
-            </button>
-          </div>
+          <p className="text-[11px] text-zinc-400">
+            Use the footer to start with the default Name + Email, or add questions one-by-one.
+          </p>
         </div>
       ) : (
         <div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
