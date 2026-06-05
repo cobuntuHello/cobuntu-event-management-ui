@@ -99,7 +99,7 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     // SectionCards are now fully clickable buttons with the section
     // heading as accessible name.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Basics/ }));
+    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
 
     const priceInput = await screen.findByPlaceholderText("0.00") as HTMLInputElement;
     await user.clear(priceInput);
@@ -155,7 +155,7 @@ describe("PriceEditModal — capacity lock", () => {
     const user = userEvent.setup();
     // L1 → click tier row → L2 → click Basics card → L3 where price lives.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Basics/ }));
+    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
 
     const priceInput = await screen.findByPlaceholderText("0.00");
     expect(priceInput).toBeDisabled();

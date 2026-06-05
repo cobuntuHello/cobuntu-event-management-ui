@@ -9,10 +9,18 @@ import { SUPPORTED_CURRENCIES, type DraftTier } from "../types";
 import { getSymbol, isTierLocked } from "../helpers";
 import { Collapse, Eyebrow, StepInput } from "../_primitives";
 import { SchedulingSection } from "../../SchedulingSection";
+import { MembersStep } from "./MembersStep";
+import type { MemberPricingRow, MemberPricingTierState } from "../member-pricing";
 
 export interface BasicsStepProps {
   t: DraftTier;
   onUpdate: (patch: Partial<DraftTier>) => void;
+  /** Member-pricing (community-only) is folded into this step so all
+   *  pricing config lives in one place. Off → the section isn't rendered. */
+  showMemberPricing?: boolean;
+  memberPricingState?: MemberPricingTierState;
+  onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
+  showToast?: (msg: string) => void;
 }
 
 /**
@@ -28,7 +36,14 @@ export interface BasicsStepProps {
  * respects the backend's three-or-none validator (count >= 2, interval >=
  * 1 month, total > 0). Price/currency/mode lock once a tier has sales.
  */
-export function BasicsStep({ t, onUpdate }: BasicsStepProps) {
+export function BasicsStep({
+  t,
+  onUpdate,
+  showMemberPricing = false,
+  memberPricingState,
+  onMemberPricingRowChange,
+  showToast,
+}: BasicsStepProps) {
   const sym = getSymbol(t.currency);
   const locked = isTierLocked(t);
 
@@ -232,6 +247,19 @@ export function BasicsStep({ t, onUpdate }: BasicsStepProps) {
         }}
         onChange={(patch) => onUpdate(patch as Partial<DraftTier>)}
       />
+
+      {/* Member pricing — community-only per-segment discount overrides.
+          Folded in here so this step owns ALL pricing config. */}
+      {showMemberPricing && (
+        <div className="pt-3 border-t border-zinc-100">
+          <MembersStep
+            t={t}
+            memberPricingState={memberPricingState}
+            onMemberPricingRowChange={onMemberPricingRowChange}
+            showToast={showToast ?? (() => {})}
+          />
+        </div>
+      )}
     </div>
   );
 }

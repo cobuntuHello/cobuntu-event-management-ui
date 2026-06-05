@@ -5,12 +5,10 @@ import { SectionCard } from "@cobuntu/management-ui-shared";
 import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
 
-export type StepId = "details" | "basics" | "members" | "form";
+export type StepId = "details" | "basics" | "form";
 
 export interface TierHubViewProps {
   t: DraftTier;
-  /** Community-only — admin sets true, community-app /manage omits. */
-  showMemberPricing: boolean;
   /** Click a SectionCard → modal enters Level 3 (step view). */
   onEnterStep: (step: StepId) => void;
 }
@@ -30,7 +28,6 @@ export interface TierHubViewProps {
  */
 export function TierHubView({
   t,
-  showMemberPricing,
   onEnterStep,
 }: TierHubViewProps) {
   const sym = getSymbol(t.currency);
@@ -72,7 +69,7 @@ export function TierHubView({
         />
 
         <SectionCard
-          title="Basics"
+          title="Pricing configuration"
           description={
             [
               priceDisplay,
@@ -84,17 +81,6 @@ export function TierHubView({
           onClick={() => onEnterStep("basics")}
           variant="default"
         />
-
-        {showMemberPricing && (
-          <SectionCard
-            title="Member pricing"
-            description={t.id ? "Per-segment discount overrides for this tier." : "Save tier first to configure overrides."}
-            action={chevron}
-            onClick={() => onEnterStep("members")}
-            disabled={!t.id}
-            variant="default"
-          />
-        )}
 
         <SectionCard
           title="Registration form"

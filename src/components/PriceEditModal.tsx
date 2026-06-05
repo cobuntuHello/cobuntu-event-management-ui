@@ -744,6 +744,7 @@ export function PriceEditModal({
             const idx = activeIdx();
             if (idx != null) updateDraft(idx, patch);
           }}
+          showMemberPricing={!!showMemberPricing}
           memberPricingState={activeDraft.id ? memberPricingByTier.get(activeDraft.id) : undefined}
           onMemberPricingRowChange={
             activeDraft.id
@@ -753,12 +754,9 @@ export function PriceEditModal({
           showToast={showToast}
         />
       ) : activeDraft ? (
-        // Level 2: per-tier hub takeover. Tier name editor + clickable
-        // SectionCards. Back / Duplicate / Delete / Save all live in
-        // the modal footer below — no inline pill-shaped affordances.
+        // Level 2: per-tier hub takeover — a pure navigation menu of tiles.
         <TierHubView
           t={activeDraft}
-          showMemberPricing={!!showMemberPricing}
           onEnterStep={(step) => setActiveStep(step)}
         />
       ) : (
