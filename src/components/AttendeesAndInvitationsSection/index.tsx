@@ -87,6 +87,15 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const [resending, setResending] = useState<string | null>(null);
   const [drawerAttendee, setDrawerAttendee] = useState<any | null>(null);
   const [toast, setToast] = useState("");
+  // attendanceId → ISO timestamp of the most recent payment-pending
+  // reminder. Fetched from GET /events/:id/payment-reminders alongside
+  // the rest of wave-2b. Lets each PaymentPendingRow show "Last
+  // reminded 4h ago" so hosts know whether to nudge.
+  const [paymentReminders, setPaymentReminders] = useState<Record<string, string>>({});
+  // Resend confirmation dialog state. Null = closed. When open the dialog
+  // shows the recipient + most recent reminder timestamp + Send/Cancel.
+  // Avoids the prior one-click "did I really mean that?" footgun.
+  const [resendConfirm, setResendConfirm] = useState<any | null>(null);
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 2500); }
 
@@ -139,7 +148,11 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   // parent's event GET lands; never blocks wave-2a.
   useEffect(() => {
     if (!event?.id || !communityTag) return;
-    if (!requiresApproval && !isPaid) return;
+    // Paid + requires-approval is the only path that produces
+    // PENDING_PAYMENT rows, which is the only surface using the
+    // payment-reminders map. Computed once + reused below.
+    const wantsReminders = requiresApproval && isPaid;
+    if (!requiresApproval && !isPaid && !wantsReminders) return;
     let cancelled = false;
     (async () => {
       try {
@@ -150,47 +163,60 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         if (isPaid) {
           fetches.push(fetch(`${API}/api/communities/${communityTag}/sales?timeRange=1y`, { headers: authHeaders() }));
         }
+        if (wantsReminders) {
+          fetches.push(fetch(`${API}/api/communities/${communityTag}/events/${event.id}/payment-reminders`, { headers: authHeaders() }));
+        }
         const responses = await Promise.all(fetches);
         if (cancelled) return;
+
         let idx = 0;
         if (requiresApproval) {
           if (responses[idx]?.ok) setPendingAttendees(await responses[idx].json());
           idx++;
         }
-        if (isPaid && responses[idx]?.ok) {
-          const salesData = await responses[idx].json();
-          const map = new Map<string, SaleRow>();
-          for (const s of (salesData.sales || [])) {
-            if (s.eventId === event.id && s.refundStatus === "NONE" && s.buyer?.id) {
-              // Carry the full SaleRow shape — KPI cards need fees +
-              // ownerNetPayout; RefundSaleModal needs the whole thing.
-              map.set(s.buyer.id, {
-                id: s.id,
-                createdAt: s.createdAt,
-                eventId: s.eventId ?? null,
-                productSnapshot: null,
-                buyer: {
-                  id: s.buyer.id,
-                  name: s.buyer.name ?? null,
-                  usertag: s.buyer.usertag ?? null,
-                },
-                buyerEmail: s.buyer.email ?? s.buyerEmail ?? null,
-                grossAmount: s.grossAmount,
-                ownerNetPayout: s.ownerNetPayout,
-                platformFee: s.platformFee,
-                stripeFees: s.stripeFees ?? 0,
-                stripeTaxFee: s.stripeTaxFee ?? 0,
-                refundStatus: s.refundStatus ?? "NONE",
-                payoutStatus: s.payoutStatus ?? "ESCROW",
-                currency: s.currency || currency,
-                eligibleForPayoutAt: s.eligibleForPayoutAt ?? null,
-                scheduledPayoutAt: s.scheduledPayoutAt ?? null,
-                paidOutAt: s.paidOutAt ?? null,
-                transaction: s.transaction ?? { id: "", status: null, totalAmount: null, currency: null },
-              });
+        if (isPaid) {
+          if (responses[idx]?.ok) {
+            const salesData = await responses[idx].json();
+            const map = new Map<string, SaleRow>();
+            for (const s of (salesData.sales || [])) {
+              if (s.eventId === event.id && s.refundStatus === "NONE" && s.buyer?.id) {
+                // Carry the full SaleRow shape — KPI cards need fees +
+                // ownerNetPayout; RefundSaleModal needs the whole thing.
+                map.set(s.buyer.id, {
+                  id: s.id,
+                  createdAt: s.createdAt,
+                  eventId: s.eventId ?? null,
+                  productSnapshot: null,
+                  buyer: {
+                    id: s.buyer.id,
+                    name: s.buyer.name ?? null,
+                    usertag: s.buyer.usertag ?? null,
+                  },
+                  buyerEmail: s.buyer.email ?? s.buyerEmail ?? null,
+                  grossAmount: s.grossAmount,
+                  ownerNetPayout: s.ownerNetPayout,
+                  platformFee: s.platformFee,
+                  stripeFees: s.stripeFees ?? 0,
+                  stripeTaxFee: s.stripeTaxFee ?? 0,
+                  refundStatus: s.refundStatus ?? "NONE",
+                  payoutStatus: s.payoutStatus ?? "ESCROW",
+                  currency: s.currency || currency,
+                  eligibleForPayoutAt: s.eligibleForPayoutAt ?? null,
+                  scheduledPayoutAt: s.scheduledPayoutAt ?? null,
+                  paidOutAt: s.paidOutAt ?? null,
+                  transaction: s.transaction ?? { id: "", status: null, totalAmount: null, currency: null },
+                });
+              }
             }
+            setSalesByBuyer(map);
           }
-          setSalesByBuyer(map);
+          idx++;
+        }
+        if (wantsReminders && responses[idx]?.ok) {
+          try {
+            const data = await responses[idx].json();
+            if (data && typeof data === 'object') setPaymentReminders(data as Record<string, string>);
+          } catch { /* non-fatal */ }
         }
       } catch { /* */ }
     })();
@@ -232,20 +258,47 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
    * PENDING_PAYMENT. The endpoint is idempotent and doesn't reset
    * the 48h timer — the recipient sees the original deadline.
    */
-  async function handleResendPaymentLink(attendanceId: string) {
+  /**
+   * Step 1 of the resend flow — open the confirmation dialog. The
+   * dialog shows the recipient, the most recent reminder timestamp
+   * (so the host doesn't accidentally double-send), and a warn line
+   * if they were just reminded < 30 min ago. Pressing Send in the
+   * dialog calls `executeResendPaymentLink` below.
+   *
+   * Pre-2026-06-07 this was a one-tap fire — too easy to misclick
+   * and spam a member. CEO request: gate behind a confirm.
+   */
+  function handleResendPaymentLink(attendee: any) {
+    setResendConfirm(attendee);
+  }
+
+  /**
+   * Step 2 — actually fire the resend after the dialog confirms.
+   * Idempotent; doesn't reset the 48h timer (the recipient sees the
+   * original deadline). Updates the local `paymentReminders` map on
+   * success so the row's "Last reminded" stamp refreshes without a
+   * refetch.
+   */
+  async function executeResendPaymentLink(attendanceId: string) {
     setResending(attendanceId);
     try {
       const res = await fetch(`${API}/api/communities/${communityTag}/events/${event.id}/attendees/${attendanceId}/resend-payment-link`, {
         method: "POST",
         headers: authHeaders(),
       });
-      if (res.ok) showToast("Payment link resent");
-      else {
+      if (res.ok) {
+        showToast("Payment link resent");
+        // Mark as just-reminded so the row's stamp updates immediately.
+        setPaymentReminders((prev) => ({ ...prev, [attendanceId]: new Date().toISOString() }));
+      } else {
         const body = await res.json().catch(() => ({}));
         showToast(body?.error || "Failed to resend payment link");
       }
     } catch { showToast("Failed to resend payment link"); }
-    finally { setResending(null); }
+    finally {
+      setResending(null);
+      setResendConfirm(null);
+    }
   }
 
   function exportCSV() {
@@ -544,7 +597,8 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               {paymentPending.map((a: any) => (
                 <PaymentPendingRow key={a.id} a={a}
                   resending={resending === a.id}
-                  onResend={() => handleResendPaymentLink(a.id)}
+                  lastReminderAt={paymentReminders[a.id] ?? null}
+                  onResend={() => handleResendPaymentLink(a)}
                   onOpen={() => setDrawerAttendee(a)} />
               ))}
             </div>
@@ -610,9 +664,125 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           showToast("Refund issued");
         }}
       />
+
+      {/* Resend-payment-link confirmation dialog. CEO ask 2026-06-07:
+          "dialog to confirm what the user is actually doing" + show
+          when the last reminder was sent so the host isn't flying
+          blind. Pre-fix the resend button was a one-tap fire — too
+          easy to misclick + spam an attendee. */}
+      {resendConfirm && (
+        <ResendConfirmDialog
+          attendee={resendConfirm}
+          lastReminderAt={paymentReminders[resendConfirm.id] ?? null}
+          resending={resending === resendConfirm.id}
+          onCancel={() => setResendConfirm(null)}
+          onConfirm={() => executeResendPaymentLink(resendConfirm.id)}
+        />
+      )}
     </div>
     </SalesUiConfigProvider>
   );
+
+  /**
+   * Modal dialog: "Send {recipient} a new payment link?".
+   * Shows the recipient + tier, the most recent reminder (if any),
+   * and a yellow warn line if the last reminder fired < 30 min ago
+   * — that's the misclick / accidental-double-send range. Esc and
+   * backdrop click both cancel.
+   */
+  function ResendConfirmDialog({ attendee, lastReminderAt, resending, onCancel, onConfirm }: {
+    attendee: any;
+    lastReminderAt: string | null;
+    resending: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+  }) {
+    useEffect(() => {
+      const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !resending) onCancel(); };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [resending, onCancel]);
+
+    const recipient = attendee.email || attendee.user?.email || attendee.name || "this attendee";
+    const tierName = attendee.tier?.name as string | undefined;
+
+    let reminderLine: { text: string; warn: boolean } | null = null;
+    if (lastReminderAt) {
+      const ms = Date.now() - new Date(lastReminderAt).getTime();
+      const warn = ms < 30 * 60 * 1000;
+      let stamp: string;
+      if (ms < 60 * 1000) stamp = "just now";
+      else if (ms < 60 * 60 * 1000) stamp = `${Math.floor(ms / 60_000)} minute${ms < 120_000 ? "" : "s"} ago`;
+      else if (ms < 24 * 60 * 60 * 1000) stamp = `${Math.floor(ms / 3_600_000)} hour${ms < 7_200_000 ? "" : "s"} ago`;
+      else stamp = `${Math.floor(ms / 86_400_000)} day${ms < 172_800_000 ? "" : "s"} ago`;
+      reminderLine = {
+        text: `The last reminder went out ${stamp}.`,
+        warn,
+      };
+    }
+
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="resend-confirm-title"
+        onClick={() => !resending && onCancel()}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden"
+        >
+          <div className="px-5 pt-5 pb-3">
+            <h2 id="resend-confirm-title" className="text-[15px] font-semibold text-zinc-900">
+              Resend payment link?
+            </h2>
+            <p className="text-[13px] text-zinc-600 mt-1.5 leading-relaxed">
+              We'll email a fresh Pay-now link to <span className="font-medium text-zinc-900">{recipient}</span>
+              {tierName && <> for the <span className="font-medium">{tierName}</span> tier</>}.
+              The 48-hour payment window doesn't reset — they'll see the original deadline.
+            </p>
+            {reminderLine && (
+              <div
+                className={`mt-3 px-3 py-2 rounded-md text-[12px] leading-snug border ${
+                  reminderLine.warn
+                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                    : "bg-zinc-50 text-zinc-600 border-zinc-200"
+                }`}
+              >
+                {reminderLine.warn ? "⚠️ " : ""}
+                {reminderLine.text}
+                {reminderLine.warn && " Are you sure you want to send another?"}
+              </div>
+            )}
+            {!reminderLine && (
+              <div className="mt-3 px-3 py-2 rounded-md text-[12px] text-zinc-600 bg-zinc-50 border border-zinc-200">
+                No prior reminder has been sent — this will be the first.
+              </div>
+            )}
+          </div>
+          <div className="px-5 py-3 bg-zinc-50 border-t border-zinc-100 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={resending}
+              className="px-3 py-1.5 text-[13px] font-medium text-zinc-700 hover:bg-zinc-100 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={resending}
+              className="px-3 py-1.5 text-[13px] font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {resending ? "Sending…" : "Send"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function ApprovedRow({ a, sale, isPaid, onOpen, onRefund }: {
     a: any;
@@ -771,9 +941,37 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     );
   }
 
-  function PaymentPendingRow({ a, resending, onResend, onOpen }: {
+  /**
+   * Render "Reminded 4h ago" / "Reminded just now" / "Never reminded"
+   * next to the resend button. Subtle on purpose — italic + small
+   * zinc-400, so it reads as ancillary metadata, not a primary signal.
+   * The tooltip carries the absolute timestamp for hosts who want it.
+   */
+  function LastReminderStamp({ at }: { at: string | null }) {
+    if (!at) {
+      return (
+        <span className="text-[10px] italic text-zinc-400 shrink-0" title="No payment reminder has been sent yet.">
+          Not yet reminded
+        </span>
+      );
+    }
+    const ms = Date.now() - new Date(at).getTime();
+    let label: string;
+    if (ms < 60 * 1000) label = "Reminded just now";
+    else if (ms < 60 * 60 * 1000) label = `Reminded ${Math.floor(ms / 60_000)}m ago`;
+    else if (ms < 24 * 60 * 60 * 1000) label = `Reminded ${Math.floor(ms / 3_600_000)}h ago`;
+    else label = `Reminded ${Math.floor(ms / 86_400_000)}d ago`;
+    return (
+      <span className="text-[10px] italic text-zinc-400 shrink-0" title={`Last reminder sent ${new Date(at).toLocaleString()}`}>
+        {label}
+      </span>
+    );
+  }
+
+  function PaymentPendingRow({ a, resending, lastReminderAt, onResend, onOpen }: {
     a: any;
     resending: boolean;
+    lastReminderAt: string | null;
     onResend: () => void;
     onOpen: () => void;
   }) {
@@ -797,6 +995,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         )}
         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">Payment pending</span>
         <PaymentExpiryBadge updatedAt={a.updatedAt} />
+        <LastReminderStamp at={lastReminderAt} />
         <button
           type="button"
           disabled={resending}
