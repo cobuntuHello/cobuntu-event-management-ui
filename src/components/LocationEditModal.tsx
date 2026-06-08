@@ -43,7 +43,7 @@ export function LocationEditModal({ event, communityTag, onClose, onSaved, showT
   }
 
   return (
-    <ModalShell onClose={onClose} width="w-[480px]">
+    <ModalShell onClose={onClose} width="w-full sm:w-[480px]">
       <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Edit location</h3>
       <EventLocationSelector
         physicalLocation={physical}

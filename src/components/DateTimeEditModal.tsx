@@ -50,7 +50,7 @@ export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showT
   }
 
   return (
-    <ModalShell onClose={onClose} width="w-[540px]">
+    <ModalShell onClose={onClose} width="w-full sm:w-[540px]">
       <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Edit date & time</h3>
       <EventTimestamps
         startDate={startDate}
