@@ -861,7 +861,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           <span className="text-[11px] text-zinc-400">Free</span>
         )}
         {!sale && isPaid && (
-          <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">Comp</span>
+          <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">Complimentary</span>
         )}
         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">Confirmed</span>
         {/* Phase H: Refund button only for paid attendees within escrow. */}
