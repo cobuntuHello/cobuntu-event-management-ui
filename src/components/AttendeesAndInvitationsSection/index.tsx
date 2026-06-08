@@ -467,25 +467,25 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           sales, no need for two sections rendering overlapping data.
           Only shows for paid events with at least one sale. */}
       {isPaid && paidCount > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+          <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
             <p className="text-xs text-zinc-500">Paid attendees</p>
-            <p className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{paidCount}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{paidCount}</p>
             <p className="text-xs text-zinc-400 mt-1">{attendeeCount - paidCount} comp/invited</p>
           </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+          <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
             <p className="text-xs text-zinc-500">Revenue</p>
-            <p className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{fmtMoney(totalRevenue)}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{fmtMoney(totalRevenue)}</p>
             <p className="text-xs text-zinc-400 mt-1">{paidCount} transactions, gross</p>
           </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+          <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
             <p className="text-xs text-zinc-500">Fees paid</p>
-            <p className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{fmtMoney(totalFees)}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{fmtMoney(totalFees)}</p>
             <p className="text-xs text-zinc-400 mt-1">Platform + Stripe</p>
           </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+          <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
             <p className="text-xs text-zinc-500">Net earnings</p>
-            <p className="text-2xl font-semibold text-emerald-600 mt-1 tabular-nums">{fmtMoney(totalNet)}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-emerald-600 mt-1 tabular-nums">{fmtMoney(totalNet)}</p>
             <p className="text-xs text-zinc-400 mt-1">After all fees</p>
           </div>
         </div>
@@ -506,10 +506,10 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {attendeeCount > 0 && (
             <button onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer">
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export
             </button>
@@ -517,11 +517,11 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           {!isPast && (
             <>
               <button onClick={() => config.navigate(`/${communityTag}/events/${eventId}?view=add-attendees`)} disabled={!isPublished}
-                className="px-3 py-1.5 text-[12px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
+                className="flex-1 sm:flex-none px-3 py-1.5 text-[12px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
                 Add Attendees
               </button>
               <button onClick={onInviteClick || (() => config.navigate(`/${communityTag}/events/${eventId}?view=invite-guests`))} disabled={!isPublished}
-                className="px-3 py-1.5 text-[12px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
+                className="flex-1 sm:flex-none px-3 py-1.5 text-[12px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
                 Invite
               </button>
             </>
@@ -533,12 +533,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
       {/* Stats hero */}
       {totalInvited > 0 && (
-        <div className="px-6 py-5 border-b border-zinc-100 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="px-4 sm:px-6 py-5 border-b border-zinc-100 grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Left — Invitations Sent + breakdown + acceptance rate */}
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-5">
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4 sm:p-5">
             <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Invitations Sent</p>
-            <p className="text-5xl font-semibold text-zinc-900 tabular-nums leading-none mb-4">{totalInvited}</p>
-            <div className="flex items-center gap-4 text-[12px] text-zinc-500 mb-4">
+            <p className="text-4xl sm:text-5xl font-semibold text-zinc-900 tabular-nums leading-none mb-4">{totalInvited}</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500 mb-4">
               <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{accepted} Accepted</span>
               <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{pending} Pending</span>
               <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />{expired} Expired</span>
@@ -582,12 +582,15 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="px-6 pt-4 pb-3">
-        <div className="inline-flex gap-1 bg-zinc-100 rounded-lg p-0.5">
+      {/* Tabs — horizontally scrollable on mobile (6+ tabs overflow
+          a phone viewport). The container scrolls; the inner pill
+          row stays a single row so the active-tab background pill
+          renders correctly. */}
+      <div className="px-4 sm:px-6 pt-4 pb-3 overflow-x-auto scrollbar-none -mx-0.5 sm:mx-0">
+        <div className="inline-flex gap-1 bg-zinc-100 rounded-lg p-0.5 whitespace-nowrap">
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className={`px-3 py-1.5 text-[12px] font-medium rounded-md cursor-pointer transition-colors ${
+              className={`px-3 py-1.5 text-[12px] font-medium rounded-md cursor-pointer transition-colors shrink-0 ${
                 tab === t.key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
               }`}>
               {t.label} {t.count > 0 && <span className="text-zinc-400 ml-0.5">({t.count})</span>}
