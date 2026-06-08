@@ -177,36 +177,51 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         if (isPaid) {
           if (responses[idx]?.ok) {
             const salesData = await responses[idx].json();
+            // Map is keyed under TWO surfaces so we can look up a sale
+            // for both authed and guest attendees:
+            //   - "uid:<buyerUserId>" — set when the buyer is an authed
+            //     user. Lookup site below uses `a.user?.id`.
+            //   - "em:<lowercased email>" — set unconditionally on every
+            //     paid sale (every sale has an email — guest sales have
+            //     ONLY this, no buyerUserId). Lookup falls back to
+            //     `a.email` for guest attendees.
+            // Pre-fix the filter required `s.buyer?.id`, which dropped
+            // every guest sale on the floor — those attendees rendered
+            // as "Comp" and the KPI cards undercounted. Real incident
+            // 2026-06-07: ana@barrosmakers.com paid €24 to PBN's
+            // Startup Founders' Night but showed up as Comp.
             const map = new Map<string, SaleRow>();
             for (const s of (salesData.sales || [])) {
-              if (s.eventId === event.id && s.refundStatus === "NONE" && s.buyer?.id) {
-                // Carry the full SaleRow shape — KPI cards need fees +
-                // ownerNetPayout; RefundSaleModal needs the whole thing.
-                map.set(s.buyer.id, {
-                  id: s.id,
-                  createdAt: s.createdAt,
-                  eventId: s.eventId ?? null,
-                  productSnapshot: null,
-                  buyer: {
-                    id: s.buyer.id,
-                    name: s.buyer.name ?? null,
-                    usertag: s.buyer.usertag ?? null,
-                  },
-                  buyerEmail: s.buyer.email ?? s.buyerEmail ?? null,
-                  grossAmount: s.grossAmount,
-                  ownerNetPayout: s.ownerNetPayout,
-                  platformFee: s.platformFee,
-                  stripeFees: s.stripeFees ?? 0,
-                  stripeTaxFee: s.stripeTaxFee ?? 0,
-                  refundStatus: s.refundStatus ?? "NONE",
-                  payoutStatus: s.payoutStatus ?? "ESCROW",
-                  currency: s.currency || currency,
-                  eligibleForPayoutAt: s.eligibleForPayoutAt ?? null,
-                  scheduledPayoutAt: s.scheduledPayoutAt ?? null,
-                  paidOutAt: s.paidOutAt ?? null,
-                  transaction: s.transaction ?? { id: "", status: null, totalAmount: null, currency: null },
-                });
-              }
+              if (s.eventId !== event.id) continue;
+              if (s.refundStatus !== "NONE") continue;
+              const buyerEmail: string | null = s.buyer?.email ?? s.buyerEmail ?? null;
+              if (!s.buyer?.id && !buyerEmail) continue;
+              const row: SaleRow = {
+                id: s.id,
+                createdAt: s.createdAt,
+                eventId: s.eventId ?? null,
+                productSnapshot: null,
+                buyer: {
+                  id: s.buyer?.id ?? "",
+                  name: s.buyer?.name ?? null,
+                  usertag: s.buyer?.usertag ?? null,
+                },
+                buyerEmail,
+                grossAmount: s.grossAmount,
+                ownerNetPayout: s.ownerNetPayout,
+                platformFee: s.platformFee,
+                stripeFees: s.stripeFees ?? 0,
+                stripeTaxFee: s.stripeTaxFee ?? 0,
+                refundStatus: s.refundStatus ?? "NONE",
+                payoutStatus: s.payoutStatus ?? "ESCROW",
+                currency: s.currency || currency,
+                eligibleForPayoutAt: s.eligibleForPayoutAt ?? null,
+                scheduledPayoutAt: s.scheduledPayoutAt ?? null,
+                paidOutAt: s.paidOutAt ?? null,
+                transaction: s.transaction ?? { id: "", status: null, totalAmount: null, currency: null },
+              };
+              if (s.buyer?.id) map.set(`uid:${s.buyer.id}`, row);
+              if (buyerEmail) map.set(`em:${buyerEmail.toLowerCase()}`, row);
             }
             setSalesByBuyer(map);
           }
@@ -301,6 +316,27 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     }
   }
 
+  /**
+   * Resolve the paid-sale row for an attendee — works for both authed
+   * users (looked up by `a.user.id`) and guests (looked up by lower-
+   * cased email). The salesByBuyer map stores each sale under both
+   * "uid:..." and "em:..." prefixes so this is two cheap lookups.
+   * Returns undefined for free / comp / invited attendees with no sale.
+   */
+  function findSaleForAttendee(a: any): SaleRow | undefined {
+    const uid: string | undefined = a.user?.id;
+    if (uid) {
+      const byUid = salesByBuyer.get(`uid:${uid}`);
+      if (byUid) return byUid;
+    }
+    const email: string | undefined = a.email || a.user?.email;
+    if (email) {
+      const byEmail = salesByBuyer.get(`em:${email.toLowerCase()}`);
+      if (byEmail) return byEmail;
+    }
+    return undefined;
+  }
+
   function exportCSV() {
     // Union form-answer fields across attendees so each becomes a CSV column.
     const fieldMap = new Map<string, string>();
@@ -316,7 +352,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       ...fieldEntries.map(([, label]) => label),
     ];
     const rows = attendees.map((a: any) => {
-      const sale = salesByBuyer.get(a.user?.id);
+      const sale = findSaleForAttendee(a);
       const ans = a.formAnswers?.answer || {};
       const cell = (id: string) => {
         const v = ans[id];
@@ -366,7 +402,13 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
   // Sales-aggregate KPIs (only meaningful on paid events). Computed
   // from salesByBuyer — which already filters refundStatus = NONE.
-  const salesRows = Array.from(salesByBuyer.values());
+  //
+  // The map stores every sale under TWO keys (uid:* and em:*), so a
+  // single sale appears twice in Array.from(salesByBuyer.values()).
+  // Dedup by sale id before aggregating.
+  const salesRows = Array.from(
+    new Map(Array.from(salesByBuyer.values()).map((s) => [s.id, s])).values(),
+  );
   const totalRevenue = salesRows.reduce((sum, s) => sum + s.grossAmount, 0);
   const totalFees = salesRows.reduce((sum, s) => sum + s.platformFee + (s.stripeFees ?? 0) + (s.stripeTaxFee ?? 0), 0);
   const totalNet = salesRows.reduce((sum, s) => sum + s.ownerNetPayout, 0);
@@ -563,7 +605,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 <ApprovedRow
                   key={a.id}
                   a={a}
-                  sale={salesByBuyer.get(a.user?.id)}
+                  sale={findSaleForAttendee(a)}
                   isPaid={isPaid}
                   onOpen={() => setDrawerAttendee(a)}
                   onRefund={(sale) => setRefundSale(sale)}
