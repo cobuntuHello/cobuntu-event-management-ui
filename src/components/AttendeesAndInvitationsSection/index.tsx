@@ -843,44 +843,52 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     return (
       <div role="button" tabIndex={0} onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-        className="group flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50">
-        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
-            {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+        className="group flex items-start sm:items-center gap-3 px-4 sm:px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50">
+        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
+        {/* Center column. On desktop the trailing badges + actions sit
+            inline (sm:flex-row); on mobile they wrap to a second line
+            (flex-col) so the name/subtitle don't fight for width with
+            them. */}
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+              {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+            </div>
+            {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
           </div>
-          {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            {a.tier?.name && (
+              <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
+            )}
+            {sale && (
+              <span className="text-[12px] font-medium text-zinc-900 tabular-nums">
+                {SYMBOLS[sale.currency] || sale.currency} {(sale.grossAmount / 100).toFixed(2)}
+              </span>
+            )}
+            {!sale && !isPaid && (
+              <span className="text-[11px] text-zinc-400">Free</span>
+            )}
+            {!sale && isPaid && (
+              <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">Complimentary</span>
+            )}
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">Confirmed</span>
+            {/* Phase H: Refund button only for paid attendees within escrow. */}
+            {sale && (
+              <button
+                type="button"
+                disabled={!refundable}
+                onClick={(e) => { e.stopPropagation(); if (refundable) onRefund(sale); }}
+                title={refundable ? "Refund this attendee" : "Refund window has passed — contact Cobuntu support to escalate."}
+                className={`px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 ${refundable ? "border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer" : "border-zinc-100 text-zinc-300 cursor-not-allowed"}`}
+              >
+                Refund
+              </button>
+            )}
+          </div>
         </div>
-        {a.tier?.name && (
-          <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
-        )}
-        {sale && (
-          <span className="text-[12px] font-medium text-zinc-900 tabular-nums">
-            {SYMBOLS[sale.currency] || sale.currency} {(sale.grossAmount / 100).toFixed(2)}
-          </span>
-        )}
-        {!sale && !isPaid && (
-          <span className="text-[11px] text-zinc-400">Free</span>
-        )}
-        {!sale && isPaid && (
-          <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">Complimentary</span>
-        )}
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">Confirmed</span>
-        {/* Phase H: Refund button only for paid attendees within escrow. */}
-        {sale && (
-          <button
-            type="button"
-            disabled={!refundable}
-            onClick={(e) => { e.stopPropagation(); if (refundable) onRefund(sale); }}
-            title={refundable ? "Refund this attendee" : "Refund window has passed — contact Cobuntu support to escalate."}
-            className={`px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 ${refundable ? "border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer" : "border-zinc-100 text-zinc-300 cursor-not-allowed"}`}
-          >
-            Refund
-          </button>
-        )}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-          className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0" aria-hidden>
+          className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0 mt-1 sm:mt-0" aria-hidden>
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </div>
@@ -894,27 +902,31 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     return (
       <div role="button" tabIndex={0} onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-        className="group flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50">
-        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
-            {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+        className="group flex items-start sm:items-center gap-3 px-4 sm:px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50">
+        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+              {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+            </div>
+            {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
           </div>
-          {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
-        </div>
-        {a.tier?.name && (
-          <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
-        )}
-        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onApprove} disabled={loading}
-            className="px-3 py-1 text-[11px] font-medium bg-emerald-500 text-white rounded-md hover:bg-emerald-600 cursor-pointer transition-colors disabled:opacity-50">
-            Approve
-          </button>
-          <button onClick={onReject} disabled={loading}
-            className="px-3 py-1 text-[11px] font-medium bg-zinc-100 text-zinc-600 rounded-md hover:bg-zinc-200 cursor-pointer transition-colors disabled:opacity-50">
-            Reject
-          </button>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            {a.tier?.name && (
+              <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
+            )}
+            <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+              <button onClick={onApprove} disabled={loading}
+                className="px-3 py-1 text-[11px] font-medium bg-emerald-500 text-white rounded-md hover:bg-emerald-600 cursor-pointer transition-colors disabled:opacity-50">
+                Approve
+              </button>
+              <button onClick={onReject} disabled={loading}
+                className="px-3 py-1 text-[11px] font-medium bg-zinc-100 text-zinc-600 rounded-md hover:bg-zinc-200 cursor-pointer transition-colors disabled:opacity-50">
+                Reject
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -927,8 +939,8 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     return (
       <div role="button" tabIndex={0} onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-        className="group flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50 opacity-60">
-        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9" />
+        className="group flex items-center gap-3 px-4 sm:px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50 opacity-60">
+        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
           {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
@@ -1026,31 +1038,35 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     return (
       <div role="button" tabIndex={0} onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-        className="group flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50">
-        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
-            {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+        className="group flex items-start sm:items-center gap-3 px-4 sm:px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50">
+        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+              {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+            </div>
+            {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
           </div>
-          {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            {a.tier?.name && (
+              <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
+            )}
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">Payment pending</span>
+            <PaymentExpiryBadge updatedAt={a.updatedAt} />
+            <LastReminderStamp at={lastReminderAt} />
+            <button
+              type="button"
+              disabled={resending}
+              onClick={(e) => { e.stopPropagation(); if (!resending) onResend(); }}
+              className="px-2 py-0.5 text-[10px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            >
+              {resending ? "Resending…" : "Resend payment link"}
+            </button>
+          </div>
         </div>
-        {a.tier?.name && (
-          <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
-        )}
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">Payment pending</span>
-        <PaymentExpiryBadge updatedAt={a.updatedAt} />
-        <LastReminderStamp at={lastReminderAt} />
-        <button
-          type="button"
-          disabled={resending}
-          onClick={(e) => { e.stopPropagation(); if (!resending) onResend(); }}
-          className="px-2 py-0.5 text-[10px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
-        >
-          {resending ? "Resending…" : "Resend payment link"}
-        </button>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-          className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0" aria-hidden>
+          className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0 mt-1 sm:mt-0" aria-hidden>
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </div>
@@ -1072,23 +1088,27 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     return (
       <div role="button" tabIndex={0} onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-        className="group flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50 opacity-60">
-        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
-          {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
+        className="group flex items-start sm:items-center gap-3 px-4 sm:px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50 opacity-60">
+        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+            {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            {reason && (
+              <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{reason}</span>
+            )}
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 shrink-0">Cancelled</span>
+          </div>
         </div>
-        {reason && (
-          <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{reason}</span>
-        )}
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 shrink-0">Cancelled</span>
       </div>
     );
   }
 
   function InvitationRow({ inv, resending, onResend }: { inv: Invitation; resending: boolean; onResend: () => void }) {
     return (
-      <div className="flex items-center gap-3 px-6 py-3">
+      <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
         {inv.invitedUser?.profileImage ? (
           <img src={inv.invitedUser.profileImage} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
         ) : (
