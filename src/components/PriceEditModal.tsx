@@ -755,7 +755,7 @@ export function PriceEditModal({
         The column caps at 78vh and the body scrolls past that, with the
         header + footer pinned (shrink-0) so the footer stays visible even
         when the body overflows. */}
-    <ModalShell onClose={onClose} width="w-[600px]">
+    <ModalShell onClose={onClose} width="w-full sm:w-[600px]">
       <FooterSlotContext.Provider value={footerSlot}>
       <div className="flex flex-col max-h-[78vh]">
       {/* ─── Header ─── ONE breadcrumb + ONE title + ONE subtitle. */}

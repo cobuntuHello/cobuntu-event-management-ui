@@ -35,16 +35,18 @@ export interface ModalShellProps {
 }
 
 export function ModalShell({ children, onClose, width, className }: ModalShellProps) {
-  // Mobile-responsive width: pin to full viewport width on phones,
-  // honour the requested desktop width above the `sm` breakpoint
-  // (640px). Call-sites still pass plain Tailwind width tokens like
-  // `w-[600px]`; the wrapper prefixes `w-full sm:` so every modal
-  // collapses to a phone-sized sheet without per-site changes.
-  const responsiveWidth = `w-full sm:${width ?? "w-[420px]"}`;
+  // Width is passed through verbatim. Call-sites that want a mobile-
+  // responsive modal pass the FULL string literally (e.g.
+  // `w-full sm:w-[600px]`) so Tailwind's static class extractor sees
+  // both the mobile and desktop variants in source. Building the
+  // responsive class via template literal here would fail in
+  // Tailwind v4 — `sm:w-[600px]` would never appear as a literal and
+  // the desktop class never gets generated, leaving modals stuck at
+  // full viewport width on all screens. Don't reintroduce that hack.
   return (
     <Shared
       onClose={onClose}
-      width={responsiveWidth}
+      width={width ?? "w-full sm:w-[420px]"}
       hideCloseButton
       maxHeight="90vh"
       className={className}
