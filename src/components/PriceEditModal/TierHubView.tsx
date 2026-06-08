@@ -74,8 +74,10 @@ export function TierHubView({
       )}
 
       {/* Section tiles. Details = name + capacity; Basics = price + pricing
-          model + billing + schedule. */}
-      <div className="grid grid-cols-2 gap-2">
+          model + billing + schedule. Single column on mobile so each tile
+          renders its description fully; two columns above sm: where the
+          modal is wider. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <SectionCard
           title="Details"
           description={t.capacity ? `Capacity ${t.capacity}` : "Name & capacity"}

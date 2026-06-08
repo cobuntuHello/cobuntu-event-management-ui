@@ -35,10 +35,16 @@ export interface ModalShellProps {
 }
 
 export function ModalShell({ children, onClose, width, className }: ModalShellProps) {
+  // Mobile-responsive width: pin to full viewport width on phones,
+  // honour the requested desktop width above the `sm` breakpoint
+  // (640px). Call-sites still pass plain Tailwind width tokens like
+  // `w-[600px]`; the wrapper prefixes `w-full sm:` so every modal
+  // collapses to a phone-sized sheet without per-site changes.
+  const responsiveWidth = `w-full sm:${width ?? "w-[420px]"}`;
   return (
     <Shared
       onClose={onClose}
-      width={width ?? "w-[420px]"}
+      width={responsiveWidth}
       hideCloseButton
       maxHeight="90vh"
       className={className}

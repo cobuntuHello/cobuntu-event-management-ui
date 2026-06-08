@@ -179,7 +179,7 @@ export function BasicsStep({
               The total below is charged in equal parts over the count and interval.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             <div>
               <Eyebrow>Total ({sym})</Eyebrow>
               <div className="mt-1">
