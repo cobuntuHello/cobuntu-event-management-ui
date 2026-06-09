@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { AttendeeDetailDrawer } from "./AttendeeDetailDrawer";
@@ -766,13 +767,21 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       };
     }
 
-    return (
+    // Render through a portal to <body>. Like every other modal in this
+    // package (PriceEditModal, EditEventDrawer, stripe-status), the overlay
+    // must escape the section's DOM subtree: an ancestor with transform /
+    // filter / contain turns `position: fixed` into "fixed relative to that
+    // box", which pinned this dialog to the content area's lower-right and
+    // dimmed only part of the screen instead of centering on the viewport.
+    // Portaling to body also lifts it above all sibling stacking contexts.
+    if (typeof document === "undefined") return null;
+    return createPortal(
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="resend-confirm-title"
         onClick={() => !resending && onCancel()}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40"
       >
         <div
           onClick={(e) => e.stopPropagation()}
@@ -825,7 +834,8 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
 
