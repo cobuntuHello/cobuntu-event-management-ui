@@ -133,6 +133,23 @@ export function DonationsSection({ donation, onUpdate, defaultCurrency }: Donati
               </div>
             </div>
           </Collapse>
+
+          {/* Optional label — the prompt buyers see at checkout. Field
+              has been defined on DonationDraft and accepted by
+              buildDonationBody since the Phase 4c uber-tip work, but the
+              event admin UI never surfaced an input — products already
+              had it. Closes that parity gap (Phase 4.1 of donations.md). */}
+          <div>
+            <Eyebrow>Label (optional)</Eyebrow>
+            <input
+              type="text"
+              value={donation.label}
+              onChange={e => onUpdate({ label: e.target.value })}
+              placeholder='Defaults to "Add a donation"'
+              maxLength={100}
+              className="w-full mt-1.5 px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
+            />
+          </div>
         </div>
       </Collapse>
     </div>
