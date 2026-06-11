@@ -30,6 +30,16 @@ export { AttendeesAndInvitationsSection } from "./components/AttendeesAndInvitat
 export { AttendeeDetailDrawer } from "./components/AttendeesAndInvitationsSection/AttendeeDetailDrawer";
 export { UserAvatarFallback } from "./ui/user-avatar-fallback";
 
+// Per-event listings panel — renders one row per community in
+// event_communities with inline Show / Hide / Remove / Withdraw
+// controls. Used inline on the Overview tab (admin) and /manage
+// (community-app) via AttendeesAndInvitationsSection.belowRevenueSlot.
+export {
+  EventListingsSection,
+  type EventListingsSectionProps,
+  type AvailableCommunity,
+} from "./components/EventListingsSection";
+
 // Draft-mode helpers — for consumers (e.g. admin's create-event form)
 // rendering PriceEditModal in draftMode where the parent owns state.
 export type {
