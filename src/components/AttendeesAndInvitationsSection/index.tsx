@@ -25,6 +25,14 @@ interface Props {
    * (no behaviour change for callers that haven't been updated).
    */
   eventIdOrSlug?: string;
+  /**
+   * Optional render slot inserted between the revenue KPI cards (Paid
+   * attendees / Revenue / Fees / Net earnings) and the Attendees header.
+   * Used by cobuntu-admin to render its inline EventListingsSection
+   * directly after revenue and before attendees, without forking this
+   * component or splitting the section. Undefined = nothing rendered.
+   */
+  belowRevenueSlot?: React.ReactNode;
 }
 
 interface InvitationStats {
@@ -48,7 +56,7 @@ type Tab = "approved" | "pending" | "payment_pending" | "rejected" | "cancelled"
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: "R$" };
 
-export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, eventIdOrSlug }: Props) {
+export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, eventIdOrSlug, belowRevenueSlot }: Props) {
   const config = useEventManagementConfig();
   const API = config.apiBaseUrl;
   const authHeaders = config.authHeaders;
@@ -492,25 +500,31 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         </div>
       )}
 
-      {/* Header — title + actions inline, no outer card frame (mirrors
-          the TicketSalesSection pattern). The card wrapping the stats
-          hero + tabs + list lives below. */}
+      {/* Optional slot for the host app to render between revenue KPIs
+          and the Attendees header (cobuntu-admin uses this for the
+          inline EventListingsSection — see admin OverviewView). */}
+      {belowRevenueSlot}
+
+      {/* Header — title + subtitle on the left, primary actions on the
+          right. Matches the HostsView / EventListingsSection layout
+          (title text-[15px] zinc-900, subtitle text-[12px] zinc-400,
+          action buttons px-4 py-2 text-[13px]). */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <h3 className="text-sm font-semibold text-zinc-900">Attendees ({attendeeCount})</h3>
-          {requiresApproval && pendingAttendees.length > 0 && (
-            <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-              {pendingAttendees.length} pending
-            </span>
-          )}
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-[15px] font-semibold text-zinc-900">Attendees ({attendeeCount})</h2>
+            {requiresApproval && pendingAttendees.length > 0 && (
+              <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
+                {pendingAttendees.length} pending
+              </span>
+            )}
+          </div>
+          <p className="text-[12px] text-zinc-400 mt-0.5">People registered or invited to this event.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {attendeeCount > 0 && (
             <button onClick={exportCSV}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer">
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export
             </button>
@@ -518,11 +532,11 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           {!isPast && (
             <>
               <button onClick={() => config.navigate(`/${communityTag}/events/${eventId}?view=add-attendees`)} disabled={!isPublished}
-                className="flex-1 sm:flex-none px-3 py-1.5 text-[12px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
+                className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
                 Add Attendees
               </button>
               <button onClick={onInviteClick || (() => config.navigate(`/${communityTag}/events/${eventId}?view=invite-guests`))} disabled={!isPublished}
-                className="flex-1 sm:flex-none px-3 py-1.5 text-[12px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
+                className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
                 Invite
               </button>
             </>
