@@ -52,7 +52,7 @@ interface Invitation {
   invitedUser?: { id: string; name: string; usertag: string; profileImage?: string } | null;
 }
 
-type Tab = "approved" | "pending" | "payment_pending" | "rejected" | "cancelled" | "invitations";
+type Tab = "approved" | "pending" | "rejected" | "cancelled" | "invitations";
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: "R$" };
 
@@ -71,11 +71,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const attendees = event?.attendees || [];
   const approved = attendees.filter((a: any) => !a.status || a.status === "APPROVED");
   const rejected = attendees.filter((a: any) => a.status === "REJECTED");
-  // PENDING_PAYMENT + CANCELLED — new buckets introduced with the
-  // paid+approval state machine. Surface them only on paid +
-  // requires-approval events; on other events these rows wouldn't
-  // exist by design.
-  const paymentPending = attendees.filter((a: any) => a.status === "PENDING_PAYMENT");
+  // CANCELLED rows. Under the new Reserve-Before-Decide flow (2026-06-14)
+  // the bucket covers buyer self-cancel from PENDING + admin removal +
+  // (historical) 48h PAYMENT_TIMEOUT rows that the now-deprecated cron
+  // produced before cutover. PENDING_PAYMENT is no longer produced; any
+  // pre-cutover PENDING_PAYMENT rows still in flight get swept into
+  // CANCELLED by the legacy cron and land here.
   const cancelled = attendees.filter((a: any) => a.status === "CANCELLED");
 
   const [tab, setTab] = useState<Tab>("approved");
@@ -96,15 +97,6 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const [resending, setResending] = useState<string | null>(null);
   const [drawerAttendee, setDrawerAttendee] = useState<any | null>(null);
   const [toast, setToast] = useState("");
-  // attendanceId → ISO timestamp of the most recent payment-pending
-  // reminder. Fetched from GET /events/:id/payment-reminders alongside
-  // the rest of wave-2b. Lets each PaymentPendingRow show "Last
-  // reminded 4h ago" so hosts know whether to nudge.
-  const [paymentReminders, setPaymentReminders] = useState<Record<string, string>>({});
-  // Resend confirmation dialog state. Null = closed. When open the dialog
-  // shows the recipient + most recent reminder timestamp + Send/Cancel.
-  // Avoids the prior one-click "did I really mean that?" footgun.
-  const [resendConfirm, setResendConfirm] = useState<any | null>(null);
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 2500); }
 
@@ -157,11 +149,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   // parent's event GET lands; never blocks wave-2a.
   useEffect(() => {
     if (!event?.id || !communityTag) return;
-    // Paid + requires-approval is the only path that produces
-    // PENDING_PAYMENT rows, which is the only surface using the
-    // payment-reminders map. Computed once + reused below.
-    const wantsReminders = requiresApproval && isPaid;
-    if (!requiresApproval && !isPaid && !wantsReminders) return;
+    if (!requiresApproval && !isPaid) return;
     let cancelled = false;
     (async () => {
       try {
@@ -171,9 +159,6 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         }
         if (isPaid) {
           fetches.push(fetch(`${API}/api/communities/${communityTag}/sales?timeRange=1y`, { headers: authHeaders() }));
-        }
-        if (wantsReminders) {
-          fetches.push(fetch(`${API}/api/communities/${communityTag}/events/${event.id}/payment-reminders`, { headers: authHeaders() }));
         }
         const responses = await Promise.all(fetches);
         if (cancelled) return;
@@ -236,12 +221,6 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           }
           idx++;
         }
-        if (wantsReminders && responses[idx]?.ok) {
-          try {
-            const data = await responses[idx].json();
-            if (data && typeof data === 'object') setPaymentReminders(data as Record<string, string>);
-          } catch { /* non-fatal */ }
-        }
       } catch { /* */ }
     })();
     return () => { cancelled = true; };
@@ -275,54 +254,6 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       else showToast("Failed to resend");
     } catch { showToast("Failed to resend"); }
     finally { setResending(null); }
-  }
-
-  /**
-   * Re-fire the Pay-now magic-link email for an attendee sitting in
-   * PENDING_PAYMENT. The endpoint is idempotent and doesn't reset
-   * the 48h timer — the recipient sees the original deadline.
-   */
-  /**
-   * Step 1 of the resend flow — open the confirmation dialog. The
-   * dialog shows the recipient, the most recent reminder timestamp
-   * (so the host doesn't accidentally double-send), and a warn line
-   * if they were just reminded < 30 min ago. Pressing Send in the
-   * dialog calls `executeResendPaymentLink` below.
-   *
-   * Pre-2026-06-07 this was a one-tap fire — too easy to misclick
-   * and spam a member. CEO request: gate behind a confirm.
-   */
-  function handleResendPaymentLink(attendee: any) {
-    setResendConfirm(attendee);
-  }
-
-  /**
-   * Step 2 — actually fire the resend after the dialog confirms.
-   * Idempotent; doesn't reset the 48h timer (the recipient sees the
-   * original deadline). Updates the local `paymentReminders` map on
-   * success so the row's "Last reminded" stamp refreshes without a
-   * refetch.
-   */
-  async function executeResendPaymentLink(attendanceId: string) {
-    setResending(attendanceId);
-    try {
-      const res = await fetch(`${API}/api/communities/${communityTag}/events/${event.id}/attendees/${attendanceId}/resend-payment-link`, {
-        method: "POST",
-        headers: authHeaders(),
-      });
-      if (res.ok) {
-        showToast("Payment link resent");
-        // Mark as just-reminded so the row's stamp updates immediately.
-        setPaymentReminders((prev) => ({ ...prev, [attendanceId]: new Date().toISOString() }));
-      } else {
-        const body = await res.json().catch(() => ({}));
-        showToast(body?.error || "Failed to resend payment link");
-      }
-    } catch { showToast("Failed to resend payment link"); }
-    finally {
-      setResending(null);
-      setResendConfirm(null);
-    }
   }
 
   /**
@@ -442,18 +373,13 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     ...(requiresApproval ? [
       { key: "pending" as Tab, label: "Pending", count: pendingAttendees.length },
     ] : []),
-    // Payment pending: only meaningful for paid + requires-approval.
-    // Shows attendees the host approved but who haven't completed
-    // Stripe Checkout within their 48h window yet.
-    ...(requiresApproval && isPaid ? [
-      { key: "payment_pending" as Tab, label: "Payment pending", count: paymentPending.length },
-    ] : []),
     ...(requiresApproval ? [
       { key: "rejected" as Tab, label: "Rejected", count: rejected.length },
     ] : []),
-    // Cancelled: spans self-cancellations + admin removals + 48h
-    // payment timeouts. Always shown when there's at least one row so
-    // hosts can see the historical exits regardless of event type.
+    // Cancelled: spans self-cancellations + admin removals + (historical)
+    // 48h payment timeouts produced by the now-deprecated Pay-now cron.
+    // Always shown when there's at least one row so hosts can see the
+    // historical exits regardless of event type.
     ...(cancelled.length > 0 ? [
       { key: "cancelled" as Tab, label: "Cancelled", count: cancelled.length },
     ] : []),
@@ -640,6 +566,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
               {pendingAttendees.map((a: any) => (
                 <PendingRow key={a.id} a={a}
+                  sale={findSaleForAttendee(a)}
                   loading={loadingAction === a.id}
                   onApprove={() => handleAttendeeAction(a.id, "approve")}
                   onReject={() => handleAttendeeAction(a.id, "reject")}
@@ -648,22 +575,6 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             </div>
           ) : (
             <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No pending requests</div>
-          )
-        )}
-
-        {tab === "payment_pending" && (
-          paymentPending.length > 0 ? (
-            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
-              {paymentPending.map((a: any) => (
-                <PaymentPendingRow key={a.id} a={a}
-                  resending={resending === a.id}
-                  lastReminderAt={paymentReminders[a.id] ?? null}
-                  onResend={() => handleResendPaymentLink(a)}
-                  onOpen={() => setDrawerAttendee(a)} />
-              ))}
-            </div>
-          ) : (
-            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No attendees awaiting payment</div>
           )
         )}
 
@@ -725,133 +636,17 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         }}
       />
 
-      {/* Resend-payment-link confirmation dialog. CEO ask 2026-06-07:
-          "dialog to confirm what the user is actually doing" + show
-          when the last reminder was sent so the host isn't flying
-          blind. Pre-fix the resend button was a one-tap fire — too
-          easy to misclick + spam an attendee. */}
-      {resendConfirm && (
-        <ResendConfirmDialog
-          attendee={resendConfirm}
-          lastReminderAt={paymentReminders[resendConfirm.id] ?? null}
-          resending={resending === resendConfirm.id}
-          onCancel={() => setResendConfirm(null)}
-          onConfirm={() => executeResendPaymentLink(resendConfirm.id)}
-        />
-      )}
     </div>
     </SalesUiConfigProvider>
   );
 
-  /**
-   * Modal dialog: "Send {recipient} a new payment link?".
-   * Shows the recipient + tier, the most recent reminder (if any),
-   * and a yellow warn line if the last reminder fired < 30 min ago
-   * — that's the misclick / accidental-double-send range. Esc and
-   * backdrop click both cancel.
-   */
-  function ResendConfirmDialog({ attendee, lastReminderAt, resending, onCancel, onConfirm }: {
-    attendee: any;
-    lastReminderAt: string | null;
-    resending: boolean;
-    onCancel: () => void;
-    onConfirm: () => void;
-  }) {
-    useEffect(() => {
-      const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !resending) onCancel(); };
-      window.addEventListener("keydown", onKey);
-      return () => window.removeEventListener("keydown", onKey);
-    }, [resending, onCancel]);
-
-    const recipient = attendee.email || attendee.user?.email || attendee.name || "this attendee";
-    const tierName = attendee.tier?.name as string | undefined;
-
-    let reminderLine: { text: string; warn: boolean } | null = null;
-    if (lastReminderAt) {
-      const ms = Date.now() - new Date(lastReminderAt).getTime();
-      const warn = ms < 30 * 60 * 1000;
-      let stamp: string;
-      if (ms < 60 * 1000) stamp = "just now";
-      else if (ms < 60 * 60 * 1000) stamp = `${Math.floor(ms / 60_000)} minute${ms < 120_000 ? "" : "s"} ago`;
-      else if (ms < 24 * 60 * 60 * 1000) stamp = `${Math.floor(ms / 3_600_000)} hour${ms < 7_200_000 ? "" : "s"} ago`;
-      else stamp = `${Math.floor(ms / 86_400_000)} day${ms < 172_800_000 ? "" : "s"} ago`;
-      reminderLine = {
-        text: `The last reminder went out ${stamp}.`,
-        warn,
-      };
-    }
-
-    // Render through a portal to <body>. Like every other modal in this
-    // package (PriceEditModal, EditEventDrawer, stripe-status), the overlay
-    // must escape the section's DOM subtree: an ancestor with transform /
-    // filter / contain turns `position: fixed` into "fixed relative to that
-    // box", which pinned this dialog to the content area's lower-right and
-    // dimmed only part of the screen instead of centering on the viewport.
-    // Portaling to body also lifts it above all sibling stacking contexts.
-    if (typeof document === "undefined") return null;
-    return createPortal(
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="resend-confirm-title"
-        onClick={() => !resending && onCancel()}
-        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40"
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden"
-        >
-          <div className="px-5 pt-5 pb-3">
-            <h2 id="resend-confirm-title" className="text-[15px] font-semibold text-zinc-900">
-              Resend payment link?
-            </h2>
-            <p className="text-[13px] text-zinc-600 mt-1.5 leading-relaxed">
-              We'll email a fresh Pay-now link to <span className="font-medium text-zinc-900">{recipient}</span>
-              {tierName && <> for the <span className="font-medium">{tierName}</span> tier</>}.
-              The 48-hour payment window doesn't reset — they'll see the original deadline.
-            </p>
-            {reminderLine && (
-              <div
-                className={`mt-3 px-3 py-2 rounded-md text-[12px] leading-snug border ${
-                  reminderLine.warn
-                    ? "bg-amber-50 text-amber-800 border-amber-200"
-                    : "bg-zinc-50 text-zinc-600 border-zinc-200"
-                }`}
-              >
-                {reminderLine.warn ? "⚠️ " : ""}
-                {reminderLine.text}
-                {reminderLine.warn && " Are you sure you want to send another?"}
-              </div>
-            )}
-            {!reminderLine && (
-              <div className="mt-3 px-3 py-2 rounded-md text-[12px] text-zinc-600 bg-zinc-50 border border-zinc-200">
-                No prior reminder has been sent — this will be the first.
-              </div>
-            )}
-          </div>
-          <div className="px-5 py-3 bg-zinc-50 border-t border-zinc-100 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={resending}
-              className="px-3 py-1.5 text-[13px] font-medium text-zinc-700 hover:bg-zinc-100 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={resending}
-              className="px-3 py-1.5 text-[13px] font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {resending ? "Sending…" : "Send"}
-            </button>
-          </div>
-        </div>
-      </div>,
-      document.body,
-    );
-  }
+  // ─── Deprecated 2026-06-14 (Reserve-Before-Decide cutover) ──────────
+  // PaymentExpiryBadge / LastReminderStamp / PaymentPendingRow /
+  // ResendConfirmDialog used to render the 48h Pay-now-link surfaces.
+  // Under the new escrow flow there is no Pay-now window: the buyer's
+  // card is charged at reservation time and the host's decision either
+  // releases the funds or auto-refunds the buyer net of Stripe's fee.
+  // All four components + their handlers were deleted in this PR.
 
   function ApprovedRow({ a, sale, isPaid, onOpen, onRefund }: {
     a: any;
@@ -919,10 +714,18 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     );
   }
 
-  function PendingRow({ a, loading, onApprove, onReject, onOpen }: { a: any; loading: boolean; onApprove: () => void; onReject: () => void; onOpen: () => void }) {
+  function PendingRow({ a, sale, loading, onApprove, onReject, onOpen }: { a: any; sale?: SaleRow; loading: boolean; onApprove: () => void; onReject: () => void; onOpen: () => void }) {
     const subtitle: string[] = [];
     if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
     if (a.email) subtitle.push(a.email);
+    // Held-money badge for paid+approval applicants. Under the
+    // Reserve-Before-Decide flow the buyer pre-paid at reservation
+    // time; the funds sit in Cobuntu's platform escrow with
+    // sale.payoutStatus='ESCROW' until the host approves (release) or
+    // rejects (auto-refund net of Stripe's processing fee per T&Cs
+    // §7.6). Surfacing the held amount here tells the host exactly
+    // how much money is on the line for this decision.
+    const heldInEscrow = sale && sale.payoutStatus === "ESCROW" && sale.refundStatus === "NONE";
     return (
       <div role="button" tabIndex={0} onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
@@ -939,6 +742,14 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
             {a.tier?.name && (
               <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
+            )}
+            {heldInEscrow && (
+              <span
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100 shrink-0 tabular-nums"
+                title="Held by Cobuntu in escrow. Approving releases the funds toward the next bi-weekly payout. Rejecting auto-refunds the buyer (net of Stripe's processing fee, which the buyer absorbs)."
+              >
+                {SYMBOLS[sale!.currency] || sale!.currency} {(sale!.grossAmount / 100).toFixed(2)} held
+              </span>
             )}
             <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
               <button onClick={onApprove} disabled={loading}
@@ -970,129 +781,6 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
         </div>
         <span className="text-[10px] font-medium text-red-400 bg-red-50 px-2 py-0.5 rounded shrink-0">Rejected</span>
-      </div>
-    );
-  }
-
-  /**
-   * Small badge that shows how much time remains before the 48h Pay-now
-   * window expires. The deadline = `attendance.updatedAt + 48h` —
-   * `updatedAt` is set by `approveAttendance` when the row flips to
-   * PENDING_PAYMENT and isn't reset by resends (so the recipient sees
-   * the original deadline whether they got the first email or a resend).
-   *
-   * Colour scale:
-   *   • > 24h remaining → green (calm)
-   *   • 6–24h          → amber (heads-up)
-   *   • < 6h           → red (urgent)
-   *   • past deadline  → red "Expired"
-   *
-   * The cron sweeps PENDING_PAYMENT rows ~48h after updatedAt and flips
-   * them to CANCELLED. Once that happens this row leaves the
-   * Payment-pending tab and lands in Cancelled — so a row showing
-   * "Expired" here is the brief window between deadline and sweep.
-   */
-  function PaymentExpiryBadge({ updatedAt }: { updatedAt: string | Date | null | undefined }) {
-    if (!updatedAt) return null;
-    const PAYMENT_WINDOW_MS = 48 * 60 * 60 * 1000;
-    const deadline = new Date(updatedAt).getTime() + PAYMENT_WINDOW_MS;
-    const remainingMs = deadline - Date.now();
-    let label: string;
-    let tone: "green" | "amber" | "red";
-    if (remainingMs <= 0) {
-      label = "Expired";
-      tone = "red";
-    } else {
-      const hours = Math.floor(remainingMs / (60 * 60 * 1000));
-      const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
-      label = hours >= 1 ? `Expires in ${hours}h` : `Expires in ${minutes}m`;
-      tone = hours >= 24 ? "green" : hours >= 6 ? "amber" : "red";
-    }
-    const toneClass =
-      tone === "green" ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-      : tone === "amber" ? "bg-amber-50 text-amber-700 border-amber-100"
-      : "bg-red-50 text-red-700 border-red-100";
-    return (
-      <span
-        className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${toneClass}`}
-        title={`Pay-now window ends ${new Date(deadline).toLocaleString()}`}
-      >
-        {label}
-      </span>
-    );
-  }
-
-  /**
-   * Render "Reminded 4h ago" / "Reminded just now" / "Never reminded"
-   * next to the resend button. Subtle on purpose — italic + small
-   * zinc-400, so it reads as ancillary metadata, not a primary signal.
-   * The tooltip carries the absolute timestamp for hosts who want it.
-   */
-  function LastReminderStamp({ at }: { at: string | null }) {
-    if (!at) {
-      return (
-        <span className="text-[10px] italic text-zinc-400 shrink-0" title="No payment reminder has been sent yet.">
-          Not yet reminded
-        </span>
-      );
-    }
-    const ms = Date.now() - new Date(at).getTime();
-    let label: string;
-    if (ms < 60 * 1000) label = "Reminded just now";
-    else if (ms < 60 * 60 * 1000) label = `Reminded ${Math.floor(ms / 60_000)}m ago`;
-    else if (ms < 24 * 60 * 60 * 1000) label = `Reminded ${Math.floor(ms / 3_600_000)}h ago`;
-    else label = `Reminded ${Math.floor(ms / 86_400_000)}d ago`;
-    return (
-      <span className="text-[10px] italic text-zinc-400 shrink-0" title={`Last reminder sent ${new Date(at).toLocaleString()}`}>
-        {label}
-      </span>
-    );
-  }
-
-  function PaymentPendingRow({ a, resending, lastReminderAt, onResend, onOpen }: {
-    a: any;
-    resending: boolean;
-    lastReminderAt: string | null;
-    onResend: () => void;
-    onOpen: () => void;
-  }) {
-    const subtitle: string[] = [];
-    if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
-    if (a.email) subtitle.push(a.email);
-    return (
-      <div role="button" tabIndex={0} onClick={onOpen}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-        className="group flex items-start sm:items-center gap-3 px-4 sm:px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50">
-        <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
-        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
-              {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
-            </div>
-            {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-            {a.tier?.name && (
-              <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{a.tier.name}</span>
-            )}
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">Payment pending</span>
-            <PaymentExpiryBadge updatedAt={a.updatedAt} />
-            <LastReminderStamp at={lastReminderAt} />
-            <button
-              type="button"
-              disabled={resending}
-              onClick={(e) => { e.stopPropagation(); if (!resending) onResend(); }}
-              className="px-2 py-0.5 text-[10px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
-            >
-              {resending ? "Resending…" : "Resend payment link"}
-            </button>
-          </div>
-        </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-          className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0 mt-1 sm:mt-0" aria-hidden>
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
       </div>
     );
   }

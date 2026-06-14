@@ -68,6 +68,10 @@ export function AttendeeDetailDrawer({ attendee, onClose }: Props) {
   const hasAnswers = fields.length > 0 && Object.keys(answers).length > 0;
 
   const status = (attendee.status || "APPROVED").toUpperCase();
+  // PENDING_PAYMENT mapping retained for legacy rows from before the
+  // Reserve-Before-Decide cutover (2026-06-14). No new rows are created
+  // in this status; once the legacy cron sweeps the queue + a follow-up
+  // migration drops the enum value, this branch can be removed.
   const statusStyle =
     status === "REJECTED" ? "bg-red-50 text-red-600 border-red-100"
     : status === "PENDING" ? "bg-amber-50 text-amber-600 border-amber-100"
@@ -76,7 +80,7 @@ export function AttendeeDetailDrawer({ attendee, onClose }: Props) {
     : "bg-emerald-50 text-emerald-600 border-emerald-100";
   const statusLabel =
     status === "APPROVED" ? "Confirmed"
-    : status === "PENDING_PAYMENT" ? "Payment pending"
+    : status === "PENDING_PAYMENT" ? "Payment pending (legacy)"
     : status === "CANCELLED" ? "Cancelled"
     : status.charAt(0) + status.slice(1).toLowerCase();
 
