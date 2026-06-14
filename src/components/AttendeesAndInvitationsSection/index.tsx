@@ -582,7 +582,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           rejected.length > 0 ? (
             <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
               {rejected.map((a: any) => (
-                <RejectedRow key={a.id} a={a} onOpen={() => setDrawerAttendee(a)} />
+                <RejectedRow key={a.id} a={a}
+                  sale={findSaleForAttendee(a)}
+                  onOpen={() => setDrawerAttendee(a)} />
               ))}
             </div>
           ) : (
@@ -594,7 +596,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           cancelled.length > 0 ? (
             <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
               {cancelled.map((a: any) => (
-                <CancelledRow key={a.id} a={a} onOpen={() => setDrawerAttendee(a)} />
+                <CancelledRow key={a.id} a={a}
+                  sale={findSaleForAttendee(a)}
+                  onOpen={() => setDrawerAttendee(a)} />
               ))}
             </div>
           ) : (
@@ -767,30 +771,79 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     );
   }
 
-  function RejectedRow({ a, onOpen }: { a: any; onOpen: () => void }) {
+  /**
+   * Compact green badge surfacing the refund state of a sale tied to a
+   * non-active attendance (CANCELLED or REJECTED row). Renders nothing
+   * when there's no sale or the sale wasn't refunded.
+   *
+   * The badge intentionally doesn't show an amount because the precise
+   * amount differs by which refund pathway fired:
+   *   - Post-conversion refund (Flow 29 today): buyer gets gross back,
+   *     host eats the Stripe fee via seller_payout_debits.
+   *   - Pre-conversion refund (new Flow 11.5 self-cancel + Flow 14
+   *     host reject): buyer gets gross-minus-Stripe-fee, host is not
+   *     charged (T&Cs §7.6).
+   * Both look identical from a SaleRow snapshot. Hosts who want the
+   * exact figure can click into the attendee drawer or the sales view;
+   * the badge is the at-a-glance "money was returned" signal.
+   */
+  function RefundBadge({ sale }: { sale?: SaleRow }) {
+    if (!sale) return null;
+    if (sale.refundStatus === "FULL") {
+      return (
+        <span
+          className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0"
+          title="Money has been returned to the buyer. Open the attendee or the sales view to see the exact refund amount."
+        >
+          Refunded
+        </span>
+      );
+    }
+    if (sale.refundStatus === "PARTIAL") {
+      return (
+        <span
+          className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50/60 text-emerald-700/80 border border-emerald-100 shrink-0"
+          title="Partial refund issued. Open the attendee or the sales view to see the exact remaining balance."
+        >
+          Partial refund
+        </span>
+      );
+    }
+    return null;
+  }
+
+  function RejectedRow({ a, sale, onOpen }: { a: any; sale?: SaleRow; onOpen: () => void }) {
     const subtitle: string[] = [];
     if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
     if (a.email) subtitle.push(a.email);
     return (
       <div role="button" tabIndex={0} onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-        className="group flex items-center gap-3 px-4 sm:px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50 opacity-60">
+        className="group flex items-start sm:items-center gap-3 px-4 sm:px-6 py-3 cursor-pointer hover:bg-zinc-50 transition-colors outline-none focus-visible:bg-zinc-50 opacity-60">
         <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
-          {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+            {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            <RefundBadge sale={sale} />
+            <span className="text-[10px] font-medium text-red-400 bg-red-50 px-2 py-0.5 rounded shrink-0">Rejected</span>
+          </div>
         </div>
-        <span className="text-[10px] font-medium text-red-400 bg-red-50 px-2 py-0.5 rounded shrink-0">Rejected</span>
       </div>
     );
   }
 
-  function CancelledRow({ a, onOpen }: { a: any; onOpen: () => void }) {
+  function CancelledRow({ a, sale, onOpen }: { a: any; sale?: SaleRow; onOpen: () => void }) {
     const subtitle: string[] = [];
     if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
     if (a.email) subtitle.push(a.email);
-    // Reason chip — distinguishes self-cancel / admin removal / 48h payment timeout
-    // so hosts can scan exits at a glance without opening the drawer.
+    // Reason chip — distinguishes self-cancel / admin removal / (historical)
+    // 48h payment timeout so hosts can scan exits at a glance without
+    // opening the drawer. PAYMENT_TIMEOUT will be backfilled to NULL in
+    // the matching backend cleanup PR; the label is left here so the 9
+    // historical rows still display readable text until then.
     const reasonLabels: Record<string, string> = {
       USER_REQUEST: "Self-cancelled",
       ADMIN_REMOVAL: "Removed by host",
@@ -811,6 +864,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             {reason && (
               <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{reason}</span>
             )}
+            <RefundBadge sale={sale} />
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 shrink-0">Cancelled</span>
           </div>
         </div>
