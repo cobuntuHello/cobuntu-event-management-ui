@@ -428,8 +428,14 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
       {/* Optional slot for the host app to render between revenue KPIs
           and the Attendees header (cobuntu-admin uses this for the
-          inline EventListingsSection — see admin OverviewView). */}
-      {belowRevenueSlot}
+          inline EventListingsSection — see admin OverviewView).
+          Wrapped with mb-6 so the slot's content (a full section
+          card in the admin case) gets vertical separation from the
+          Attendees header below. The wrapper is conditional on the
+          slot being provided so consumers that don't pass anything
+          (e.g. cobuntu-community-app's manage UI) don't get a
+          phantom 24px gap. */}
+      {belowRevenueSlot && <div className="mb-6">{belowRevenueSlot}</div>}
 
       {/* Header — title + subtitle on the left, primary actions on the
           right. Matches the HostsView / EventListingsSection layout
