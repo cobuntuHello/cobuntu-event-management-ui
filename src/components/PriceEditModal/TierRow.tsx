@@ -76,6 +76,21 @@ export function TierRow({
             {t.name || <span className="text-zinc-400 font-normal">Unnamed tier</span>}
           </p>
         </div>
+        {/* 2026-06-15 (feat/publish-validation-errors-and-refund-ux):
+            Draft badge for tiers with publishedAt=null. Pre-fix the
+            tier list gave no signal that a tier was unpublished — the
+            host had to drill 3 clicks deep into Config to see.
+            Surfacing the Draft state on the L1 list makes it
+            discoverable at a glance, so hosts publish tiers BEFORE
+            publishing the event. */}
+        {!t.publishedAt && (
+          <span
+            className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full shrink-0"
+            title="This tier is a draft — buyers can't see it until you publish it."
+          >
+            Draft
+          </span>
+        )}
         {t.hasForm && (
           <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
             Form Enabled
