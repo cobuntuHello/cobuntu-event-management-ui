@@ -702,17 +702,37 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">Complimentary</span>
             )}
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">Confirmed</span>
-            {/* Phase H: Refund button only for paid attendees within escrow. */}
-            {sale && (
+            {/* Phase H: Refund button only for paid attendees within escrow.
+                2026-06-15 (feat/publish-validation-errors-and-refund-ux):
+                surfaced the disabled-state reason inline instead of
+                hiding it in a hover-only `title=` tooltip. Pre-fix the
+                grayed-out button gave hosts no idea why they couldn't
+                refund — they'd assume something was broken. Now the
+                label itself becomes "Refund window closed" with a
+                visible (i) icon and a richer tooltip explaining where
+                to go for help. */}
+            {sale && refundable && (
               <button
                 type="button"
-                disabled={!refundable}
-                onClick={(e) => { e.stopPropagation(); if (refundable) onRefund(sale); }}
-                title={refundable ? "Refund this attendee" : "Refund window has passed — contact Cobuntu support to escalate."}
-                className={`px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 ${refundable ? "border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer" : "border-zinc-100 text-zinc-300 cursor-not-allowed"}`}
+                onClick={(e) => { e.stopPropagation(); onRefund(sale); }}
+                title="Refund this attendee"
+                className="px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer"
               >
                 Refund
               </button>
+            )}
+            {sale && !refundable && (
+              <span
+                title="The escrow window ended when the sale moved to payout. Contact Cobuntu support to escalate a refund."
+                className="px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 border-zinc-200 text-zinc-500 bg-zinc-50 inline-flex items-center gap-1 cursor-help"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                Refund window closed
+              </span>
             )}
           </div>
         </div>

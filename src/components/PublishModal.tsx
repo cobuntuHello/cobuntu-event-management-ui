@@ -29,7 +29,20 @@ export function PublishModal({ event, communityTag, isPublished, isPaid, attende
         headers: authHeaders(),
       });
       if (res.ok) { showToast(isPublished ? "Unpublished" : "Published"); onDone(); }
-      else { const err = await res.json().catch(() => ({})); showToast(err.error || `Failed to ${endpoint}`); }
+      else {
+        const err = await res.json().catch(() => ({}));
+        // 2026-06-15: surface the BE's detailed validation list when
+        // present. EventListingService throws ValidationError('Cannot
+        // publish listing', [...validationErrors]) and the controller
+        // exposes both `error` (main message) AND `validationErrors[]`
+        // (the actionable detail). Pre-fix the toast only showed the
+        // main message, so a host who hit "Event has no published
+        // ticket tier — publish at least one tier before listing" saw
+        // only "Cannot publish event" with no idea what to fix.
+        const details: string[] = Array.isArray(err.validationErrors) ? err.validationErrors : [];
+        const baseMsg = err.error || `Failed to ${endpoint}`;
+        showToast(details.length > 0 ? `${baseMsg}: ${details.join(" · ")}` : baseMsg);
+      }
     } catch { showToast(`Failed to ${isPublished ? "unpublish" : "publish"}`); }
     finally { setSaving(false); }
   }
