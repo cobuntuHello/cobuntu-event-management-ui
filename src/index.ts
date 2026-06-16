@@ -61,6 +61,18 @@ export { DistributionEditModal, type DistributionEditModalProps } from "./compon
 export { ShareModal } from "./components/ShareModal";
 export { PublishModal } from "./components/PublishModal";
 export { DeleteModal } from "./components/DeleteModal";
+
+// Membership funnel — host config UI for the event-as-membership-funnel feature.
+// Renders below AttendeesAndInvitationsSection in the event overview. Either
+// a three-radio config (None / EMBED / APPLY_LINK), or a blocked-state
+// explainer with an "Open event settings" button when event prerequisites
+// don't fit. Plan: cobuntu-backend-monorepo/docs/features/event-membership-funnel.md
+export {
+  MembershipFunnelSection,
+  type MembershipFunnelSectionProps,
+  type MembershipFunnelSectionEvent,
+  type MembershipFunnelSectionCommunity,
+} from "./components/MembershipFunnelSection";
 export { DuplicateModal, type DuplicateModalProps } from "./components/DuplicateModal";
 
 // Re-export the Stripe primitives in case a consumer wants to render the
