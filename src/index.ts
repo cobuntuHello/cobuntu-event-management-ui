@@ -28,6 +28,10 @@ export {
 // modal (Phase H of host-refunds-and-sales-visibility).
 export { AttendeesAndInvitationsSection } from "./components/AttendeesAndInvitationsSection";
 export { AttendeeDetailDrawer } from "./components/AttendeesAndInvitationsSection/AttendeeDetailDrawer";
+// Extracted KPI tiles (feat/manage-event-restructure / attendees-unified).
+// Mount independently on the Overview tab while the rest of the attendees
+// section moves to its own Attendees tab in the consumer apps.
+export { EventRevenueKPIs } from "./components/EventRevenueKPIs";
 export { UserAvatarFallback } from "./ui/user-avatar-fallback";
 
 // Per-event listings panel — renders one row per community in
