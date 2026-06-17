@@ -29,9 +29,22 @@ type Attendee = {
 interface Props {
   attendee: Attendee | null;
   onClose: () => void;
+  /**
+   * When true, the drawer renders a "Promote to host" action button.
+   * The consumer computes the predicate (typically: viewer is event
+   * creator + attendee is APPROVED + attendee paid + attendee isn't
+   * already a host + event is paid). The drawer itself stays dumb.
+   */
+  canPromoteToHost?: boolean;
+  /**
+   * Called when the "Promote to host" action is clicked. The consumer
+   * is expected to open its own PromoteAttendeeModal preselected to
+   * this attendee. The drawer closes on its own.
+   */
+  onPromoteToHost?: (attendee: Attendee) => void;
 }
 
-export function AttendeeDetailDrawer({ attendee, onClose }: Props) {
+export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPromoteToHost }: Props) {
   const config = useEventManagementConfig();
   // Pkg-portable avatar rendering: consumer can inject its own via
   // config.UserAvatar; otherwise the minimal initials fallback ships
@@ -199,6 +212,27 @@ export function AttendeeDetailDrawer({ attendee, onClose }: Props) {
             </div>
           )}
         </div>
+
+        {/* Footer actions. Renders only when the consumer enabled the
+            promote-to-host affordance (admin / community-app gate on
+            isCreator + paid + APPROVED + not-already-a-host + isPaid). */}
+        {canPromoteToHost && onPromoteToHost && (
+          <div className="border-t border-zinc-100 px-5 py-4 shrink-0">
+            <button
+              onClick={() => {
+                onPromoteToHost(attendee);
+                handleClose();
+              }}
+              className="w-full px-4 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M20 21a8 8 0 1 0-16 0"/><path d="m17 8 2 2 4-4"/></svg>
+              Promote to host
+            </button>
+            <p className="text-[11px] text-zinc-400 text-center mt-2">
+              They stay registered. Their payment is kept on file.
+            </p>
+          </div>
+        )}
       </div>
     </>,
     document.body,

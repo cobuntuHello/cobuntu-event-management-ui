@@ -28,6 +28,10 @@ export {
 // modal (Phase H of host-refunds-and-sales-visibility).
 export { AttendeesAndInvitationsSection } from "./components/AttendeesAndInvitationsSection";
 export { AttendeeDetailDrawer } from "./components/AttendeesAndInvitationsSection/AttendeeDetailDrawer";
+// Extracted KPI tiles (feat/manage-event-restructure / attendees-unified).
+// Mount independently on the Overview tab while the rest of the attendees
+// section moves to its own Attendees tab in the consumer apps.
+export { EventRevenueKPIs } from "./components/EventRevenueKPIs";
 export { UserAvatarFallback } from "./ui/user-avatar-fallback";
 
 // Per-event listings panel — renders one row per community in
@@ -74,6 +78,13 @@ export {
   type MembershipFunnelSectionCommunity,
 } from "./components/MembershipFunnelSection";
 export { DuplicateModal, type DuplicateModalProps } from "./components/DuplicateModal";
+
+// Promote-attendee-to-host — feat/manage-event-restructure sub-feature.
+// Lets the event creator turn a paid attendee into a host without
+// adding a fresh, payment-bypassing host row. Mount alongside (not
+// instead of) the legacy AddHostModal; that path stays for hosts who
+// shouldn't pay (staff/founders/etc.).
+export { PromoteAttendeeModal, type PromoteAttendeeModalProps } from "./components/PromoteAttendeeModal";
 
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
@@ -142,3 +153,16 @@ export {
   type LocationSuggestion,
   type LocationDetails,
 } from "./lib/google-maps";
+
+// feat/manage-event-restructure umbrella — settings-drawer sub-PR (v0.2.11).
+// New Settings drawer + extracted standalone modals so each setting can
+// either live inside the drawer (Viewability / Access / Distribution / Funnel)
+// or as a quick-edit card on the EventCard (Description / Tags). The legacy
+// EditEventDrawer stays exported (deprecated, will be removed in a later
+// sub-PR under the same umbrella once both consumers have migrated).
+export { SettingsDrawer } from "./components/SettingsDrawer";
+export { ViewabilityEditModal } from "./components/ViewabilityEditModal";
+export { AccessibilityEditModal } from "./components/AccessibilityEditModal";
+export { DescriptionEditModal } from "./components/DescriptionEditModal";
+export { TagsEditModal } from "./components/TagsEditModal";
+export { MembershipFunnelEditModal } from "./components/MembershipFunnelEditModal";

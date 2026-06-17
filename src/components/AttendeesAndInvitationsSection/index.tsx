@@ -15,6 +15,13 @@ interface Props {
   refreshKey?: number;
   onInviteClick?: () => void;
   /**
+   * Optional click handler for the "Add Attendees" header button. When
+   * provided, replaces the legacy navigate-to-?view=add-attendees fallback
+   * so the consumer can open its own modal/drawer inline. The fallback
+   * stays for backwards-compat with callers that haven't migrated.
+   */
+  onAddClick?: () => void;
+  /**
    * Optional URL slug (or id) for the event, available to the parent
    * before the `event` GET resolves. When supplied, the section fires
    * its supplementary fetches (invitations, stats, pending, sales) in
@@ -26,13 +33,26 @@ interface Props {
    */
   eventIdOrSlug?: string;
   /**
-   * Optional render slot inserted between the revenue KPI cards (Paid
-   * attendees / Revenue / Fees / Net earnings) and the Attendees header.
-   * Used by cobuntu-admin to render its inline EventListingsSection
-   * directly after revenue and before attendees, without forking this
-   * component or splitting the section. Undefined = nothing rendered.
+   * Optional render slot inserted between (previously) the revenue KPIs
+   * and the Attendees header. With the KPIs extracted to EventRevenueKPIs
+   * (feat/manage-event-restructure), this slot now renders just above the
+   * Attendees header. Used by cobuntu-admin to surface inline content;
+   * undefined = nothing rendered.
    */
   belowRevenueSlot?: React.ReactNode;
+  /**
+   * Predicate that tells the per-attendee drawer whether to render the
+   * "Promote to host" action. The consumer computes it from its own
+   * auth context + the attendee's payment/host state. Returning false
+   * (or omitting the prop) hides the action.
+   */
+  canPromoteAttendeeToHost?: (attendee: any) => boolean;
+  /**
+   * Called when the user clicks "Promote to host" inside the attendee
+   * drawer. The consumer is expected to open a PromoteAttendeeModal
+   * preselected to the given attendee.
+   */
+  onPromoteAttendeeFromDrawer?: (attendee: any) => void;
 }
 
 interface InvitationStats {
@@ -56,7 +76,7 @@ type Tab = "approved" | "pending" | "rejected" | "cancelled" | "invitations";
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: "R$" };
 
-export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, eventIdOrSlug, belowRevenueSlot }: Props) {
+export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, onAddClick, eventIdOrSlug, belowRevenueSlot, canPromoteAttendeeToHost, onPromoteAttendeeFromDrawer }: Props) {
   const config = useEventManagementConfig();
   const API = config.apiBaseUrl;
   const authHeaders = config.authHeaders;
@@ -395,36 +415,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         </div>
       )}
 
-      {/* Paid-event sales KPI cards. Phase H of host-refunds-and-
-          sales-visibility (2026-05-25): consolidates the prior
-          standalone TicketSalesSection into the Attendees section so
-          there's one canonical surface — paid attendees are the
-          sales, no need for two sections rendering overlapping data.
-          Only shows for paid events with at least one sale. */}
-      {isPaid && paidCount > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-          <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
-            <p className="text-xs text-zinc-500">Paid attendees</p>
-            <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{paidCount}</p>
-            <p className="text-xs text-zinc-400 mt-1">{attendeeCount - paidCount} comp/invited</p>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
-            <p className="text-xs text-zinc-500">Revenue</p>
-            <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{fmtMoney(totalRevenue)}</p>
-            <p className="text-xs text-zinc-400 mt-1">{paidCount} transactions, gross</p>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
-            <p className="text-xs text-zinc-500">Fees paid</p>
-            <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{fmtMoney(totalFees)}</p>
-            <p className="text-xs text-zinc-400 mt-1">Platform + Stripe</p>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
-            <p className="text-xs text-zinc-500">Net earnings</p>
-            <p className="text-xl sm:text-2xl font-semibold text-emerald-600 mt-1 tabular-nums">{fmtMoney(totalNet)}</p>
-            <p className="text-xs text-zinc-400 mt-1">After all fees</p>
-          </div>
-        </div>
-      )}
+      {/* Paid-event sales KPI cards were extracted into <EventRevenueKPIs>
+          (feat/manage-event-restructure / attendees-unified sub-PR).
+          The KPIs now live on the Overview tab; this section's body
+          starts straight at the Attendees header below.
+          The salesRows aggregates above are still computed and used by
+          the per-row Refund button + the sale lookup for ApprovedRow. */}
 
       {/* Optional slot for the host app to render between revenue KPIs
           and the Attendees header (cobuntu-admin uses this for the
@@ -463,9 +459,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           )}
           {!isPast && (
             <>
-              <button onClick={() => config.navigate(`/${communityTag}/events/${eventId}?view=add-attendees`)} disabled={!isPublished}
+              <button onClick={onAddClick || (() => config.navigate(`/${communityTag}/events/${eventId}?view=add-attendees`))} disabled={!isPublished}
                 className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
-                Add Attendees
+                Add
               </button>
               <button onClick={onInviteClick || (() => config.navigate(`/${communityTag}/events/${eventId}?view=invite-guests`))} disabled={!isPublished}
                 className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
@@ -628,7 +624,16 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       </div>
 
       </div>
-      <AttendeeDetailDrawer attendee={drawerAttendee} onClose={() => setDrawerAttendee(null)} />
+      <AttendeeDetailDrawer
+        attendee={drawerAttendee}
+        onClose={() => setDrawerAttendee(null)}
+        canPromoteToHost={
+          drawerAttendee && canPromoteAttendeeToHost
+            ? canPromoteAttendeeToHost(drawerAttendee)
+            : false
+        }
+        onPromoteToHost={onPromoteAttendeeFromDrawer}
+      />
 
       {/* Phase H of host-refunds-and-sales-visibility (2026-05-25):
           per-attendee refund modal. Lives at the section root so
