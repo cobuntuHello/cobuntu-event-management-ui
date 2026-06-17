@@ -42,6 +42,14 @@ interface Props {
      *  page fetches this; the drawer just forwards it through. */
     community: MembershipFunnelSectionCommunity;
     isOpen: boolean;
+    /**
+     * When true, surfaces a one-line note at the top of the drawer that
+     * Access / Featured / Membership funnel no longer change anything
+     * for buyers because the event has ended. Settings stay editable
+     * (Visibility + Distribution detailSource still have legitimate
+     * post-event use). Defaults to false for backwards compatibility.
+     */
+    isPast?: boolean;
     onClose: () => void;
     onSaved: () => void;
     showToast: (msg: string) => void;
@@ -52,6 +60,7 @@ export function SettingsDrawer({
     communityTag,
     community,
     isOpen,
+    isPast,
     onClose,
     onSaved,
     showToast,
@@ -184,6 +193,18 @@ export function SettingsDrawer({
                     </button>
                     <h2 className="text-base font-semibold text-zinc-900">Settings</h2>
                 </div>
+
+                {/* Past-event note. Access / Featured / Membership funnel
+                    can still be toggled (idempotent on the BE) but they
+                    don't affect anything once the event has ended; flag
+                    it once at the drawer level rather than per-row. */}
+                {isPast && (
+                    <div className="px-5 py-2.5 bg-zinc-50 border-b border-zinc-100 shrink-0">
+                        <p className="text-[11px] text-zinc-500 leading-snug">
+                            Event has ended. Access, Featured, and the membership funnel no longer affect new registrations — only Visibility and a custom landing URL still apply.
+                        </p>
+                    </div>
+                )}
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto">

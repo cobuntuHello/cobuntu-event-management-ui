@@ -43,7 +43,7 @@ export function DescriptionEditModal({ event, communityTag, onClose, onSaved, sh
     }
 
     return (
-        <ModalShell onClose={onClose}>
+        <ModalShell onClose={onClose} width="w-full sm:w-[640px]">
             <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Edit description</h3>
             <div className="mb-4 max-h-[60vh] overflow-y-auto">
                 <RichTextEditor
