@@ -142,3 +142,16 @@ export {
   type LocationSuggestion,
   type LocationDetails,
 } from "./lib/google-maps";
+
+// feat/manage-event-restructure umbrella — settings-drawer sub-PR (v0.2.11).
+// New Settings drawer + extracted standalone modals so each setting can
+// either live inside the drawer (Viewability / Access / Distribution / Funnel)
+// or as a quick-edit card on the EventCard (Description / Tags). The legacy
+// EditEventDrawer stays exported (deprecated, will be removed in a later
+// sub-PR under the same umbrella once both consumers have migrated).
+export { SettingsDrawer } from "./components/SettingsDrawer";
+export { ViewabilityEditModal } from "./components/ViewabilityEditModal";
+export { AccessibilityEditModal } from "./components/AccessibilityEditModal";
+export { DescriptionEditModal } from "./components/DescriptionEditModal";
+export { TagsEditModal } from "./components/TagsEditModal";
+export { MembershipFunnelEditModal } from "./components/MembershipFunnelEditModal";
