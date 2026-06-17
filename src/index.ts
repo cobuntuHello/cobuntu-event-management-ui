@@ -79,6 +79,13 @@ export {
 } from "./components/MembershipFunnelSection";
 export { DuplicateModal, type DuplicateModalProps } from "./components/DuplicateModal";
 
+// Promote-attendee-to-host — feat/manage-event-restructure sub-feature.
+// Lets the event creator turn a paid attendee into a host without
+// adding a fresh, payment-bypassing host row. Mount alongside (not
+// instead of) the legacy AddHostModal; that path stays for hosts who
+// shouldn't pay (staff/founders/etc.).
+export { PromoteAttendeeModal, type PromoteAttendeeModalProps } from "./components/PromoteAttendeeModal";
+
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
 export { useStripeStatus, StripeRequiredWarning, type StripeStatus } from "./components/stripe-status";
