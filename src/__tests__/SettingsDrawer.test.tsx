@@ -118,6 +118,23 @@ describe("SettingsDrawer — summaries reflect event state", () => {
     });
 });
 
+describe("SettingsDrawer — past-event note", () => {
+    it("hides the past-event note by default", () => {
+        renderWithConfig(<SettingsDrawer {...baseProps()} />);
+        expect(screen.queryByText(/event has ended/i)).not.toBeInTheDocument();
+    });
+
+    it("renders the past-event note when isPast=true and keeps all rows clickable", () => {
+        renderWithConfig(<SettingsDrawer {...baseProps({ isPast: true })} />);
+        expect(screen.getByText(/event has ended/i)).toBeInTheDocument();
+        // All four rows still render — the note informs, doesn't gate.
+        expect(screen.getByText("Visibility")).toBeInTheDocument();
+        expect(screen.getByText("Access")).toBeInTheDocument();
+        expect(screen.getByText("Distribution")).toBeInTheDocument();
+        expect(screen.getByText("Membership funnel")).toBeInTheDocument();
+    });
+});
+
 describe("SettingsDrawer — close + row → sub-modal", () => {
     it("Close icon eventually fires onClose", async () => {
         const onClose = vi.fn();
