@@ -222,8 +222,11 @@ export function MembershipFunnelSection({
     }
 
     if (blocked) {
+        // Note: no outer rounded-2xl card here anymore. The section now
+        // always renders inside MembershipFunnelEditModal whose ModalShell
+        // owns the chrome — a card-inside-a-card looked nested and weird.
         return (
-            <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 p-5">
+            <div>
                 <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">Membership funnel</h3>
                 <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 mb-3">
                     <p className="text-[13px] font-semibold text-amber-900 mb-1">
@@ -253,7 +256,7 @@ export function MembershipFunnelSection({
     }
 
     return (
-        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 p-5">
+        <div>
             <div className="mb-3">
                 <h3 className="text-[15px] font-semibold text-zinc-900">Membership funnel</h3>
                 <p className="text-[12px] text-zinc-500 mt-1">
@@ -377,15 +380,14 @@ function ModeOption({
     title: string;
     subtitle: string;
 }) {
+    // Flat row layout — no per-option border. The previous boxed rendering
+    // made the modal feel like cards-inside-a-card. Hit area stays full-row;
+    // selected state shows via the radio dot only.
     return (
         <button
             type="button"
             onClick={onClick}
-            className={`w-full text-left flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
-                selected
-                    ? "border-zinc-900 bg-zinc-50"
-                    : "border-zinc-200 bg-white hover:bg-zinc-50/50"
-            }`}
+            className="w-full text-left flex items-start gap-3 px-1 py-2 rounded-md cursor-pointer hover:bg-zinc-50 transition-colors"
         >
             <span
                 className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
@@ -395,7 +397,7 @@ function ModeOption({
                 {selected && <span className="h-1.5 w-1.5 rounded-full bg-zinc-900" />}
             </span>
             <span className="min-w-0">
-                <span className="block text-[13px] font-medium text-zinc-900">{title}</span>
+                <span className={`block text-[13px] font-medium ${selected ? "text-zinc-900" : "text-zinc-800"}`}>{title}</span>
                 <span className="block text-[12px] text-zinc-500 mt-0.5">{subtitle}</span>
             </span>
         </button>

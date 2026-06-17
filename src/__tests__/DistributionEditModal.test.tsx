@@ -24,7 +24,11 @@ const baseProps = (overrides: Record<string, unknown> = {}) => ({
 
 // Featured input is the only checkbox; resolve via role.
 const featuredCheckbox = () => screen.getByRole("checkbox");
-const nativeRadio = () => screen.getByRole("radio", { name: /standard event page/i });
+// Titles changed when the radio rows became tap-target tiles
+// ("Cobuntu event page" / "Custom landing page" with descriptive
+// subtitles below). Radios stay in the DOM as sr-only inputs so the
+// form remains accessible.
+const nativeRadio = () => screen.getByRole("radio", { name: /cobuntu event page/i });
 const externalRadio = () => screen.getByRole("radio", { name: /custom landing page/i });
 const urlInput = () => screen.getByPlaceholderText(/https:\/\/your-site\.com/i);
 

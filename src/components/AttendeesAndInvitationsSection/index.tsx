@@ -570,6 +570,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 <PendingRow key={a.id} a={a}
                   sale={findSaleForAttendee(a)}
                   loading={loadingAction === a.id}
+                  isPast={isPast}
                   onApprove={() => handleAttendeeAction(a.id, "approve")}
                   onReject={() => handleAttendeeAction(a.id, "reject")}
                   onOpen={() => setDrawerAttendee(a)} />
@@ -614,6 +615,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               {pendingInvitations.map(inv => (
                 <InvitationRow key={inv.id} inv={inv}
                   resending={resending === inv.id}
+                  isPast={isPast}
                   onResend={() => handleResend(inv.id)} />
               ))}
             </div>
@@ -749,7 +751,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     );
   }
 
-  function PendingRow({ a, sale, loading, onApprove, onReject, onOpen }: { a: any; sale?: SaleRow; loading: boolean; onApprove: () => void; onReject: () => void; onOpen: () => void }) {
+  // The `isPast` flag mirrors the section-level flag. Approving a
+  // PENDING attendance after the event has ended produces a junk-data
+  // path (the would-be attendee can never actually attend), so we lock
+  // Approve on past events. Reject stays open — it's the legitimate
+  // cleanup path for the pending queue post-event.
+  function PendingRow({ a, sale, loading, onApprove, onReject, onOpen, isPast }: { a: any; sale?: SaleRow; loading: boolean; onApprove: () => void; onReject: () => void; onOpen: () => void; isPast: boolean }) {
     const subtitle: string[] = [];
     if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
     if (a.email) subtitle.push(a.email);
@@ -787,8 +794,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               </span>
             )}
             <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-              <button onClick={onApprove} disabled={loading}
-                className="px-3 py-1 text-[11px] font-medium bg-emerald-500 text-white rounded-md hover:bg-emerald-600 cursor-pointer transition-colors disabled:opacity-50">
+              <button onClick={onApprove} disabled={loading || isPast}
+                title={isPast ? "Event has ended — approve disabled" : undefined}
+                className="px-3 py-1 text-[11px] font-medium bg-emerald-500 text-white rounded-md hover:bg-emerald-600 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 Approve
               </button>
               <button onClick={onReject} disabled={loading}
@@ -903,7 +911,10 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     );
   }
 
-  function InvitationRow({ inv, resending, onResend }: { inv: Invitation; resending: boolean; onResend: () => void }) {
+  // `isPast`: gates Resend. Re-sending an invitation to a past event
+  // delivers a link to an ended event — junk path. The row itself
+  // stays visible (hosts may still want to see the invitation history).
+  function InvitationRow({ inv, resending, isPast, onResend }: { inv: Invitation; resending: boolean; isPast: boolean; onResend: () => void }) {
     return (
       <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
         {inv.invitedUser?.profileImage ? (
@@ -918,9 +929,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           <p className="text-[11px] text-zinc-400 truncate">{inv.invitedUser ? `@${inv.invitedUser.usertag}` : inv.email}</p>
         </div>
         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 shrink-0">Pending</span>
-        <button onClick={onResend} disabled={resending}
-          className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded cursor-pointer disabled:opacity-50 shrink-0"
-          title="Resend invitation">
+        <button onClick={onResend} disabled={resending || isPast}
+          className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          title={isPast ? "Event has ended — resend disabled" : "Resend invitation"}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
