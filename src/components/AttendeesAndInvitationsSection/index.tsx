@@ -40,6 +40,19 @@ interface Props {
    * undefined = nothing rendered.
    */
   belowRevenueSlot?: React.ReactNode;
+  /**
+   * Predicate that tells the per-attendee drawer whether to render the
+   * "Promote to host" action. The consumer computes it from its own
+   * auth context + the attendee's payment/host state. Returning false
+   * (or omitting the prop) hides the action.
+   */
+  canPromoteAttendeeToHost?: (attendee: any) => boolean;
+  /**
+   * Called when the user clicks "Promote to host" inside the attendee
+   * drawer. The consumer is expected to open a PromoteAttendeeModal
+   * preselected to the given attendee.
+   */
+  onPromoteAttendeeFromDrawer?: (attendee: any) => void;
 }
 
 interface InvitationStats {
@@ -63,7 +76,7 @@ type Tab = "approved" | "pending" | "rejected" | "cancelled" | "invitations";
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: "R$" };
 
-export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, onAddClick, eventIdOrSlug, belowRevenueSlot }: Props) {
+export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, onAddClick, eventIdOrSlug, belowRevenueSlot, canPromoteAttendeeToHost, onPromoteAttendeeFromDrawer }: Props) {
   const config = useEventManagementConfig();
   const API = config.apiBaseUrl;
   const authHeaders = config.authHeaders;
@@ -611,7 +624,16 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       </div>
 
       </div>
-      <AttendeeDetailDrawer attendee={drawerAttendee} onClose={() => setDrawerAttendee(null)} />
+      <AttendeeDetailDrawer
+        attendee={drawerAttendee}
+        onClose={() => setDrawerAttendee(null)}
+        canPromoteToHost={
+          drawerAttendee && canPromoteAttendeeToHost
+            ? canPromoteAttendeeToHost(drawerAttendee)
+            : false
+        }
+        onPromoteToHost={onPromoteAttendeeFromDrawer}
+      />
 
       {/* Phase H of host-refunds-and-sales-visibility (2026-05-25):
           per-attendee refund modal. Lives at the section root so
