@@ -27,7 +27,7 @@ describe("PromoteAttendeeModal — picker mode", () => {
 
     it("renders the heading + helper copy when open", () => {
         renderWithConfig(<PromoteAttendeeModal {...baseProps()} />);
-        expect(screen.getByText(/promote attendee to host/i)).toBeInTheDocument();
+        expect(screen.getByText(/promote to host/i)).toBeInTheDocument();
         expect(screen.getByText(/pick a paid attendee/i)).toBeInTheDocument();
     });
 
@@ -87,7 +87,7 @@ describe("PromoteAttendeeModal — picker mode", () => {
         const user = userEvent.setup();
         renderWithConfig(<PromoteAttendeeModal {...baseProps()} />);
         await user.click(screen.getByText("Alice"));
-        expect(screen.getByText(/they will be listed as a host/i)).toBeInTheDocument();
+        expect(screen.getByText(/they'll be listed as a host/i)).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /back/i })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /promote to host/i })).toBeInTheDocument();
     });
