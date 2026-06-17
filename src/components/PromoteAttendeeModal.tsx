@@ -93,10 +93,10 @@ export function PromoteAttendeeModal({
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${config.apiBaseUrl}/events/${eventId}/hosts`, {
+      const res = await fetch(`${config.apiBaseUrl}/api/events/${eventId}/hosts`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...config.authHeaders() },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ coHostUserId: userId }),
       });
       if (!res.ok) {
         if (res.status === 409) {
