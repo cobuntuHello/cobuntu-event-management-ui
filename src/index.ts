@@ -86,6 +86,28 @@ export { DuplicateModal, type DuplicateModalProps } from "./components/Duplicate
 // shouldn't pay (staff/founders/etc.).
 export { PromoteAttendeeModal, type PromoteAttendeeModalProps } from "./components/PromoteAttendeeModal";
 
+// attendees-action/ — shared primitives that build the new generation
+// of event-host action modals (Add / Invite / Promote and any future
+// surfaces). Live in the shared pkg so admin + community-app stay
+// aligned without re-duplicating the same picker / chip / shell code
+// in two repos. See cobuntu-admin's earlier "attendees-action redesign"
+// PR for the original implementation; this module is the canonical
+// home going forward.
+export { AttendeesActionModalShell } from "./components/attendees-action/AttendeesActionModalShell";
+export {
+    RecipientChip,
+    InlinePersonalizeEditor,
+    recipientKey,
+    isValidEmail,
+    type Recipient,
+} from "./components/attendees-action/RecipientChip";
+export {
+    SmartRecipientInput,
+    type Member as SmartRecipientInputMember,
+} from "./components/attendees-action/SmartRecipientInput";
+export { PrefillSuggestionsRow } from "./components/attendees-action/PrefillSuggestionsRow";
+export { PostSendCelebration } from "./components/attendees-action/PostSendCelebration";
+
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
 export { useStripeStatus, StripeRequiredWarning, type StripeStatus } from "./components/stripe-status";
