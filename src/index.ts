@@ -108,6 +108,16 @@ export {
 export { PrefillSuggestionsRow } from "./components/attendees-action/PrefillSuggestionsRow";
 export { PostSendCelebration } from "./components/attendees-action/PostSendCelebration";
 
+// hosts/ — the v2 host-management surface. Single shared component
+// owns the hosts list + the two add-paths (Add community member / Promote
+// attendee) so admin and community-app render the same UX. Backed by
+// the host-auth v2 BE (any-host or EVENTS_MANAGE_LISTINGS can add/remove;
+// creator-immutability on user-owned events; event_host_audits log).
+// See cobuntu-backend-monorepo docs/features/event-hosts-v2.md.
+export { HostsManagementSection, type HostsManagementSectionProps, type PromoteEligibleAttendee } from "./components/hosts/HostsManagementSection";
+export { HostChip, type Host } from "./components/hosts/HostChip";
+export { AddMemberAsHostModal, type AddMemberAsHostModalProps } from "./components/hosts/AddMemberAsHostModal";
+
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).
 export { useStripeStatus, StripeRequiredWarning, type StripeStatus } from "./components/stripe-status";
