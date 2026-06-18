@@ -142,9 +142,12 @@ export function HostsManagementSection({
     const attendanceByUserId = useMemo(() => {
         const m = new Map<string, Attendee>();
         for (const a of attendees) {
-            if (!a.userId) continue;
+            // BE's normalizeAttendees nests the real user UUID under
+            // `user.id` and sets top-level `userId` to null. Try both.
+            const uid = (a as any).userId || a.user?.id;
+            if (!uid) continue;
             const s = (a.status || "").toUpperCase();
-            if (s === "APPROVED" || s === "PENDING") m.set(a.userId, a);
+            if (s === "APPROVED" || s === "PENDING") m.set(uid, a);
         }
         return m;
     }, [attendees]);
@@ -153,10 +156,14 @@ export function HostsManagementSection({
         if (eligibleAttendeesProp) return eligibleAttendeesProp;
         const hostUserIdSet = new Set(hostUserIds);
         return attendees
-            .filter((a) => a.status === "APPROVED" && a.userId && !hostUserIdSet.has(a.userId))
-            .map((a) => ({
+            .map((a) => {
+                const uid = (a as any).userId || a.user?.id || null;
+                return { a, uid };
+            })
+            .filter(({ a, uid }) => a.status === "APPROVED" && uid && !hostUserIdSet.has(uid))
+            .map(({ a, uid }) => ({
                 id: a.id,
-                userId: a.userId,
+                userId: uid,
                 name: a.user?.name || "Unknown",
                 usertag: a.user?.usertag || undefined,
                 email: a.user?.email || undefined,

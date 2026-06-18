@@ -7,7 +7,14 @@ import { AttendeesActionModalShell } from "./attendees-action/AttendeesActionMod
 
 type Attendee = {
     id: string;
+    /**
+     * The buyer's `users.id`. May be at the top level (consumers that
+     * pre-shape the row) OR nested under `user.id` (the BE's
+     * normalizeAttendees output puts it there). `resolvedUserId()` below
+     * tries both before falling back to null.
+     */
     userId?: string | null;
+    user?: { id?: string | null; name?: string | null; usertag?: string | null; profileImage?: string | null; email?: string | null };
     name?: string;
     firstName?: string;
     /** Nullable because BE-returned guest-attendances have no usertag. */
@@ -17,6 +24,18 @@ type Attendee = {
     status?: string | null;
     tier?: { id: string; name: string } | null;
 };
+
+/**
+ * Resolve the real `users.id` for an attendee row. The BE's
+ * normalizeAttendees shape returns `userId: null` and the actual id at
+ * `user.id`; flat-shape consumers may set `userId` at the top level.
+ * Previously this code fell back to `picked.id` (the attendance row
+ * UUID), which is NOT a users.id and caused a FK violation on
+ * event_hosts.userId (Slack alert 2026-06-18 13:32).
+ */
+function resolvedUserId(attendee: Attendee): string | null {
+    return attendee.userId || attendee.user?.id || null;
+}
 
 export interface PromoteAttendeeModalProps {
     eventId: string;
@@ -96,7 +115,7 @@ export function PromoteAttendeeModal({
 
     async function confirm() {
         if (!picked) return;
-        const userId = picked.userId || picked.id;
+        const userId = resolvedUserId(picked);
         if (!userId) {
             setError("This attendee has no linked user account yet.");
             return;
