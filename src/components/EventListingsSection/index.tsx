@@ -212,10 +212,9 @@ export function EventListingsSection({
       </div>
 
       <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-100">
-          <h3 className="text-sm font-semibold text-zinc-900">Listed on ({activeListings.length})</h3>
-        </div>
-
+        {/* 2026-06-18: dropped the inner "Listed on (N)" header — the
+            outer "Listings" header above already names this surface,
+            and the row count is implicit in the rendered list. */}
         {loading ? (
           <div className="p-5 space-y-2">
             {[...Array(3)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-zinc-100 animate-pulse" />)}
