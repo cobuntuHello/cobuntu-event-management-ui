@@ -121,19 +121,40 @@ describe("PromoteAttendeeModal — confirm + API", () => {
         expect(call[1].headers.Authorization).toBe("Bearer test-token");
     });
 
-    it("falls back to attendee.id when userId is missing", async () => {
+    it("falls back to nested user.id when top-level userId is missing", async () => {
+        // BE's normalizeAttendees shape: { userId: null, user: { id: ... } }.
+        // Regression for PBN W35 FK violation 2026-06-18 — promoting
+        // someone with { id: 'attendance-uuid', userId: null } was sending
+        // the attendance UUID as userId, hitting event_hosts_userId_fkey.
         const user = userEvent.setup();
         const fetchMock = mockFetch([
             { method: "POST", url: "/api/events/evt-1/hosts", status: 200, body: {} },
         ]);
-        const noUserId = [{ id: "u-99", name: "Direct", status: "APPROVED" }];
-        renderWithConfig(<PromoteAttendeeModal {...baseProps({ eligibleAttendees: noUserId })} />);
-        await user.click(screen.getByText("Direct"));
+        const nestedUserId = [
+            { id: "attendance-uuid", userId: null, name: "Nested", status: "APPROVED", user: { id: "u-99", name: "Nested" } } as any,
+        ];
+        renderWithConfig(<PromoteAttendeeModal {...baseProps({ eligibleAttendees: nestedUserId })} />);
+        await user.click(screen.getByText("Nested"));
         await user.click(screen.getByRole("button", { name: /promote to host/i }));
         await waitFor(() => {
             expect(fetchMock).toHaveBeenCalled();
         });
         expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ coHostUserId: "u-99" });
+    });
+
+    it("errors out (no API call) when neither userId nor user.id is present", async () => {
+        const user = userEvent.setup();
+        const fetchMock = mockFetch([
+            { method: "POST", url: "/api/events/evt-1/hosts", status: 200, body: {} },
+        ]);
+        const noUserId = [{ id: "attendance-uuid", name: "Guest only", status: "APPROVED" } as any];
+        renderWithConfig(<PromoteAttendeeModal {...baseProps({ eligibleAttendees: noUserId })} />);
+        await user.click(screen.getByText("Guest only"));
+        await user.click(screen.getByRole("button", { name: /promote to host/i }));
+        await waitFor(() => {
+            expect(screen.getByText(/no linked user account/i)).toBeInTheDocument();
+        });
+        expect(fetchMock.mock.calls.length).toBe(0);
     });
 
     it("surfaces 'already a host' on 409", async () => {
