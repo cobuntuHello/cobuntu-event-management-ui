@@ -136,6 +136,42 @@ describe("HostsManagementSection — demote vs remove label", () => {
         const removeButtons = screen.getAllByRole("button", { name: /^remove$/i });
         expect(removeButtons.length).toBeGreaterThanOrEqual(1);
     });
+
+    it('renders "Remove" (not "Demote") when the host has a CANCELLED attendance', async () => {
+        // Regression for the PBN W35 Raj case: a host whose attendance was
+        // CANCELLED should read "Remove" — demoting onto a cancelled row
+        // wouldn't preserve any live registration anyway.
+        const cancelledAttendances = [
+            { id: "att-carol", userId: "u-promoted", status: "CANCELLED", user: { id: "u-promoted", name: "Carol Promoted", usertag: "carol" } },
+        ];
+        mockFetch([
+            { url: "/hosts", body: hostsResponse },
+            { url: "/attendees", body: cancelledAttendances },
+        ]);
+        renderWithConfig(
+            <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={true} />,
+        );
+        await waitFor(() => expect(screen.getByText("Carol Promoted")).toBeInTheDocument());
+        expect(screen.queryByRole("button", { name: /demote to attendee/i })).not.toBeInTheDocument();
+        // All 3 non-creator hosts read "Remove" since none have a live attendance.
+        const removeButtons = screen.getAllByRole("button", { name: /^remove$/i });
+        expect(removeButtons).toHaveLength(2);
+    });
+
+    it('renders "Demote to attendee" for a host with PENDING attendance', async () => {
+        const pendingAttendances = [
+            { id: "att-carol", userId: "u-promoted", status: "PENDING", user: { id: "u-promoted", name: "Carol Promoted", usertag: "carol" } },
+        ];
+        mockFetch([
+            { url: "/hosts", body: hostsResponse },
+            { url: "/attendees", body: pendingAttendances },
+        ]);
+        renderWithConfig(
+            <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={true} />,
+        );
+        await waitFor(() => expect(screen.getByText("Carol Promoted")).toBeInTheDocument());
+        expect(screen.getByRole("button", { name: /demote to attendee/i })).toBeInTheDocument();
+    });
 });
 
 describe("HostsManagementSection — canManage gating", () => {

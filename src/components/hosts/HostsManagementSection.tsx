@@ -133,10 +133,18 @@ export function HostsManagementSection({
 
     const hostUserIds = useMemo(() => hosts.map((h) => h.userId), [hosts]);
 
+    // Only attendances with a "live" status drive the "Demote to attendee"
+    // affordance. A CANCELLED or REJECTED row is technically still there,
+    // but demoting onto it produces no meaningful preserved registration —
+    // the host's removal should read as "Remove" in that case. APPROVED
+    // and PENDING are the two statuses that mean the person is actually
+    // (or about to be) attending; only those drive the demote label.
     const attendanceByUserId = useMemo(() => {
         const m = new Map<string, Attendee>();
         for (const a of attendees) {
-            if (a.userId) m.set(a.userId, a);
+            if (!a.userId) continue;
+            const s = (a.status || "").toUpperCase();
+            if (s === "APPROVED" || s === "PENDING") m.set(a.userId, a);
         }
         return m;
     }, [attendees]);
