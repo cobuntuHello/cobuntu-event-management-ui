@@ -1,26 +1,28 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
 import { useEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 
 /**
- * One row in the HostsManagementSection — a host with their avatar +
- * name + per-host action menu.
+ * One row in the HostsManagementSection — avatar + name + a single
+ * inline action button (no popover, no "..." menu).
  *
  * Three visual states:
- *   - **Creator-locked** — for the immutable creator-host of a USER-owned
- *     event. Renders a "Creator 🔒" badge, no menu. Tooltip on hover
- *     explains "Receives payments from this event."
- *   - **Demote-able** — host has an existing event_attendance. Menu
- *     option is "Demote to attendee" (keeps their attendance + payment
- *     in place; they're "just attending" again).
- *   - **Removable** — host has no attendance. Menu option is "Remove
- *     from hosts" (clean host_row delete, no side effect).
+ *   - **Creator-locked** — immutable creator-host of a USER-owned event
+ *     (event.communityId IS NULL AND host.userId === event.createdByUserId).
+ *     Renders a "Creator 🔒" badge with a tooltip, no action button.
+ *   - **Demote-able** — host has an existing event_attendance. Inline
+ *     button reads "Demote to attendee" — keeps their attendance +
+ *     payment in place.
+ *   - **Removable** — host has no attendance. Inline button reads
+ *     "Remove" — clean host_row delete.
  *
- * The smart label is consumer-facing: the BE classifies the action by
- * outcome regardless of which label was on the button — see
- * event_host_audits.action (REMOVED vs DEMOTED_TO_ATTENDEE).
+ * Click on the action surfaces the ConfirmRemoveHostModal where the
+ * operator confirms; this component never issues the DELETE itself.
+ *
+ * 2026-06-18 redesign: replaced the "..." kebab + popover with an
+ * always-visible inline button. The kebab pattern was the wrong
+ * affordance for a row that only ever has one action.
  */
 
 export interface Host {
@@ -34,58 +36,30 @@ export interface Host {
         profileImage?: string | null;
         email?: string | null;
     };
+    hasManageEventsRole?: boolean;
 }
 
 interface Props {
     host: Host;
-    /**
-     * True when this is the creator-host of a USER-owned event
-     * (event.communityId IS NULL AND host.userId === event.createdByUserId).
-     * Renders the locked-creator chip — no menu, badge + tooltip.
-     */
     isImmutableCreator: boolean;
-    /**
-     * True when the target user has an existing event_attendances row,
-     * making the action a "demote" rather than a "remove" — different
-     * label, same BE call.
-     */
     hasAttendance: boolean;
-    /** Whether the current user can manage hosts on this event. */
     canManage: boolean;
-    onRemove: () => void;
+    onRequestRemove: () => void;
 }
 
-export function HostChip({ host, isImmutableCreator, hasAttendance, canManage, onRemove }: Props) {
+export function HostChip({ host, isImmutableCreator, hasAttendance, canManage, onRequestRemove }: Props) {
     const config = useEventManagementConfig();
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
-    const [menuOpen, setMenuOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        if (!menuOpen) return;
-        function onClick(e: MouseEvent) {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-        }
-        function onEsc(e: KeyboardEvent) {
-            if (e.key === "Escape") setMenuOpen(false);
-        }
-        document.addEventListener("mousedown", onClick);
-        document.addEventListener("keydown", onEsc);
-        return () => {
-            document.removeEventListener("mousedown", onClick);
-            document.removeEventListener("keydown", onEsc);
-        };
-    }, [menuOpen]);
 
     return (
-        <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-zinc-50 group">
-            <UserAvatar user={host.user} className="w-9 h-9 shrink-0" />
+        <div className="flex items-center gap-3 px-6 py-3.5 hover:bg-zinc-50/60 transition-colors">
+            <UserAvatar user={host.user} className="w-10 h-10 shrink-0" />
             <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-medium text-zinc-900 truncate">
+                <p className="text-sm font-medium text-zinc-800 truncate">
                     {host.user.name || "Unknown"}
                 </p>
                 {host.user.usertag && (
-                    <p className="text-[12px] text-zinc-500 truncate">@{host.user.usertag}</p>
+                    <p className="text-[11px] text-zinc-400 truncate">@{host.user.usertag}</p>
                 )}
             </div>
 
@@ -101,32 +75,12 @@ export function HostChip({ host, isImmutableCreator, hasAttendance, canManage, o
                     Creator
                 </span>
             ) : canManage ? (
-                <div className="relative shrink-0" ref={menuRef}>
-                    <button
-                        onClick={() => setMenuOpen((v) => !v)}
-                        aria-label="Host actions"
-                        className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center text-zinc-500 cursor-pointer"
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <circle cx="12" cy="5" r="1" />
-                            <circle cx="12" cy="12" r="1" />
-                            <circle cx="12" cy="19" r="1" />
-                        </svg>
-                    </button>
-                    {menuOpen && (
-                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
-                            <button
-                                onClick={() => {
-                                    setMenuOpen(false);
-                                    onRemove();
-                                }}
-                                className="w-full text-left px-3 py-2 text-[13px] text-zinc-700 hover:bg-zinc-50 cursor-pointer"
-                            >
-                                {hasAttendance ? "Demote to attendee" : "Remove from hosts"}
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <button
+                    onClick={onRequestRemove}
+                    className="text-[12px] font-medium text-zinc-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors shrink-0"
+                >
+                    {hasAttendance ? "Demote to attendee" : "Remove"}
+                </button>
             ) : null}
         </div>
     );

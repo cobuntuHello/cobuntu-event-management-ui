@@ -117,6 +117,7 @@ export { PostSendCelebration } from "./components/attendees-action/PostSendCeleb
 export { HostsManagementSection, type HostsManagementSectionProps, type PromoteEligibleAttendee } from "./components/hosts/HostsManagementSection";
 export { HostChip, type Host } from "./components/hosts/HostChip";
 export { AddMemberAsHostModal, type AddMemberAsHostModalProps } from "./components/hosts/AddMemberAsHostModal";
+export { ConfirmRemoveHostModal, type ConfirmRemoveHostModalProps } from "./components/hosts/ConfirmRemoveHostModal";
 
 // Re-export the Stripe primitives in case a consumer wants to render the
 // status anywhere else (e.g. the Overview tab's "Connect Stripe" hint).

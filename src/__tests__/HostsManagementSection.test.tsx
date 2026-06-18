@@ -44,7 +44,7 @@ describe("HostsManagementSection — rendering", () => {
             <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={true} />,
         );
         expect(await screen.findByText(/loading hosts/i)).toBeInTheDocument();
-        resolveHosts?.();
+        (resolveHosts as any)?.();
     });
 
     it("renders all hosts after the fetch resolves", async () => {
@@ -93,7 +93,7 @@ describe("HostsManagementSection — creator-immutability", () => {
         expect(screen.queryByText(/^creator$/i)).not.toBeInTheDocument();
     });
 
-    it("hides the action menu on the immutable creator-host", async () => {
+    it("hides the row's action button on the immutable creator-host", async () => {
         mockFetch([
             { url: "/hosts", body: hostsResponse },
             { url: "/attendees", body: attendeesResponse },
@@ -102,15 +102,15 @@ describe("HostsManagementSection — creator-immutability", () => {
             <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={true} />,
         );
         await waitFor(() => expect(screen.getByText("Alice Creator")).toBeInTheDocument());
-        // 3 hosts, only 2 menu buttons (Bob + Carol).
-        const menus = screen.getAllByRole("button", { name: /host actions/i });
-        expect(menus).toHaveLength(2);
+        // 3 hosts; 2 of them (Bob, Carol) have an inline action button.
+        // The creator row has no Remove/Demote button — only the badge.
+        const removeButtons = screen.getAllByRole("button", { name: /^remove$|demote to attendee/i });
+        expect(removeButtons).toHaveLength(2);
     });
 });
 
 describe("HostsManagementSection — demote vs remove label", () => {
-    it('shows "Demote to attendee" for a host with an attendance row', async () => {
-        const user = userEvent.setup();
+    it('renders "Demote to attendee" inline for a host with an attendance row', async () => {
         mockFetch([
             { url: "/hosts", body: hostsResponse },
             { url: "/attendees", body: attendeesResponse },
@@ -119,14 +119,11 @@ describe("HostsManagementSection — demote vs remove label", () => {
             <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={true} />,
         );
         await waitFor(() => expect(screen.getByText("Carol Promoted")).toBeInTheDocument());
-        // Open Carol's menu. She's the 2nd menu (Bob is 1st, Alice has no menu).
-        const menus = screen.getAllByRole("button", { name: /host actions/i });
-        await user.click(menus[1]);
-        expect(await screen.findByText(/demote to attendee/i)).toBeInTheDocument();
+        // Carol has an APPROVED attendance → label is "Demote to attendee".
+        expect(screen.getByRole("button", { name: /demote to attendee/i })).toBeInTheDocument();
     });
 
-    it('shows "Remove from hosts" for a host with no attendance row', async () => {
-        const user = userEvent.setup();
+    it('renders "Remove" inline for a host with no attendance row', async () => {
         mockFetch([
             { url: "/hosts", body: hostsResponse },
             { url: "/attendees", body: attendeesResponse },
@@ -135,10 +132,9 @@ describe("HostsManagementSection — demote vs remove label", () => {
             <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={true} />,
         );
         await waitFor(() => expect(screen.getByText("Bob")).toBeInTheDocument());
-        // Bob (1st menu) has no attendance.
-        const menus = screen.getAllByRole("button", { name: /host actions/i });
-        await user.click(menus[0]);
-        expect(await screen.findByText(/remove from hosts/i)).toBeInTheDocument();
+        // Bob has no attendance → at least one inline "Remove" exists.
+        const removeButtons = screen.getAllByRole("button", { name: /^remove$/i });
+        expect(removeButtons.length).toBeGreaterThanOrEqual(1);
     });
 });
 
@@ -152,11 +148,11 @@ describe("HostsManagementSection — canManage gating", () => {
             <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={false} />,
         );
         await waitFor(() => expect(screen.getByText("Alice Creator")).toBeInTheDocument());
-        expect(screen.queryByRole("button", { name: /add community member/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /add member/i })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: /promote attendee/i })).not.toBeInTheDocument();
     });
 
-    it("hides per-host menus when canManage=false", async () => {
+    it("hides per-row inline buttons when canManage=false", async () => {
         mockFetch([
             { url: "/hosts", body: hostsResponse },
             { url: "/attendees", body: attendeesResponse },
@@ -165,7 +161,7 @@ describe("HostsManagementSection — canManage gating", () => {
             <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={false} />,
         );
         await waitFor(() => expect(screen.getByText("Bob")).toBeInTheDocument());
-        expect(screen.queryByRole("button", { name: /host actions/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /^remove$|demote to attendee/i })).not.toBeInTheDocument();
     });
 
     it("hides action buttons for a past event even when canManage=true", async () => {
@@ -178,7 +174,7 @@ describe("HostsManagementSection — canManage gating", () => {
             <HostsManagementSection event={pastEvent} communityTag="c" canManage={true} />,
         );
         await waitFor(() => expect(screen.getByText("Bob")).toBeInTheDocument());
-        expect(screen.queryByRole("button", { name: /add community member/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /add member/i })).not.toBeInTheDocument();
     });
 });
 
@@ -229,11 +225,9 @@ describe("HostsManagementSection — promote eligibility", () => {
     });
 });
 
-describe("HostsManagementSection — remove flow", () => {
-    it("optimistically drops the chip + calls DELETE on the BE", async () => {
+describe("HostsManagementSection — remove flow (via confirm modal)", () => {
+    it("opens the confirm modal, confirms, calls DELETE, then refreshes", async () => {
         const user = userEvent.setup();
-        // Track GET /hosts calls so the post-DELETE refresh returns
-        // the post-removal list (BE is the source of truth on refresh).
         let hostsCallCount = 0;
         const fetchMock = mockFetch([
             {
@@ -253,17 +247,25 @@ describe("HostsManagementSection — remove flow", () => {
         );
         await waitFor(() => expect(screen.getByText("Bob")).toBeInTheDocument());
 
-        const menus = screen.getAllByRole("button", { name: /host actions/i });
-        await user.click(menus[0]); // Bob
-        await user.click(await screen.findByText(/remove from hosts/i));
+        // Click Bob's inline "Remove" → confirm modal opens.
+        const removeButtons = screen.getAllByRole("button", { name: /^remove$/i });
+        await user.click(removeButtons[0]);
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
 
-        // Bob removed (optimistic + confirmed by refresh).
+        // Modal headline includes Bob's name + intent.
+        expect(screen.getByText(/remove bob from hosts\?/i)).toBeInTheDocument();
+
+        // Confirm.
+        const confirmButton = screen.getAllByRole("button", { name: /remove from hosts/i })[0];
+        await user.click(confirmButton);
+
+        // Bob removed; DELETE called once.
         await waitFor(() => expect(screen.queryByText("Bob")).not.toBeInTheDocument());
         const calls = (fetchMock as any).mock.calls.filter((c: any[]) => /\/hosts\/u-bob$/.test(c[0]));
         expect(calls).toHaveLength(1);
     });
 
-    it("restores the chip + surfaces an error if DELETE returns 403 EVENT_CREATOR_IMMUTABLE", async () => {
+    it("restores the chip + surfaces error if DELETE returns 403 EVENT_CREATOR_IMMUTABLE", async () => {
         const user = userEvent.setup();
         mockFetch([
             { method: "GET", url: "/hosts", body: hostsResponse },
@@ -276,14 +278,88 @@ describe("HostsManagementSection — remove flow", () => {
         );
         await waitFor(() => expect(screen.getByText("Bob")).toBeInTheDocument());
 
-        const menus = screen.getAllByRole("button", { name: /host actions/i });
-        await user.click(menus[0]);
-        await user.click(await screen.findByText(/remove from hosts/i));
+        const removeButtons = screen.getAllByRole("button", { name: /^remove$/i });
+        await user.click(removeButtons[0]);
+        const confirmButton = screen.getAllByRole("button", { name: /remove from hosts/i })[0];
+        await user.click(confirmButton);
 
-        // Bob restored + error shown.
         await waitFor(() =>
             expect(screen.getByText(/event creator can't be removed/i)).toBeInTheDocument(),
         );
+        expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    it("shows the dynamic 'aesthetic-only' warning when target has manage-events role", async () => {
+        const user = userEvent.setup();
+        const hostsWithRole = hostsResponse.map((h) =>
+            h.userId === "u-bob" ? { ...h, hasManageEventsRole: true } : h,
+        );
+        mockFetch([
+            { url: "/hosts", body: hostsWithRole },
+            { url: "/attendees", body: attendeesResponse },
+        ]);
+
+        renderWithConfig(
+            <HostsManagementSection
+                event={userOwnedEvent}
+                communityTag="c"
+                communityName="PBN"
+                canManage={true}
+            />,
+        );
+        await waitFor(() => expect(screen.getByText("Bob")).toBeInTheDocument());
+        const removeButtons = screen.getAllByRole("button", { name: /^remove$/i });
+        await user.click(removeButtons[0]);
+
+        expect(await screen.findByText(/mostly aesthetic/i)).toBeInTheDocument();
+        expect(screen.getByText(/manage-events role/i)).toBeInTheDocument();
+    });
+
+    it("rephrases warning in the second person when operator removes themselves", async () => {
+        const user = userEvent.setup();
+        const hostsWithRole = hostsResponse.map((h) =>
+            h.userId === "u-bob" ? { ...h, hasManageEventsRole: true } : h,
+        );
+        mockFetch([
+            { url: "/hosts", body: hostsWithRole },
+            { url: "/attendees", body: attendeesResponse },
+        ]);
+
+        renderWithConfig(
+            <HostsManagementSection
+                event={userOwnedEvent}
+                communityTag="c"
+                communityName="PBN"
+                canManage={true}
+                currentUserId="u-bob"
+            />,
+        );
+        await waitFor(() => expect(screen.getByText("Bob")).toBeInTheDocument());
+        const removeButtons = screen.getAllByRole("button", { name: /^remove$/i });
+        await user.click(removeButtons[0]);
+
+        // Self-voice: "You'll still be able to manage…"
+        expect(await screen.findByText(/you'll still be able to manage/i)).toBeInTheDocument();
+    });
+
+    it("Cancel closes the modal without issuing DELETE", async () => {
+        const user = userEvent.setup();
+        const fetchMock = mockFetch([
+            { method: "GET", url: "/hosts", body: hostsResponse },
+            { method: "GET", url: "/attendees", body: attendeesResponse },
+        ]);
+
+        renderWithConfig(
+            <HostsManagementSection event={userOwnedEvent} communityTag="c" canManage={true} />,
+        );
+        await waitFor(() => expect(screen.getByText("Bob")).toBeInTheDocument());
+        const removeButtons = screen.getAllByRole("button", { name: /^remove$/i });
+        await user.click(removeButtons[0]);
+        await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        const deleteCalls = (fetchMock as any).mock.calls.filter((c: any[]) => c[1]?.method === "DELETE");
+        expect(deleteCalls).toHaveLength(0);
         expect(screen.getByText("Bob")).toBeInTheDocument();
     });
 });
