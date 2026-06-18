@@ -1046,6 +1046,14 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             {sale.refund?.reason && (
               <p className="text-[11px] text-zinc-400 truncate mt-0.5">Reason: {sale.refund.reason}</p>
             )}
+            {sale.refund?.bypassReason && (
+              <p
+                className="text-[11px] text-amber-700 truncate mt-0.5"
+                title="Refunded past the standard window under the event's extended-mode refund policy."
+              >
+                Policy override: {sale.refund.bypassReason}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
             <span className="text-[12px] font-medium text-zinc-900 tabular-nums">
