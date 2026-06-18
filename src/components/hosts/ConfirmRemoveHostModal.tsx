@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 
@@ -90,9 +91,16 @@ export function ConfirmRemoveHostModal({
             : `${target.user.name || "They"} will still be able to manage this event because they hold the manage-events role${communityName ? ` in ${communityName}` : ""}. This removal is mostly aesthetic — they remain in control.`
         : null;
 
-    return (
+    // Portal to document.body so the fixed backdrop escapes any
+    // ancestor stacking-context (transforms / will-change / contain on
+    // admin's sidebar layout would otherwise clip `fixed inset-0` to
+    // the main content column, leaving the sidebar + top nav punched
+    // through the overlay — surfaced 2026-06-18 on PBN W35).
+    if (typeof document === "undefined") return null;
+
+    const modal = (
         <div
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40"
             onClick={() => { if (!submitting) onClose(); }}
         >
             <div
@@ -146,4 +154,6 @@ export function ConfirmRemoveHostModal({
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 }
