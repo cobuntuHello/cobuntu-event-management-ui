@@ -72,7 +72,7 @@ interface Invitation {
   invitedUser?: { id: string; name: string; usertag: string; profileImage?: string } | null;
 }
 
-type Tab = "approved" | "pending" | "rejected" | "cancelled" | "invitations";
+type Tab = "approved" | "pending" | "rejected" | "cancelled" | "refunded" | "invitations";
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: "R$" };
 
@@ -110,6 +110,13 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   // Phase H of host-refunds-and-sales-visibility (2026-05-25):
   // unified attendees+sales view replacing the prior duplicate sections.
   const [salesByBuyer, setSalesByBuyer] = useState<Map<string, SaleRow>>(new Map());
+  // Refunded sales for this event, deduped by sale id. Powers the
+  // "Refunded" tab (2026-06-18 — Cátia @ PBN W35 Ana-refund follow-up):
+  // hosts can see who got refunded, when, why, for how much, and open
+  // the credit-note PDF without leaving the page. Separate from the
+  // salesByBuyer map (which intentionally drops refunded rows so they
+  // don't double-count in revenue/fees KPIs).
+  const [refundedSales, setRefundedSales] = useState<SaleRow[]>([]);
   const [refundSale, setRefundSale] = useState<SaleRow | null>(null);
   const [salesRefreshTick, setSalesRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -205,9 +212,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             // 2026-06-07: ana@barrosmakers.com paid €24 to PBN's
             // Startup Founders' Night but showed up as Comp.
             const map = new Map<string, SaleRow>();
+            const refunded: SaleRow[] = [];
             for (const s of (salesData.sales || [])) {
               if (s.eventId !== event.id) continue;
-              if (s.refundStatus !== "NONE") continue;
               const buyerEmail: string | null = s.buyer?.email ?? s.buyerEmail ?? null;
               if (!s.buyer?.id && !buyerEmail) continue;
               const row: SaleRow = {
@@ -233,11 +240,30 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 scheduledPayoutAt: s.scheduledPayoutAt ?? null,
                 paidOutAt: s.paidOutAt ?? null,
                 transaction: s.transaction ?? { id: "", status: null, totalAmount: null, currency: null },
+                refund: s.refund ?? null,
+                creditNote: s.creditNote ?? null,
               };
+              if (s.refundStatus === "FULL" || s.refundStatus === "PARTIAL") {
+                refunded.push(row);
+                // Don't slot refunded rows into the live salesByBuyer map —
+                // it backs revenue/fees KPIs and the per-row Refund button
+                // surface, both of which intentionally exclude refunded
+                // sales.
+                continue;
+              }
+              if (s.refundStatus !== "NONE") continue;
               if (s.buyer?.id) map.set(`uid:${s.buyer.id}`, row);
               if (buyerEmail) map.set(`em:${buyerEmail.toLowerCase()}`, row);
             }
             setSalesByBuyer(map);
+            // Sort newest refund first so PBN-style "what happened most
+            // recently" scanning is one glance.
+            refunded.sort((a, b) => {
+              const ta = a.refund?.createdAt ? new Date(a.refund.createdAt).getTime() : new Date(a.createdAt).getTime();
+              const tb = b.refund?.createdAt ? new Date(b.refund.createdAt).getTime() : new Date(b.createdAt).getTime();
+              return tb - ta;
+            });
+            setRefundedSales(refunded);
           }
           idx++;
         }
@@ -402,6 +428,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     // historical exits regardless of event type.
     ...(cancelled.length > 0 ? [
       { key: "cancelled" as Tab, label: "Cancelled", count: cancelled.length },
+    ] : []),
+    // Refunded: only shown when at least one refunded sale exists for
+    // this event. Powers "who got their money back" auditing for hosts
+    // without leaking the section onto free events.
+    ...(refundedSales.length > 0 ? [
+      { key: "refunded" as Tab, label: "Refunded", count: refundedSales.length },
     ] : []),
     { key: "invitations" as Tab, label: "Invitations", count: pendingInvitations.length },
   ];
@@ -606,6 +638,18 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             </div>
           ) : (
             <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No cancelled attendees</div>
+          )
+        )}
+
+        {tab === "refunded" && (
+          refundedSales.length > 0 ? (
+            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+              {refundedSales.map((sale) => (
+                <RefundedRow key={sale.id} sale={sale} />
+              ))}
+            </div>
+          ) : (
+            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No refunded sales</div>
           )
         )}
 
@@ -905,6 +949,102 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             )}
             <RefundBadge sale={sale} />
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 shrink-0">Cancelled</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * Single-line view of a refunded sale. Buyer + refund amount + when +
+   * (optional) reason + a "Credit note" button that opens the Stripe
+   * credit-note PDF in a new tab.
+   *
+   * Render decisions:
+   *   - Identity: prefer the resolved buyer name; fall back to email
+   *     for guest checkouts (sale.buyerEmail). Hosts still need to
+   *     recognise the person even when there's no users row.
+   *   - Amount: refund.amount when present, else the gross (full
+   *     refund). Lifted from the sale's currency so EUR/USD events
+   *     render correctly.
+   *   - PDF link: prefers stripeHostedUrl (Stripe's permanent share
+   *     URL — stripeInvoicePdf rotates after ~30 days and 404s on old
+   *     credit notes; see feedback_stripe_rotating_pdf_urls).
+   *   - Missing credit note: the cascade creates the credit-note
+   *     async/fire-and-forget after the refund itself completes, so
+   *     there's a window where refund exists but creditNote doesn't.
+   *     In that case render a "Credit note pending" pill instead of a
+   *     broken link.
+   *
+   * Cancellation/refund timing reads off refund.createdAt when
+   * available (the actual Stripe-side refund timestamp) and falls back
+   * to the sale createdAt otherwise.
+   */
+  function RefundedRow({ sale }: { sale: SaleRow }) {
+    const buyerName = sale.buyer?.name || sale.buyerEmail || "Unknown";
+    const subtitleParts: string[] = [];
+    if (sale.buyer?.usertag) subtitleParts.push(`@${sale.buyer.usertag}`);
+    if (sale.buyerEmail) subtitleParts.push(sale.buyerEmail);
+    const refundAmount = sale.refund?.amount ?? sale.grossAmount;
+    const refundedAt = sale.refund?.createdAt
+      ? new Date(sale.refund.createdAt)
+      : new Date(sale.createdAt);
+    const refundedAtLabel = refundedAt.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    const creditNoteUrl = sale.creditNote?.stripeHostedUrl || sale.creditNote?.stripeInvoicePdf || null;
+    return (
+      <div className="flex items-start sm:items-center gap-3 px-4 sm:px-6 py-3 opacity-90">
+        <UserAvatar
+          user={{
+            id: sale.buyer?.id || undefined,
+            name: sale.buyer?.name || undefined,
+            usertag: sale.buyer?.usertag || undefined,
+          }}
+          className="w-9 h-9 shrink-0"
+        />
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-zinc-800 truncate">{buyerName}</p>
+            {subtitleParts.length > 0 && (
+              <p className="text-[11px] text-zinc-400 truncate">{subtitleParts.join(" · ")}</p>
+            )}
+            {sale.refund?.reason && (
+              <p className="text-[11px] text-zinc-400 truncate mt-0.5">Reason: {sale.refund.reason}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            <span className="text-[12px] font-medium text-zinc-900 tabular-nums">
+              {SYMBOLS[sale.currency] || sale.currency} {(refundAmount / 100).toFixed(2)}
+            </span>
+            <span className="text-[10px] font-medium text-zinc-500 tabular-nums">{refundedAtLabel}</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0">
+              {sale.refundStatus === "PARTIAL" ? "Partial refund" : "Refunded"}
+            </span>
+            {creditNoteUrl ? (
+              <a
+                href={creditNoteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-0.5 text-[10px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer inline-flex items-center gap-1 shrink-0"
+                title="Open the Stripe credit-note PDF"
+              >
+                Credit note
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <path d="M7 17 17 7" />
+                  <path d="M7 7h10v10" />
+                </svg>
+              </a>
+            ) : (
+              <span
+                title="The refund went through; the credit note is being generated and should appear in a few seconds."
+                className="px-2 py-0.5 text-[10px] font-medium rounded border border-zinc-200 text-zinc-400 bg-zinc-50 cursor-help shrink-0"
+              >
+                Credit note pending
+              </span>
+            )}
           </div>
         </div>
       </div>
