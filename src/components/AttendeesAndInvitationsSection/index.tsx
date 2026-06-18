@@ -719,7 +719,28 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     const subtitle: string[] = [];
     if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
     if (a.email) subtitle.push(a.email);
-    const refundable = sale && sale.payoutStatus === "ESCROW";
+    // Refund button matrix (post feat/configurable-event-refund-policy):
+    //
+    //   mode='default'  + ESCROW   → enabled (today's behaviour)
+    //   mode='default'  + ELIGIBLE → "Refund window closed" pill
+    //                                 (host can enable Extended in Settings)
+    //   mode='extended' + ESCROW   → enabled
+    //   mode='extended' + ELIGIBLE → enabled (the new capability —
+    //                                 modal shows the yellow bypass banner)
+    //   PAID (both modes)          → "Paid out — refund from Stripe" pill
+    //   BLOCKED                    → hidden (no row)
+    //
+    // The mode comes off event.refundPolicy.mode; NULL = 'default'
+    // (preserves today's behaviour for every event that hasn't opted in).
+    const refundPolicyMode: "default" | "extended" =
+      (event?.refundPolicy && (event.refundPolicy as any).mode === "extended") ? "extended" : "default";
+    const refundButtonState: "enabled" | "disabled-policy" | "disabled-paid-out" | "hidden" = (() => {
+      if (!sale) return "hidden";
+      if (sale.payoutStatus === "ESCROW") return "enabled";
+      if (sale.payoutStatus === "ELIGIBLE") return refundPolicyMode === "extended" ? "enabled" : "disabled-policy";
+      if (sale.payoutStatus === "PAID") return "disabled-paid-out";
+      return "hidden";
+    })();
     return (
       <div role="button" tabIndex={0} onClick={onOpen}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
@@ -753,28 +774,23 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">Complimentary</span>
             )}
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">Confirmed</span>
-            {/* Phase H: Refund button only for paid attendees within escrow.
-                2026-06-15 (feat/publish-validation-errors-and-refund-ux):
-                surfaced the disabled-state reason inline instead of
-                hiding it in a hover-only `title=` tooltip. Pre-fix the
-                grayed-out button gave hosts no idea why they couldn't
-                refund — they'd assume something was broken. Now the
-                label itself becomes "Refund window closed" with a
-                visible (i) icon and a richer tooltip explaining where
-                to go for help. */}
-            {sale && refundable && (
+            {/* Refund button matrix — see refundButtonState derivation
+                above. The "enabled" state opens RefundSaleModal which
+                handles both standard (ESCROW) and bypass (ELIGIBLE)
+                refunds via the modal's payoutStatus-aware UI. */}
+            {refundButtonState === "enabled" && sale && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onRefund(sale); }}
-                title="Refund this attendee"
+                title={sale.payoutStatus === "ESCROW" ? "Refund this attendee" : "Refund this attendee (past standard window)"}
                 className="px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer"
               >
                 Refund
               </button>
             )}
-            {sale && !refundable && (
+            {refundButtonState === "disabled-policy" && (
               <span
-                title="The escrow window ended when the sale moved to payout. Contact Cobuntu support to escalate a refund."
+                title="Sale is past the standard refund window. Enable Extended refunds in event Settings to refund this attendee."
                 className="px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 border-zinc-200 text-zinc-500 bg-zinc-50 inline-flex items-center gap-1 cursor-help"
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
@@ -784,6 +800,22 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 </svg>
                 Refund window closed
               </span>
+            )}
+            {refundButtonState === "disabled-paid-out" && (
+              <a
+                href="https://dashboard.stripe.com/payments"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Already paid out to your community's Stripe account. Click to open your Stripe dashboard where you can issue the refund."
+                onClick={(e) => e.stopPropagation()}
+                className="px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 border-zinc-200 text-zinc-500 bg-zinc-50 inline-flex items-center gap-1 cursor-pointer hover:bg-zinc-100"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <path d="M7 17 17 7" />
+                  <path d="M7 7h10v10" />
+                </svg>
+                Paid out · Refund from Stripe
+              </a>
             )}
           </div>
         </div>
