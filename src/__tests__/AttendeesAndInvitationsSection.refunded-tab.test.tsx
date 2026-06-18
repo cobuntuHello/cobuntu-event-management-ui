@@ -156,4 +156,50 @@ describe("AttendeesAndInvitationsSection — Refunded tab", () => {
         const hits = await screen.findAllByText("guest@x.test");
         expect(hits.length).toBeGreaterThanOrEqual(1);
     });
+
+    it("renders the 'Policy override' line when refund.bypassReason is present", async () => {
+        // Post feat/sales-include-bypass-reason (2026-06-18): refunds
+        // issued past the standard window under extended-mode policy
+        // carry a bypassReason. The Refunded tab surfaces it as a
+        // distinct line so hosts can audit which refunds used the
+        // override at a glance.
+        mockFetch([
+            emptyStatsRoute,
+            emptyInvitationsRoute,
+            { url: /\/sales/, body: { sales: [refundedSale({ refund: { id: "rf-1", createdAt: "2026-06-17T11:00:00.000Z", amount: 2500, reason: "host_requested", bypassReason: "No-show; goodwill refund day after" } })] } },
+        ]);
+        renderWithConfig(
+            <AttendeesAndInvitationsSection
+                event={baseEvent}
+                communityTag="c"
+                isPublished={true}
+                isPast={false}
+            />,
+        );
+        const refundedTab = await screen.findByRole("button", { name: /Refunded/ });
+        await userEvent.click(refundedTab);
+        expect(
+            await screen.findByText(/Policy override: No-show; goodwill refund day after/),
+        ).toBeInTheDocument();
+    });
+
+    it("does NOT render a 'Policy override' line on a standard refund (bypassReason null)", async () => {
+        mockFetch([
+            emptyStatsRoute,
+            emptyInvitationsRoute,
+            { url: /\/sales/, body: { sales: [refundedSale()] } },
+        ]);
+        renderWithConfig(
+            <AttendeesAndInvitationsSection
+                event={baseEvent}
+                communityTag="c"
+                isPublished={true}
+                isPast={false}
+            />,
+        );
+        const refundedTab = await screen.findByRole("button", { name: /Refunded/ });
+        await userEvent.click(refundedTab);
+        await screen.findByText("Ana Buyer");
+        expect(screen.queryByText(/Policy override/)).not.toBeInTheDocument();
+    });
 });
