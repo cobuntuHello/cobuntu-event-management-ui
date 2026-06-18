@@ -6,6 +6,7 @@ import { ViewabilityEditModal } from "./ViewabilityEditModal";
 import { AccessibilityEditModal } from "./AccessibilityEditModal";
 import { DistributionEditModal } from "./DistributionEditModal";
 import { MembershipFunnelEditModal } from "./MembershipFunnelEditModal";
+import { RefundPolicyEditModal, refundPolicySummary } from "./RefundPolicyEditModal";
 import type {
     MembershipFunnelSectionEvent,
     MembershipFunnelSectionCommunity,
@@ -33,7 +34,7 @@ import type {
  * (feat/manage-event-restructure umbrella, settings-drawer sub-PR).
  */
 
-type ModalKey = "viewability" | "accessibility" | "distribution" | "funnel" | null;
+type ModalKey = "viewability" | "accessibility" | "distribution" | "funnel" | "refund-policy" | null;
 
 interface Props {
     event: any;
@@ -160,6 +161,17 @@ export function SettingsDrawer({
             />
         );
     }
+    if (modal === "refund-policy") {
+        return (
+            <RefundPolicyEditModal
+                event={event}
+                communityTag={communityTag}
+                onClose={closeModalAndReopenDrawer}
+                onSaved={modalSaved}
+                showToast={showToast}
+            />
+        );
+    }
 
     // ─── Drawer ─────────────────────────────────────
     if (!visible) return null;
@@ -253,6 +265,17 @@ export function SettingsDrawer({
                         icon={
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
                                 <path d="M3 3h18l-7 9v7l-4 2v-9z" />
+                            </svg>
+                        }
+                    />
+                    <SettingsRow
+                        label="Refund policy"
+                        summary={refundPolicySummary(event.refundPolicy)}
+                        onClick={() => openModal("refund-policy")}
+                        icon={
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
+                                <path d="M3 12a9 9 0 1 0 3.6-7.2" />
+                                <polyline points="3 4 3 10 9 10" />
                             </svg>
                         }
                     />

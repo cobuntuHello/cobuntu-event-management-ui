@@ -195,6 +195,7 @@ export {
 // sub-PR under the same umbrella once both consumers have migrated).
 export { SettingsDrawer } from "./components/SettingsDrawer";
 export { ViewabilityEditModal } from "./components/ViewabilityEditModal";
+export { RefundPolicyEditModal, refundPolicySummary } from "./components/RefundPolicyEditModal";
 export { AccessibilityEditModal } from "./components/AccessibilityEditModal";
 export { DescriptionEditModal } from "./components/DescriptionEditModal";
 export { TagsEditModal } from "./components/TagsEditModal";
