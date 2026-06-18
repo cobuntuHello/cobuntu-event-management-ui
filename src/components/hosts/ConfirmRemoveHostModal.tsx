@@ -81,14 +81,14 @@ export function ConfirmRemoveHostModal({
         : `Remove ${target.user.name || "this host"} from hosts?`;
     const baseExplanation = target.hasAttendance
         ? "They'll stop being a host but their event registration and any payment stay on file."
-        : "Their host status will be deleted. No registration or payment changes — they were never an attendee.";
+        : "Their host status will be deleted. No registration or payment changes. They were never an attendee.";
 
     // The "aesthetic-only" warning. Composed in two voices depending on
     // whether the operator is removing themselves or someone else.
     const roleWarning = target.hasManageEventsRole
         ? isSelf
-            ? `You'll still be able to manage this event after removing yourself because you hold the manage-events role${communityName ? ` in ${communityName}` : ""}. This removal is mostly aesthetic — you remain in control.`
-            : `${target.user.name || "They"} will still be able to manage this event because they hold the manage-events role${communityName ? ` in ${communityName}` : ""}. This removal is mostly aesthetic — they remain in control.`
+            ? `You'll still be able to manage this event after removing yourself because you hold the manage-events role${communityName ? ` in ${communityName}` : ""}. This removal is mostly aesthetic. You remain in control.`
+            : `${target.user.name || "They"} will still be able to manage this event because they hold the manage-events role${communityName ? ` in ${communityName}` : ""}. This removal is mostly aesthetic. They remain in control.`
         : null;
 
     // Portal to document.body so the fixed backdrop escapes any

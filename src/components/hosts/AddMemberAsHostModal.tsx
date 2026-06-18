@@ -200,7 +200,7 @@ export function AddMemberAsHostModal({
                             <ul className="space-y-1 list-disc list-inside [&>li]:pl-0">
                                 <li>They appear in the hosts list and can manage the event.</li>
                                 <li>They get an email letting them know they're now a host.</li>
-                                <li>No payment changes hands — they're not an attendee.</li>
+                                <li>No payment changes hands. They're not an attendee.</li>
                             </ul>
                         </div>
                         {error && <p className="text-[12px] text-red-600">{error}</p>}
