@@ -44,6 +44,20 @@ export {
   type AvailableCommunity,
 } from "./components/EventListingsSection";
 
+// Activity tab — reverse-chronological feed of every host-visible
+// action on the event. Powers the new Activity tab in admin +
+// community-app's event manage page. Fetches from the shared BE
+// endpoint shipped alongside (services/core
+// GET /api/communities/:tag/events/:eventId/activity). Plan doc:
+// cobuntu-backend-monorepo/docs/features/event-activity-log.md.
+export { EventActivityTab, type EventActivityTabProps } from "./components/activity/EventActivityTab";
+export {
+  renderActivitySentence,
+  formatRelativeTime,
+  type ActivityEntryForRender,
+  type RenderedSentence,
+} from "./components/activity/activitySentences";
+
 // Draft-mode helpers — for consumers (e.g. admin's create-event form)
 // rendering PriceEditModal in draftMode where the parent owns state.
 export type {
