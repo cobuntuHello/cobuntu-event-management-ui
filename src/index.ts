@@ -80,17 +80,10 @@ export { ShareModal } from "./components/ShareModal";
 export { PublishModal } from "./components/PublishModal";
 export { DeleteModal } from "./components/DeleteModal";
 
-// Membership funnel — host config UI for the event-as-membership-funnel feature.
-// Renders below AttendeesAndInvitationsSection in the event overview. Either
-// a three-radio config (None / EMBED / APPLY_LINK), or a blocked-state
-// explainer with an "Open event settings" button when event prerequisites
-// don't fit. Plan: cobuntu-backend-monorepo/docs/features/event-membership-funnel.md
-export {
-  MembershipFunnelSection,
-  type MembershipFunnelSectionProps,
-  type MembershipFunnelSectionEvent,
-  type MembershipFunnelSectionCommunity,
-} from "./components/MembershipFunnelSection";
+// (MembershipFunnelSection + MembershipFunnelEditModal removed alongside the
+// BE module kill in cobuntu-backend-monorepo PR #671. The event-membership-
+// funnel feature will be rebuilt as pure-FE later — Workstream 1 in the
+// events-domain roadmap.)
 export { DuplicateModal, type DuplicateModalProps } from "./components/DuplicateModal";
 
 // Promote-attendee-to-host — feat/manage-event-restructure sub-feature.
@@ -203,14 +196,15 @@ export {
 
 // feat/manage-event-restructure umbrella — settings-drawer sub-PR (v0.2.11).
 // New Settings drawer + extracted standalone modals so each setting can
-// either live inside the drawer (Viewability / Access / Distribution / Funnel)
-// or as a quick-edit card on the EventCard (Description / Tags). The legacy
-// EditEventDrawer stays exported (deprecated, will be removed in a later
-// sub-PR under the same umbrella once both consumers have migrated).
+// either live inside the drawer (Viewability / Access / Distribution /
+// Refund policy) or as a quick-edit card on the EventCard (Description /
+// Tags). The legacy EditEventDrawer stays exported (deprecated, will be
+// removed in a later sub-PR under the same umbrella once both consumers
+// have migrated).
 export { SettingsDrawer } from "./components/SettingsDrawer";
 export { ViewabilityEditModal } from "./components/ViewabilityEditModal";
 export { RefundPolicyEditModal, refundPolicySummary } from "./components/RefundPolicyEditModal";
 export { AccessibilityEditModal } from "./components/AccessibilityEditModal";
 export { DescriptionEditModal } from "./components/DescriptionEditModal";
 export { TagsEditModal } from "./components/TagsEditModal";
-export { MembershipFunnelEditModal } from "./components/MembershipFunnelEditModal";
+// (MembershipFunnelEditModal removed alongside the BE module kill.)
