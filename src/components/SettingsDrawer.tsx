@@ -5,50 +5,42 @@ import { createPortal } from "react-dom";
 import { ViewabilityEditModal } from "./ViewabilityEditModal";
 import { AccessibilityEditModal } from "./AccessibilityEditModal";
 import { DistributionEditModal } from "./DistributionEditModal";
-import { MembershipFunnelEditModal } from "./MembershipFunnelEditModal";
 import { RefundPolicyEditModal, refundPolicySummary } from "./RefundPolicyEditModal";
-import type {
-    MembershipFunnelSectionEvent,
-    MembershipFunnelSectionCommunity,
-} from "./MembershipFunnelSection";
 
 /**
  * Settings drawer for the event-management Overview tab.
  *
  * Holds the host-config settings that aren't core event metadata
- * (name/date/location/pricing). Four clickable rows, each opens a
- * standalone modal:
+ * (name/date/location/pricing). Each row opens a standalone modal:
  *
- *   - Visibility   (events.viewability — who can SEE)
- *   - Access       (events.accessibility — who can RSVP)
- *   - Distribution (NATIVE/EXTERNAL landing + Featured)
- *   - Membership funnel (None / EMBED / APPLY_LINK)
+ *   - Visibility    (events.viewability — who can SEE)
+ *   - Access        (events.accessibility — who can RSVP)
+ *   - Distribution  (NATIVE/EXTERNAL landing + Featured)
+ *   - Refund policy (per-event refund window override)
+ *
+ * (Membership-funnel row was removed alongside the BE module kill
+ * in cobuntu-backend-monorepo PR #671. The feature will be rebuilt
+ * as pure-FE later — Workstream 1 in the events-domain roadmap.)
  *
  * Same interaction pattern as the legacy EditEventDrawer's sub-modal
  * flow: clicking a row visually closes the drawer + opens the modal;
  * closing the modal re-opens the drawer with the updated state. The
  * drawer doesn't own form state — each modal PUTs to the API itself
  * and calls onSaved() to trigger the parent's reload.
- *
- * Plan: cobuntu-backend-monorepo/docs/features/event-membership-funnel.md
- * (feat/manage-event-restructure umbrella, settings-drawer sub-PR).
  */
 
-type ModalKey = "viewability" | "accessibility" | "distribution" | "funnel" | "refund-policy" | null;
+type ModalKey = "viewability" | "accessibility" | "distribution" | "refund-policy" | null;
 
 interface Props {
     event: any;
     communityTag: string;
-    /** Community shape required by MembershipFunnelEditModal. The parent
-     *  page fetches this; the drawer just forwards it through. */
-    community: MembershipFunnelSectionCommunity;
     isOpen: boolean;
     /**
      * When true, surfaces a one-line note at the top of the drawer that
-     * Access / Featured / Membership funnel no longer change anything
-     * for buyers because the event has ended. Settings stay editable
-     * (Visibility + Distribution detailSource still have legitimate
-     * post-event use). Defaults to false for backwards compatibility.
+     * Access / Featured no longer change anything for buyers because
+     * the event has ended. Settings stay editable (Visibility +
+     * Distribution detailSource still have legitimate post-event use).
+     * Defaults to false for backwards compatibility.
      */
     isPast?: boolean;
     onClose: () => void;
@@ -59,7 +51,6 @@ interface Props {
 export function SettingsDrawer({
     event,
     communityTag,
-    community,
     isOpen,
     isPast,
     onClose,
@@ -148,19 +139,6 @@ export function SettingsDrawer({
             />
         );
     }
-    if (modal === "funnel") {
-        return (
-            <MembershipFunnelEditModal
-                event={event as MembershipFunnelSectionEvent}
-                communityTag={communityTag}
-                community={community}
-                onClose={closeModalAndReopenDrawer}
-                onSaved={modalSaved}
-                onRequestEditSettings={closeModalAndReopenDrawer}
-                showToast={showToast}
-            />
-        );
-    }
     if (modal === "refund-policy") {
         return (
             <RefundPolicyEditModal
@@ -206,14 +184,14 @@ export function SettingsDrawer({
                     <h2 className="text-base font-semibold text-zinc-900">Settings</h2>
                 </div>
 
-                {/* Past-event note. Access / Featured / Membership funnel
-                    can still be toggled (idempotent on the BE) but they
-                    don't affect anything once the event has ended; flag
-                    it once at the drawer level rather than per-row. */}
+                {/* Past-event note. Access / Featured can still be
+                    toggled (idempotent on the BE) but they don't
+                    affect anything once the event has ended; flag it
+                    once at the drawer level rather than per-row. */}
                 {isPast && (
                     <div className="px-5 py-2.5 bg-zinc-50 border-b border-zinc-100 shrink-0">
                         <p className="text-[11px] text-zinc-500 leading-snug">
-                            Event has ended. Access, Featured, and the membership funnel no longer affect new registrations — only Visibility and a custom landing URL still apply.
+                            Event has ended. Access and Featured no longer affect new registrations — only Visibility and a custom landing URL still apply.
                         </p>
                     </div>
                 )}
@@ -259,16 +237,6 @@ export function SettingsDrawer({
                         }
                     />
                     <SettingsRow
-                        label="Membership funnel"
-                        summary={funnelSummary(event.funnelMode, event.funnelEmbedProvider)}
-                        onClick={() => openModal("funnel")}
-                        icon={
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
-                                <path d="M3 3h18l-7 9v7l-4 2v-9z" />
-                            </svg>
-                        }
-                    />
-                    <SettingsRow
                         label="Refund policy"
                         summary={refundPolicySummary(event.refundPolicy)}
                         onClick={() => openModal("refund-policy")}
@@ -284,16 +252,6 @@ export function SettingsDrawer({
         </>,
         document.body,
     );
-}
-
-function funnelSummary(mode: string | null | undefined, provider: string | null | undefined): string {
-    if (!mode) return "Off";
-    if (mode === "APPLY_LINK") return "Link to /apply";
-    if (mode === "EMBED") {
-        const p = provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : "External";
-        return `Embed · ${p}`;
-    }
-    return String(mode);
 }
 
 function SettingsRow({
