@@ -55,20 +55,22 @@ interface Props {
   onPromoteAttendeeFromDrawer?: (attendee: any) => void;
 }
 
-interface InvitationStats {
-  totalInvited: number;
-  pending: number;
-  accepted: number;
-  expired: number;
-  cancelled: number;
-  byInviter: { userId: string; name: string; profileImage: string | null; totalSent: number; accepted: number }[];
-}
-
 interface Invitation {
   id: string;
   email: string;
   status: string;
   invitedAt: string;
+  // Inviter (the user who SENT this invitation). Comes from the BE
+  // `getEventInvitations` `include: { users: { ... } }` which joins
+  // event_invitations.invitedBy → users. Required for the per-inviter
+  // aggregation that powers the "Top inviters" panel — computed
+  // client-side here since v0.2.28 (was a separate /invitations/stats
+  // round-trip before).
+  invitedBy?: string | null;
+  users?: { id: string; name: string; profileImage?: string | null } | null;
+  // Invitee (the user with the email that was invited). Added by BE
+  // enrichment after the include. Optional — null when the email
+  // doesn't match an existing user.
   invitedUser?: { id: string; name: string; usertag: string; profileImage?: string } | null;
 }
 
@@ -100,7 +102,6 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const cancelled = attendees.filter((a: any) => a.status === "CANCELLED");
 
   const [tab, setTab] = useState<Tab>("approved");
-  const [stats, setStats] = useState<InvitationStats | null>(null);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [pendingAttendees, setPendingAttendees] = useState<any[]>([]);
   // Map buyerUserId → full sale row, so:
@@ -156,12 +157,17 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     (async () => {
       setLoading(true);
       try {
-        const [statsRes, invRes] = await Promise.all([
-          fetch(`${API}/api/communities/${communityTag}/events/${lookupId}/invitations/stats`, { headers: authHeaders() }),
-          fetch(`${API}/api/communities/${communityTag}/events/${lookupId}/invitations`, { headers: authHeaders() }),
-        ]);
+        // Single fetch — the per-status counts + per-inviter aggregates
+        // (was a parallel /invitations/stats call) are derived from
+        // this list below. The BE service includes the inviter user
+        // via `users` relation on event_invitations, so we have
+        // everything needed client-side. Saves one round-trip per
+        // mount.
+        const invRes = await fetch(
+          `${API}/api/communities/${communityTag}/events/${lookupId}/invitations`,
+          { headers: authHeaders() },
+        );
         if (cancelled) return;
-        if (statsRes.ok) setStats(await statsRes.json());
         if (invRes.ok) {
           const data = await invRes.json();
           setInvitations(data.invitations || []);
@@ -375,14 +381,39 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   // arrives. Without the `!event` guard we'd briefly render an empty
   // "No attendees yet" state (since attendees come from `event.attendees`)
   // before the real list pops in, which reads as a content flash.
-  if (!event || (loading && !stats)) return <AttendeesSectionSkeleton />;
+  if (!event || (loading && invitations.length === 0)) return <AttendeesSectionSkeleton />;
 
-  const totalInvited = stats?.totalInvited ?? 0;
-  const accepted = stats?.accepted ?? 0;
-  const pending = stats?.pending ?? 0;
-  const expired = stats?.expired ?? 0;
-  const byInviter = stats?.byInviter ?? [];
+  // Per-status counts + per-inviter aggregates derived from the
+  // invitations list (was a separate /invitations/stats round-trip
+  // before v0.2.28). Same semantics as the BE aggregation.
+  const totalInvited = invitations.length;
+  const accepted = invitations.filter(i => i.status === "ACCEPTED").length;
+  const pending = invitations.filter(i => i.status === "PENDING").length;
+  const expired = invitations.filter(i => i.status === "EXPIRED").length;
   const pendingInvitations = invitations.filter(i => i.status === "PENDING");
+
+  // byInviter — group invitations by invitedBy + count totalSent +
+  // accepted. Mirrors the BE getInvitationStats logic but client-side.
+  // Map preserves insertion order; we sort by totalSent desc to match
+  // BE behaviour.
+  const inviterMap = new Map<string, { userId: string; name: string; profileImage: string | null; totalSent: number; accepted: number }>();
+  for (const inv of invitations) {
+    if (!inv.invitedBy || !inv.users) continue;
+    const existing = inviterMap.get(inv.invitedBy);
+    if (existing) {
+      existing.totalSent++;
+      if (inv.status === "ACCEPTED") existing.accepted++;
+    } else {
+      inviterMap.set(inv.invitedBy, {
+        userId: inv.users.id,
+        name: inv.users.name || "Unknown",
+        profileImage: inv.users.profileImage ?? null,
+        totalSent: 1,
+        accepted: inv.status === "ACCEPTED" ? 1 : 0,
+      });
+    }
+  }
+  const byInviter = Array.from(inviterMap.values()).sort((a, b) => b.totalSent - a.totalSent);
   const attendeeCount = approved.length;
   const acceptanceRate = totalInvited > 0 ? Math.round((accepted / totalInvited) * 100) : 0;
 
