@@ -86,6 +86,11 @@ export { DeleteModal } from "./components/DeleteModal";
 // events-domain roadmap.)
 export { DuplicateModal, type DuplicateModalProps } from "./components/DuplicateModal";
 
+// Event group chat (event<->chat linking). Host-only "Create Group Chat" modal
+// + the overview capacity notices. Backend: docs/features/event-group-chat.md.
+export { CreateGroupChatModal, type CreateGroupChatModalProps } from "./components/CreateGroupChatModal";
+export { EventChatCapacityNotice, type EventChatCapacityNoticeProps } from "./components/EventChatCapacityNotice";
+
 // Promote-attendee-to-host — feat/manage-event-restructure sub-feature.
 // Lets the event creator turn a paid attendee into a host without
 // adding a fresh, payment-bypassing host row. Mount alongside (not
