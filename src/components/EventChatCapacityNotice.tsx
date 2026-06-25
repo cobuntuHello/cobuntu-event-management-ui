@@ -64,8 +64,8 @@ export function EventChatCapacityNotice({
     return (
       <Banner tone="amber" onDismiss={() => setDismissed(true)}>
         <span>
-          This chat has {memberCount.toLocaleString()} members. Large open chats get noisy &mdash;
-          consider switching it to announce-only{onOpenChat ? " in the chat settings." : "."}
+          This chat has {memberCount.toLocaleString()} members. Large open chats get noisy,
+          so consider switching it to announce-only{onOpenChat ? " in the chat settings." : "."}
         </span>
         {onOpenChat && (
           <button onClick={onOpenChat} className="ml-2 underline font-medium cursor-pointer whitespace-nowrap">

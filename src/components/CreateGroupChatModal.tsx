@@ -77,7 +77,7 @@ export function CreateGroupChatModal({
       <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">Create group chat</h3>
       <p className="text-[13px] text-zinc-500 mb-4">
         Starts a group chat named &ldquo;{event.name || "this event"}&rdquo;. Everyone who joins
-        the event &mdash; RSVPs, buys a ticket, or is added &mdash; is added to the chat
+        the event (by RSVP, ticket, or being added) is added to the chat
         automatically. You and your co-hosts are admins.
       </p>
 
@@ -113,8 +113,8 @@ export function CreateGroupChatModal({
       {isLarge && (
         <div className="rounded-lg bg-amber-50 border border-amber-100 p-3 mb-4">
           <p className="text-[12px] text-amber-800">
-            This event has {attendeeCount?.toLocaleString()} attendees. Large open chats get noisy fast &mdash;
-            announce-only is recommended (you can change it later).
+            This event has {attendeeCount?.toLocaleString()} attendees. Large open chats get noisy fast,
+            so announce-only is recommended (you can change it later).
           </p>
         </div>
       )}
