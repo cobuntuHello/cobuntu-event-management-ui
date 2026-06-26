@@ -12,19 +12,21 @@ import { useUpdateEvent } from "../config";
  *   1. Host extension (mode = 'default' | 'extended'):
  *      - 'default'  → hosts can refund only ESCROW sales (today's
  *                     behaviour, the safe default).
- *      - 'extended' → hosts can refund ESCROW + ELIGIBLE sales (money
- *                     still in platform float, before the bi-weekly
- *                     cron has shipped to the community's Stripe
- *                     Connect account).
+ *      - 'extended' → hosts can also refund ELIGIBLE + HOLD sales —
+ *                     money the daily payout sweep has not yet shipped
+ *                     to the community's Stripe Connect account
+ *                     (ELIGIBLE = awaiting the next sweep, HOLD =
+ *                     parked below the payout threshold).
  *      PAID sales are ALWAYS blocked through Cobuntu under both
  *      modes — the host refunds those directly from their community's
  *      Stripe Express dashboard. We show that as informational text
  *      on the extended option.
  *
- *   2. Buyer self-service window (customBuyerWindowDays):
- *      Days before the event that buyers can still self-refund.
- *      Default 7. Range 0–90. 0 disables self-service entirely
- *      (buyers must always contact the host).
+ *   2. Buyer self-service (customBuyerWindowDays):
+ *      Payout reform made this on/off only — any value > 0 means
+ *      "buyers can self-refund until the event ends", 0 disables
+ *      self-service (buyers must contact the host). The magnitude is
+ *      no longer meaningful, so the UI is a toggle.
  *
  * Server-stamped fields (updatedAt, updatedByUserId) are NEVER
  * supplied by the FE — the backend overwrites them on every save.
@@ -46,53 +48,32 @@ interface Props {
     showToast: (msg: string) => void;
 }
 
+// Any positive value = "buyers can self-refund until the event ends"; the
+// magnitude is no longer meaningful (payout reform), so we send a stable
+// default when enabling and 0 when disabling.
 const DEFAULT_BUYER_WINDOW_DAYS = 7;
-const MAX_BUYER_WINDOW_DAYS = 90;
 
 export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
     const updateEvent = useUpdateEvent();
     const currentPolicy: RefundPolicy = readPolicy(event.refundPolicy);
     const [mode, setMode] = useState<"default" | "extended">(currentPolicy.mode);
-    const [buyerWindowDays, setBuyerWindowDays] = useState<number>(
-        currentPolicy.customBuyerWindowDays ?? DEFAULT_BUYER_WINDOW_DAYS,
+    // on/off only: > 0 means enabled-until-END.
+    const [buyerSelfRefund, setBuyerSelfRefund] = useState<boolean>(
+        (currentPolicy.customBuyerWindowDays ?? DEFAULT_BUYER_WINDOW_DAYS) > 0,
     );
     const [saving, setSaving] = useState(false);
-    const [windowError, setWindowError] = useState<string | null>(null);
-
-    function validateAndSetWindow(raw: string) {
-        // Empty input means "stay at the current value visually" — only
-        // commit on submit. Don't fight the user mid-keystroke.
-        if (raw === "") {
-            setWindowError(null);
-            setBuyerWindowDays(NaN as any);
-            return;
-        }
-        const n = Number(raw);
-        if (!Number.isInteger(n)) {
-            setWindowError("Whole days only.");
-            setBuyerWindowDays(n);
-            return;
-        }
-        if (n < 0 || n > MAX_BUYER_WINDOW_DAYS) {
-            setWindowError(`Must be between 0 and ${MAX_BUYER_WINDOW_DAYS}.`);
-            setBuyerWindowDays(n);
-            return;
-        }
-        setWindowError(null);
-        setBuyerWindowDays(n);
-    }
 
     async function save() {
-        if (windowError) return;
-        // If the field was emptied, fall back to the default rather
-        // than sending NaN.
-        const effectiveDays = Number.isInteger(buyerWindowDays) ? buyerWindowDays : DEFAULT_BUYER_WINDOW_DAYS;
         setSaving(true);
         try {
             await updateEvent(communityTag, event.id, {
                 refundPolicy: {
                     mode,
-                    customBuyerWindowDays: effectiveDays,
+                    // > 0 = enabled-until-END; preserve any existing positive
+                    // value, else fall back to the default. 0 = disabled.
+                    customBuyerWindowDays: buyerSelfRefund
+                        ? (currentPolicy.customBuyerWindowDays || DEFAULT_BUYER_WINDOW_DAYS)
+                        : 0,
                 },
             } as any);
             showToast("Refund policy updated");
@@ -119,48 +100,41 @@ export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, s
                         selected={mode === "default"}
                         onClick={() => setMode("default")}
                         title="Standard"
-                        subtitle="You can refund tickets while funds are in escrow (before the next payout cycle picks them up)."
+                        subtitle="You can refund tickets while funds are still held in escrow, before the refund window closes."
                     />
                     <RadioRow
                         selected={mode === "extended"}
                         onClick={() => setMode("extended")}
                         title="Extended"
-                        subtitle="You can refund tickets until the bi-weekly payout sends funds to your community's Stripe account."
+                        subtitle="You can refund tickets after the refund window closes too, right up until the payout reaches your community's Stripe account."
                     />
                 </div>
                 <div className="mt-3 rounded-lg bg-zinc-50 border border-zinc-100 px-3 py-2">
                     <p className="text-[11px] text-zinc-500 leading-snug">
                         Once a payout has been sent to your community's Stripe account, refund the buyer directly from your{" "}
-                        <span className="font-medium text-zinc-700">Stripe dashboard</span>. Cobuntu does not refund funds that have left
-                        platform escrow.
+                        <span className="font-medium text-zinc-700">Stripe dashboard</span>. Cobuntu does not refund funds that have
+                        already been paid out.
                     </p>
                 </div>
             </div>
 
-            {/* Buyer self-service window */}
+            {/* Buyer self-service (on/off — reform: enabled means until the event ends) */}
             <div className="mb-5">
-                <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Buyer self-service window</p>
-                <label className="flex items-center gap-3">
-                    <span className="text-[13px] text-zinc-700">Buyers can self-refund up to</span>
-                    <input
-                        type="number"
-                        min={0}
-                        max={MAX_BUYER_WINDOW_DAYS}
-                        step={1}
-                        value={Number.isInteger(buyerWindowDays) ? buyerWindowDays : ""}
-                        onChange={(e) => validateAndSetWindow(e.target.value)}
-                        className={`w-16 text-center rounded-lg border px-2 py-1.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-zinc-200 ${
-                            windowError ? "border-red-300 bg-red-50" : "border-zinc-200"
-                        }`}
-                        aria-label="Days before event"
+                <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Buyer self-service</p>
+                <div className="space-y-2">
+                    <RadioRow
+                        selected={buyerSelfRefund}
+                        onClick={() => setBuyerSelfRefund(true)}
+                        title="Allowed until the event ends"
+                        subtitle="Buyers can cancel and self-refund any time up to when the event ends."
                     />
-                    <span className="text-[13px] text-zinc-700">days before the event.</span>
-                </label>
-                {windowError && <p className="mt-1 text-[11px] text-red-600">{windowError}</p>}
-                <p className="mt-2 text-[11px] text-zinc-500 leading-snug">
-                    Past that cutoff, buyers see a "Contact the host" message instead of the self-refund button. Set to{" "}
-                    <span className="font-medium text-zinc-700">0</span> to disable self-service entirely.
-                </p>
+                    <RadioRow
+                        selected={!buyerSelfRefund}
+                        onClick={() => setBuyerSelfRefund(false)}
+                        title="Off"
+                        subtitle="Buyers can't self-refund. They'll see a 'Contact the host' message instead."
+                    />
+                </div>
             </div>
 
             <div className="flex justify-end gap-2">
@@ -172,7 +146,7 @@ export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, s
                 </button>
                 <button
                     onClick={save}
-                    disabled={saving || !!windowError}
+                    disabled={saving}
                     className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
                 >
                     {saving ? "Saving..." : "Save"}
@@ -194,9 +168,12 @@ function readPolicy(raw: unknown): RefundPolicy {
     if (!raw || typeof raw !== "object") return { mode: "default" };
     const r = raw as Record<string, unknown>;
     const mode: RefundPolicy["mode"] = r.mode === "extended" ? "extended" : "default";
+    // on/off only now — any non-negative value is preserved (> 0 = enabled
+    // until the event ends, 0 = disabled). No upper bound; the magnitude is
+    // no longer meaningful.
     const days = typeof r.customBuyerWindowDays === "number" ? r.customBuyerWindowDays : undefined;
     const out: RefundPolicy = { mode };
-    if (days !== undefined && Number.isFinite(days) && days >= 0 && days <= MAX_BUYER_WINDOW_DAYS) {
+    if (days !== undefined && Number.isFinite(days) && days >= 0) {
         out.customBuyerWindowDays = days;
     }
     return out;
@@ -205,9 +182,9 @@ function readPolicy(raw: unknown): RefundPolicy {
 export function refundPolicySummary(raw: unknown): string {
     const policy = readPolicy(raw);
     const days = policy.customBuyerWindowDays ?? DEFAULT_BUYER_WINDOW_DAYS;
-    const buyerPart = days === 0
-        ? "Buyer self-service off"
-        : `Buyers self-refund up to ${days} day${days === 1 ? "" : "s"} pre-event`;
+    const buyerPart = days > 0
+        ? "Buyers self-refund until the event ends"
+        : "Buyer self-service off";
     if (policy.mode === "extended") {
         return `Extended · ${buyerPart}`;
     }

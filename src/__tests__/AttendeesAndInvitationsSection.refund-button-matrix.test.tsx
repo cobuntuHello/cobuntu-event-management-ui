@@ -47,7 +47,7 @@ function baseEvent(over: Partial<any> = {}) {
     };
 }
 
-function saleFor(payoutStatus: "ESCROW" | "ELIGIBLE" | "PAID" | "BLOCKED") {
+function saleFor(payoutStatus: "ESCROW" | "ELIGIBLE" | "PAID" | "HOLD") {
     return {
         id: "sale-1",
         createdAt: "2026-06-17T10:00:00.000Z",
@@ -75,6 +75,23 @@ describe("AttendeesAndInvitationsSection — refund-button matrix", () => {
             emptyStatsRoute,
             emptyInvitationsRoute,
             { url: /\/sales/, body: { sales: [saleFor("ESCROW")] } },
+        ]);
+        renderWithConfig(
+            <AttendeesAndInvitationsSection
+                event={baseEvent()}
+                communityTag="c"
+                isPublished={true}
+                isPast={false}
+            />,
+        );
+        await waitFor(() => expect(screen.getByRole("button", { name: /^Refund$/ })).toBeEnabled());
+    });
+
+    it("HOLD (any mode) → Refund button enabled (parked below threshold, still refundable)", async () => {
+        mockFetch([
+            emptyStatsRoute,
+            emptyInvitationsRoute,
+            { url: /\/sales/, body: { sales: [saleFor("HOLD")] } },
         ]);
         renderWithConfig(
             <AttendeesAndInvitationsSection

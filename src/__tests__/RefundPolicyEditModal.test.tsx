@@ -1,14 +1,14 @@
 /**
  * Tests for the per-event refund-policy edit modal.
  *
- * Pinned:
- *   - Renders mode radios + custom buyer window input
+ * Pinned (payout reform — customBuyerWindowDays is on/off only now):
+ *   - Renders mode radios + a buyer self-service toggle (on/off)
  *   - Hydrates from event.refundPolicy
- *   - Defaults (NULL policy) → "default" mode + 7-day buyer window
- *   - Validates customBuyerWindowDays in [0, 90]; non-integer rejected
+ *   - Defaults (NULL policy) → "default" mode + buyer self-service ON
+ *   - > 0 means "buyers self-refund until the event ends"; 0 = off
  *   - Save PUTs the canonical `{ mode, customBuyerWindowDays }` shape
- *   - Stripe-dashboard handoff helper text rendered (Cobuntu doesn't
- *     refund funds that have left platform escrow)
+ *     (enabling sends a positive value, off sends 0)
+ *   - Stripe-dashboard handoff helper text rendered
  *   - refundPolicySummary() helper renders human copy for all states
  */
 
@@ -34,21 +34,21 @@ const baseProps = (overrides: Record<string, unknown> = {}) => ({
     ...overrides,
 });
 
-const standardRadio = () => screen.getByRole("button", { name: /^Standard/ });
 const extendedRadio = () => screen.getByRole("button", { name: /^Extended/ });
-const windowInput = () => screen.getByLabelText(/days before event/i) as HTMLInputElement;
+const allowedToggle = () => screen.getByRole("button", { name: /Allowed until the event ends/ });
+const offToggle = () => screen.getByRole("button", { name: /^Off/ });
 
 describe("RefundPolicyEditModal — rendering + hydration", () => {
-    it("renders heading, both modes, and default values for an event without a policy", () => {
+    it("renders heading, both modes, and buyer self-service ON for an event without a policy", () => {
         renderWithConfig(<RefundPolicyEditModal {...baseProps()} />);
         expect(screen.getByText("Refund policy")).toBeInTheDocument();
         expect(screen.getByText("Standard")).toBeInTheDocument();
         expect(screen.getByText("Extended")).toBeInTheDocument();
-        // 7-day default for NULL policy.
-        expect(windowInput().value).toBe("7");
+        // NULL policy → buyer self-service defaults ON (selected).
+        expect(allowedToggle().className).toMatch(/border-zinc-900/);
     });
 
-    it("hydrates from an existing extended policy with custom buyer window", () => {
+    it("hydrates the Extended mode + self-service ON from an existing policy", () => {
         renderWithConfig(
             <RefundPolicyEditModal
                 {...baseProps({
@@ -63,10 +63,7 @@ describe("RefundPolicyEditModal — rendering + hydration", () => {
                 })}
             />,
         );
-        expect(windowInput().value).toBe("14");
-        // "Extended" radio shows visual selection via border-zinc-900.
-        // We assert via attribute since selection state isn't a native
-        // input attribute on these button-style radios.
+        expect(allowedToggle().className).toMatch(/border-zinc-900/);
         expect(extendedRadio().className).toMatch(/border-zinc-900/);
     });
 
@@ -76,7 +73,7 @@ describe("RefundPolicyEditModal — rendering + hydration", () => {
         expect(screen.getByText(/Cobuntu does not refund/i)).toBeInTheDocument();
     });
 
-    it("preserves customBuyerWindowDays=0 (off) instead of falling back to default", () => {
+    it("hydrates buyer self-service OFF when customBuyerWindowDays=0", () => {
         renderWithConfig(
             <RefundPolicyEditModal
                 {...baseProps({
@@ -86,32 +83,12 @@ describe("RefundPolicyEditModal — rendering + hydration", () => {
                 })}
             />,
         );
-        expect(windowInput().value).toBe("0");
-    });
-});
-
-describe("RefundPolicyEditModal — validation", () => {
-    it("rejects > 90 and surfaces an inline error", async () => {
-        const user = userEvent.setup();
-        renderWithConfig(<RefundPolicyEditModal {...baseProps()} />);
-        await user.clear(windowInput());
-        await user.type(windowInput(), "91");
-        expect(screen.getByText(/Must be between 0 and 90/)).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
-    });
-
-    it("rejects negatives", async () => {
-        const user = userEvent.setup();
-        renderWithConfig(<RefundPolicyEditModal {...baseProps()} />);
-        await user.clear(windowInput());
-        await user.type(windowInput(), "-1");
-        expect(screen.getByText(/Must be between 0 and 90/)).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+        expect(offToggle().className).toMatch(/border-zinc-900/);
     });
 });
 
 describe("RefundPolicyEditModal — save", () => {
-    it("PUTs { mode: 'extended', customBuyerWindowDays: 14 } when host enables extended + sets window", async () => {
+    it("PUTs { mode: 'extended', customBuyerWindowDays: 7 } when host enables extended (self-service on by default)", async () => {
         const user = userEvent.setup();
         const onSaved = vi.fn();
         const showToast = vi.fn();
@@ -120,55 +97,69 @@ describe("RefundPolicyEditModal — save", () => {
         ]);
         renderWithConfig(<RefundPolicyEditModal {...baseProps({ onSaved, showToast })} />);
         await user.click(extendedRadio());
-        await user.clear(windowInput());
-        await user.type(windowInput(), "14");
         await user.click(screen.getByRole("button", { name: /save/i }));
         await waitFor(() => expect(onSaved).toHaveBeenCalled());
         expect(showToast).toHaveBeenCalledWith("Refund policy updated");
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-        expect(body.refundPolicy).toEqual({ mode: "extended", customBuyerWindowDays: 14 });
+        // NULL policy + self-service on → default positive sentinel (7).
+        expect(body.refundPolicy).toEqual({ mode: "extended", customBuyerWindowDays: 7 });
         // updatedAt + updatedByUserId are server-stamped — never sent.
         expect(body.refundPolicy.updatedAt).toBeUndefined();
         expect(body.refundPolicy.updatedByUserId).toBeUndefined();
     });
 
-    it("PUTs customBuyerWindowDays=0 when set explicitly (disables self-service)", async () => {
+    it("PUTs customBuyerWindowDays=0 when buyer self-service is toggled off", async () => {
         const user = userEvent.setup();
         const fetchMock = mockFetch([
             { method: "PUT", url: "/api/communities/pbn/events/evt-1", body: { event: baseEvent() } },
         ]);
         renderWithConfig(<RefundPolicyEditModal {...baseProps()} />);
-        await user.clear(windowInput());
-        await user.type(windowInput(), "0");
+        await user.click(offToggle());
         await user.click(screen.getByRole("button", { name: /save/i }));
         await waitFor(() => expect(fetchMock).toHaveBeenCalled());
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
         expect(body.refundPolicy).toEqual({ mode: "default", customBuyerWindowDays: 0 });
     });
 
+    it("preserves an existing positive window value when re-saving with self-service on", async () => {
+        const user = userEvent.setup();
+        const fetchMock = mockFetch([
+            { method: "PUT", url: "/api/communities/pbn/events/evt-1", body: { event: baseEvent() } },
+        ]);
+        renderWithConfig(
+            <RefundPolicyEditModal
+                {...baseProps({ event: baseEvent({ refundPolicy: { mode: "extended", customBuyerWindowDays: 14 } }) })}
+            />,
+        );
+        await user.click(screen.getByRole("button", { name: /save/i }));
+        await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.refundPolicy).toEqual({ mode: "extended", customBuyerWindowDays: 14 });
+    });
+
     it("surfaces server error via showToast when the PUT 4xxs", async () => {
         const user = userEvent.setup();
         const showToast = vi.fn();
         mockFetch([
-            { method: "PUT", url: "/api/communities/pbn/events/evt-1", status: 400, body: { error: "refundPolicy.customBuyerWindowDays must be between 0 and 90" } },
+            { method: "PUT", url: "/api/communities/pbn/events/evt-1", status: 400, body: { error: "refundPolicy is invalid" } },
         ]);
         renderWithConfig(<RefundPolicyEditModal {...baseProps({ showToast })} />);
         await user.click(extendedRadio());
         await user.click(screen.getByRole("button", { name: /save/i }));
         await waitFor(() =>
-            expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/customBuyerWindowDays/i)),
+            expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/invalid/i)),
         );
     });
 });
 
 describe("refundPolicySummary helper", () => {
-    it("renders Standard · 7 days for null policy", () => {
-        expect(refundPolicySummary(null)).toBe("Standard · Buyers self-refund up to 7 days pre-event");
+    it("renders Standard · self-refund until the event ends for null policy", () => {
+        expect(refundPolicySummary(null)).toBe("Standard · Buyers self-refund until the event ends");
     });
 
-    it("renders Extended · 14 days for explicit policy", () => {
+    it("renders Extended · self-refund until the event ends for an enabled policy", () => {
         expect(refundPolicySummary({ mode: "extended", customBuyerWindowDays: 14 })).toBe(
-            "Extended · Buyers self-refund up to 14 days pre-event",
+            "Extended · Buyers self-refund until the event ends",
         );
     });
 
@@ -178,18 +169,12 @@ describe("refundPolicySummary helper", () => {
         );
     });
 
-    it("renders 'up to 1 day' (singular) for window=1", () => {
-        expect(refundPolicySummary({ mode: "default", customBuyerWindowDays: 1 })).toBe(
-            "Standard · Buyers self-refund up to 1 day pre-event",
-        );
-    });
-
-    it("falls back to default mode on malformed input", () => {
+    it("falls back to default mode (self-service on) on malformed input", () => {
         expect(refundPolicySummary("garbage" as any)).toBe(
-            "Standard · Buyers self-refund up to 7 days pre-event",
+            "Standard · Buyers self-refund until the event ends",
         );
         expect(refundPolicySummary({ mode: "any_time" } as any)).toBe(
-            "Standard · Buyers self-refund up to 7 days pre-event",
+            "Standard · Buyers self-refund until the event ends",
         );
     });
 });

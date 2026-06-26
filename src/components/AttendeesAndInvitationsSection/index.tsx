@@ -758,8 +758,10 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     //   mode='extended' + ESCROW   → enabled
     //   mode='extended' + ELIGIBLE → enabled (the new capability —
     //                                 modal shows the yellow bypass banner)
+    //   HOLD (both modes)          → enabled (parked below the payout
+    //                                 threshold, still in Cobuntu's balance,
+    //                                 so cleanly refundable like ESCROW)
     //   PAID (both modes)          → "Paid out — refund from Stripe" pill
-    //   BLOCKED                    → hidden (no row)
     //
     // The mode comes off event.refundPolicy.mode; NULL = 'default'
     // (preserves today's behaviour for every event that hasn't opted in).
@@ -768,6 +770,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     const refundButtonState: "enabled" | "disabled-policy" | "disabled-paid-out" | "hidden" = (() => {
       if (!sale) return "hidden";
       if (sale.payoutStatus === "ESCROW") return "enabled";
+      if (sale.payoutStatus === "HOLD") return "enabled";
       if (sale.payoutStatus === "ELIGIBLE") return refundPolicyMode === "extended" ? "enabled" : "disabled-policy";
       if (sale.payoutStatus === "PAID") return "disabled-paid-out";
       return "hidden";
