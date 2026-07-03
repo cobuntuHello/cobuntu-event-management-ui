@@ -38,6 +38,19 @@ export interface EventManagementConfig {
   stripeConnectUrl: (communityTag: string) => string;
 
   /**
+   * Optional override for the Stripe-status endpoint the paid-tier gate
+   * hits. Defaults to
+   * `${apiBaseUrl}/api/communities/${communityTag}/stripe/connected` — the
+   * COMMUNITY's Stripe, used by the admin (community-leader) flow where the
+   * community collects. The community app's member "host an event" flow
+   * overrides this to the MEMBER's own Stripe
+   * (`${apiBaseUrl}/api/users/me/stripe/status`), since paid member events
+   * pay out to the member's Connect account. Must return a full URL and the
+   * endpoint must respond `{ connected, chargesEnabled }`.
+   */
+  stripeStatusUrl?: (communityTag: string) => string;
+
+  /**
    * Navigation callback used by components that take the host to
    * another page (e.g. AttendeesAndInvitationsSection's "Add Attendees"
    * + "Invite" buttons). Each app injects its own router — admin uses
