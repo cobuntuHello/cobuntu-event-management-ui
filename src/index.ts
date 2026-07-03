@@ -186,6 +186,28 @@ export { EventTags } from "./ui/event-tags";
 export { RichTextEditor } from "./ui/rich-text-editor";
 export { EventLocationSelector } from "./ui/event-location-selector";
 
+// Create-event form — the full "new event" form (image, name, schedule,
+// location/description/tags, ticket tiers, visibility/attendance/approval).
+// Moved out of cobuntu-admin so both the admin (community-leader-facing) and
+// the community app (member "host an event") render the EXACT same form and
+// can never drift again. The consumer wraps it in
+// <EventManagementConfigProvider> (Stripe status + tier modal read
+// apiBaseUrl/authHeaders/stripeConnectUrl from it) and owns the submit —
+// see each app's create-event page for the payload builder.
+export { EventForm, type EventFormData, type TierItem } from "./components/EventForm";
+
+// UI primitives the EventForm composes. Exported so consumers — especially
+// the community-app, which has no shadcn primitives of its own — can reuse
+// them directly (and so the banner cropper is available for other surfaces).
+export { Switch } from "./ui/switch";
+export { Slider } from "./ui/slider";
+export {
+  Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger,
+  DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+} from "./ui/dialog";
+export { BannerCropModal, type BannerCropResult } from "./ui/banner-crop-modal";
+export { StockPhotoPicker } from "./ui/stock-photo-picker";
+
 // Google Maps helpers (used by EventLocationSelector). Consumers can import
 // `isValidUrl` / `isVideoConferencingUrl` directly if they need to validate
 // URLs in form code outside the picker.
