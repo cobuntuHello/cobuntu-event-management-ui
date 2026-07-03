@@ -1,0 +1,226 @@
+"use client";
+
+import * as React from "react";
+import Cropper from "react-easy-crop";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./dialog";
+import { Button } from "./button";
+import { Slider } from "./slider";
+import { StockPhotoPicker } from "./stock-photo-picker";
+import { Image as ImageIcon, Trash2, Loader2 } from "lucide-react";
+import { cn } from "./utils";
+
+type CroppedAreaPixels = { width: number; height: number; x: number; y: number };
+
+export interface BannerCropResult {
+  base64: string | null;
+}
+
+interface BannerCropModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialImageSrc?: string | null;
+  onSave: (result: BannerCropResult) => Promise<void> | void;
+  title?: string;
+  hideStockPhotos?: boolean;
+}
+
+export function BannerCropModal({
+  open, onOpenChange, initialImageSrc = null, onSave, title = "Edit Banner", hideStockPhotos = false,
+}: BannerCropModalProps) {
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [optionsOpen, setOptionsOpen] = React.useState(false);
+  const [stockPhotoOpen, setStockPhotoOpen] = React.useState(false);
+  const [imageSrc, setImageSrc] = React.useState<string | null>(null);
+  const [crop, setCrop] = React.useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = React.useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = React.useState<CroppedAreaPixels | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (open) {
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+      setOptionsOpen(true);
+      setStockPhotoOpen(false);
+      setImageSrc(null);
+    } else {
+      setImageSrc(null);
+      setOptionsOpen(false);
+      setStockPhotoOpen(false);
+    }
+  }, [open]);
+
+  const triggerFilePicker = () => { requestAnimationFrame(() => fileInputRef.current?.click()); };
+
+  const handleStockPhotoSelect = (imageUrl: string) => {
+    setStockPhotoOpen(false);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (ctx) { ctx.drawImage(img, 0, 0); setImageSrc(canvas.toDataURL("image/jpeg", 0.92)); setOptionsOpen(false); }
+    };
+    img.src = imageUrl;
+  };
+
+  const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { setImageSrc(reader.result as string); setOptionsOpen(false); };
+    reader.readAsDataURL(file);
+  };
+
+  const onCropComplete = React.useCallback((_: any, pixels: CroppedAreaPixels) => { setCroppedAreaPixels(pixels); }, []);
+
+  const getCroppedBase64 = async (src: string, area: CroppedAreaPixels): Promise<string> => {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      if (!src.startsWith("data:") && !src.startsWith("blob:")) img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = src;
+    });
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Failed to get canvas context");
+    const cropX = Math.max(0, Math.round(area.x));
+    const cropY = Math.max(0, Math.round(area.y));
+    const cropWidth = Math.min(Math.round(area.width), image.naturalWidth - cropX);
+    const cropHeight = Math.min(Math.round(area.height), image.naturalHeight - cropY);
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    return canvas.toDataURL("image/jpeg", 0.92);
+  };
+
+  const handleSave = async () => {
+    if (!imageSrc || !croppedAreaPixels) return;
+    setIsSaving(true);
+    try {
+      const base64 = await getCroppedBase64(imageSrc, croppedAreaPixels);
+      await onSave({ base64 });
+      onOpenChange(false);
+    } finally { setIsSaving(false); }
+  };
+
+  const handleClear = async () => {
+    setImageSrc(null);
+    setOptionsOpen(false);
+    await onSave({ base64: null });
+    onOpenChange(false);
+  };
+
+  const showCropModal = imageSrc !== null && !optionsOpen && !stockPhotoOpen;
+
+  return (
+    <>
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onSelectFile} />
+
+      {/* Options Dialog */}
+      <Dialog open={open && optionsOpen && !stockPhotoOpen && !showCropModal} onOpenChange={(o) => { setOptionsOpen(o); if (!o) onOpenChange(false); }}>
+        <DialogContent className={cn("max-w-sm gap-0 p-0 rounded-3xl border-0 shadow-2xl overflow-hidden",
+          "left-4 right-4 translate-x-0 sm:left-1/2 sm:right-auto sm:translate-x-[-50%]")}>
+          <DialogHeader className="px-6 py-5 text-center">
+            <DialogTitle className="text-base font-semibold text-center">{title}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 px-4 pb-4">
+            <button type="button" onClick={triggerFilePicker}
+              className="flex min-h-[48px] items-center justify-center rounded-xl bg-zinc-100 px-6 py-3 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-200 cursor-pointer">
+              Upload new image
+            </button>
+            {!hideStockPhotos && (
+              <button type="button" onClick={() => { setOptionsOpen(false); setStockPhotoOpen(true); }}
+                className="flex min-h-[48px] items-center justify-center rounded-xl bg-zinc-100 px-6 py-3 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-200 cursor-pointer">
+                <ImageIcon className="h-4 w-4 mr-2" />
+                Add Stock Photo
+              </button>
+            )}
+            {initialImageSrc && (
+              <button type="button" onClick={handleClear} disabled={isSaving}
+                className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-red-50 px-6 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 cursor-pointer">
+                <Trash2 className="h-4 w-4" />
+                Remove image
+              </button>
+            )}
+            <button type="button" onClick={() => { setOptionsOpen(false); onOpenChange(false); }}
+              className="flex min-h-[48px] items-center justify-center rounded-xl px-6 py-3 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 cursor-pointer">
+              Cancel
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stock Photo Picker */}
+      <StockPhotoPicker open={stockPhotoOpen} onOpenChange={setStockPhotoOpen} onSelect={handleStockPhotoSelect} />
+
+      {/* Crop Modal */}
+      <Dialog open={open && showCropModal} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-100 flex-shrink-0">
+            <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
+            <p className="text-sm text-zinc-500 mt-1">Adjust the image to fit a square (1:1) format</p>
+          </DialogHeader>
+
+          <div className="px-6 py-4 space-y-6 overflow-y-auto flex-1 min-h-0">
+            <div className="relative w-full rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200 aspect-square shadow-inner max-w-full">
+              {imageSrc ? (
+                <Cropper image={imageSrc} crop={crop} zoom={zoom} aspect={1} showGrid={false} cropShape="rect"
+                  onCropChange={setCrop} onCropComplete={onCropComplete} onZoomChange={setZoom} restrictPosition={false} />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-zinc-400">
+                  <div className="text-center space-y-2">
+                    <ImageIcon className="h-12 w-12 mx-auto opacity-50" />
+                    <p className="text-sm">Select an image to start</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {imageSrc && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 flex-1">
+                    <ImageIcon className="h-4 w-4 text-zinc-400" />
+                    <label className="text-sm font-medium text-zinc-800">Zoom</label>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setImageSrc(null); setOptionsOpen(true); }} className="text-xs">
+                    Change Image
+                  </Button>
+                </div>
+                <Slider value={[zoom]} onValueChange={v => setZoom(v[0] || 1)} min={0.5} max={3} step={0.01} />
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>50%</span>
+                  <span className="font-medium">{Math.round(zoom * 100)}%</span>
+                  <span>300%</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 gap-2 flex-shrink-0">
+            {imageSrc && (
+              <Button variant="ghost" onClick={handleClear} disabled={isSaving}
+                className="text-red-600 hover:text-red-600 hover:bg-red-50 mr-auto">
+                <Trash2 className="h-4 w-4 mr-2" /> Remove
+              </Button>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="outline" onClick={() => { setImageSrc(null); setOptionsOpen(true); }} disabled={isSaving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={!imageSrc || !croppedAreaPixels || isSaving} className="min-w-[100px]">
+                {isSaving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : "Save"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
