@@ -18,7 +18,7 @@ export interface StripeStatus {
 const stripeCache = new Map<string, { connected: boolean; chargesEnabled: boolean }>();
 
 export function useStripeStatus(communityTag: string, opts: { enabled?: boolean } = {}): StripeStatus {
-  const { apiBaseUrl, authHeaders } = useEventManagementConfig();
+  const { apiBaseUrl, authHeaders, stripeStatusUrl } = useEventManagementConfig();
   const enabled = opts.enabled ?? true;
   const [status, setStatus] = React.useState<StripeStatus>({
     connected: false,
@@ -43,10 +43,14 @@ export function useStripeStatus(communityTag: string, opts: { enabled?: boolean 
 
     (async () => {
       try {
-        // /stripe/connected (NOT /stripe/status) — gated on ACCESS_ADMIN_APP
-        // so non-financial admins can read the boolean to gate paid-tier
-        // edit flows.
-        const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/stripe/connected`, {
+        // Default: /stripe/connected (NOT /stripe/status) — gated on
+        // ACCESS_ADMIN_APP so non-financial admins can read the boolean to
+        // gate paid-tier edit flows. The community app's member flow
+        // overrides this to the member's own Stripe via config.stripeStatusUrl.
+        const url = stripeStatusUrl
+          ? stripeStatusUrl(communityTag)
+          : `${apiBaseUrl}/api/communities/${communityTag}/stripe/connected`;
+        const res = await fetch(url, {
           headers: authHeaders(),
         });
         if (res.ok) {
@@ -61,7 +65,7 @@ export function useStripeStatus(communityTag: string, opts: { enabled?: boolean 
         setStatus({ connected: false, chargesEnabled: false, loading: false });
       }
     })();
-  }, [communityTag, apiBaseUrl, authHeaders, enabled]);
+  }, [communityTag, apiBaseUrl, authHeaders, stripeStatusUrl, enabled]);
 
   return status;
 }
