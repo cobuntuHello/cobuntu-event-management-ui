@@ -222,17 +222,17 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           <button
             type="button"
             onClick={() => setIsBannerCropOpen(true)}
-            className="relative w-full md:w-[240px] aspect-square md:h-[240px] rounded-2xl overflow-hidden group cursor-pointer"
+            className="relative w-full md:w-[200px] aspect-square md:h-[200px] rounded-2xl overflow-hidden group cursor-pointer bg-zinc-50 ring-1 ring-zinc-100 hover:ring-zinc-200 transition"
           >
             {bannerUrl ? (
               <img src={bannerUrl} alt="Event banner" className="w-full h-full object-cover" />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-zinc-200 via-zinc-300 to-zinc-400">
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-white/30 backdrop-blur-sm flex items-center justify-center">
-                    <ImageIcon className="h-6 w-6 text-white" />
+              <div className="absolute inset-0">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
+                  <div className="w-11 h-11 rounded-2xl bg-white ring-1 ring-zinc-100 flex items-center justify-center">
+                    <ImageIcon className="h-5 w-5 text-zinc-300" />
                   </div>
-                  <span className="text-[12px] font-medium text-white/80">Add Image</span>
+                  <span className="text-[12px] font-medium text-zinc-400">Add Image</span>
                 </div>
               </div>
             )}
@@ -301,7 +301,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           </div>
 
           {/* Schedule — compact, inline */}
-          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 overflow-hidden">
+          <div className="rounded-2xl bg-white ring-1 ring-zinc-100 overflow-hidden">
             <EventTimestamps
               startDate={startDate}
               endDate={endDate}
@@ -319,7 +319,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
           {/* Location — clickable row, opens modal */}
           <button type="button" onClick={() => setIsLocationOpen(true)}
-            className="w-full flex items-center gap-3 rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
+            className="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400 shrink-0">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
             </svg>
@@ -331,7 +331,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
           {/* Description — clickable row, opens modal */}
           <button type="button" onClick={() => setIsDescriptionOpen(true)}
-            className="w-full flex items-center gap-3 rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
+            className="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400 shrink-0">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
             </svg>
@@ -341,7 +341,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
           {/* Tags — clickable row, opens modal */}
           <button type="button" onClick={() => setIsTagsOpen(true)}
-            className="w-full flex items-center gap-3 rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
+            className="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400 shrink-0">
               <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" />
             </svg>
@@ -365,9 +365,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       {/* ─── Options ─── */}
       {/* On md+ aligned with the form column (264px = image width 240 + gap 24).
           On mobile no left padding — section uses full container width. */}
-      <div className="max-w-3xl md:pl-[264px] mt-8">
+      <div className="max-w-3xl mt-8">
         <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Event Options</p>
-        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 divide-y divide-zinc-100">
+        <div className="rounded-2xl bg-white ring-1 ring-zinc-100 divide-y divide-zinc-100">
           {/* Ticket Tiers */}
           <div className="px-5 py-4 first:rounded-t-2xl">
             <div className="flex items-center justify-between mb-3">
