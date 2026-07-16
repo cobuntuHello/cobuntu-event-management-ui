@@ -10,6 +10,8 @@ import { BasicsStep } from "./steps/BasicsStep";
 import { ConfigStep } from "./steps/ConfigStep";
 import { FormStep } from "./steps/FormStep";
 import type { StepId } from "./TierHubView";
+import { Eyebrow, StepInput } from "./_primitives";
+import { isTierLocked } from "./helpers";
 
 export interface StepViewProps {
   t: DraftTier;
@@ -53,6 +55,26 @@ export function StepView({
           onMemberPricingRowChange={onMemberPricingRowChange}
           showToast={showToast}
         />
+      )}
+      {step === "capacity" && (
+        <div>
+          <Eyebrow help="The maximum number of units sold for this tier. Leave blank for unlimited.">
+            Capacity (optional)
+          </Eyebrow>
+          <div className="mt-1">
+            <StepInput
+              type="number"
+              min={isTierLocked(t) ? t.salesCount : 0}
+              step="1"
+              value={t.capacity}
+              onChange={(e) => onUpdate({ capacity: e.target.value })}
+              placeholder="Unlimited"
+            />
+          </div>
+          {isTierLocked(t) && (
+            <p className="text-[10px] text-zinc-400 mt-1">Min {t.salesCount} (already sold).</p>
+          )}
+        </div>
       )}
       {step === "config" && <ConfigStep t={t} onUpdate={onUpdate} />}
       {step === "form" && (

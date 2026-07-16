@@ -5,20 +5,22 @@ import { SectionCard } from "@cobuntu/management-ui-shared";
 import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
 
-export type StepId = "details" | "basics" | "config" | "form";
+export type StepId = "details" | "basics" | "capacity" | "config" | "form";
 
 /** Step metadata — shared by the modal header (breadcrumb + title +
  *  subtitle) and the hub tiles so they never drift. */
 export const STEP_TITLES: Record<StepId, string> = {
   details: "Details",
   basics: "Pricing configuration",
-  config: "Config",
+  capacity: "Capacity",
+  config: "Sales window",
   form: "Registration form",
 };
 
 export const STEP_SUBTITLES: Record<StepId, string> = {
   details: "Name, description, and attendance capacity for this tier.",
   basics: "Price, billing, and member discounts.",
+  capacity: "Cap how many of this tier can be sold. Leave blank for unlimited.",
   config: "Set the timeframe this tier is available for sale.",
   form: "Attach a form buyers complete when they register.",
 };
