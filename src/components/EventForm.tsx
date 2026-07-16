@@ -13,7 +13,7 @@ import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal"
 import { RichTextEditor } from "../ui/rich-text-editor";
 import {
   Ticket, Lock, UserCheck, Image as ImageIcon,
-  Eye, EyeOff,
+  Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -234,38 +234,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
   return (
     <div>
-      {/* ─── Two-column layout on md+: Image left, Form right.
-            On mobile the image stacks above the form (full-width square). */}
-      <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-stretch md:items-start max-w-3xl">
-        {/* Left: Image */}
-        <div className="shrink-0 w-full md:w-auto">
-          <button
-            type="button"
-            onClick={() => setIsBannerCropOpen(true)}
-            className="relative w-full md:w-[200px] aspect-square md:h-[200px] rounded-2xl overflow-hidden group cursor-pointer bg-zinc-50 ring-1 ring-zinc-100 hover:ring-zinc-200 transition"
-          >
-            {bannerUrl ? (
-              <img src={bannerUrl} alt="Event banner" className="w-full h-full object-cover" />
-            ) : (
-              <div className="absolute inset-0">
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
-                  <div className="w-11 h-11 rounded-2xl bg-white ring-1 ring-zinc-100 flex items-center justify-center">
-                    <ImageIcon className="h-5 w-5 text-zinc-300" />
-                  </div>
-                  <span className="text-[12px] font-medium text-zinc-400">Add Image</span>
-                </div>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors flex items-center justify-center">
-              {bannerUrl && (
-                <span className="text-white opacity-0 group-hover:opacity-100 text-sm font-medium drop-shadow">Change</span>
-              )}
-            </div>
-          </button>
-        </div>
-
-        {/* Right: Form content */}
-        <div className="flex-1 min-w-0 space-y-3">
+      {/* ─── Single column: title → banner hero → schedule → detail rows.
+            Mirrors the product form's polish (media hero + done-states). ─── */}
+      <div className="space-y-5 max-w-3xl">
           {/* Ownership selector */}
           {ownership && onOwnershipChange && (
             <div className="relative inline-block">
@@ -320,6 +291,29 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             )}
           </div>
 
+          {/* Banner hero — big cover; object-cover so it fills without
+              distorting (WYSIWYG with the event card), never stretched. */}
+          <button type="button" onClick={() => setIsBannerCropOpen(true)}
+            className={`group relative block w-full aspect-[16/9] rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 ${bannerUrl ? "ring-1 ring-zinc-100 hover:ring-zinc-200 hover:shadow-[0_16px_34px_-18px_rgba(60,40,30,0.5)]" : "bg-zinc-50 border-2 border-dashed border-zinc-200 hover:border-zinc-300"}`}>
+            {bannerUrl ? (
+              <>
+                <img src={bannerUrl} alt="Event banner" className="w-full h-full object-cover" />
+                <span className="absolute top-3 left-3 text-[11px] font-semibold tracking-wide bg-white/85 backdrop-blur-sm text-zinc-800 px-2.5 py-1 rounded-full">Cover</span>
+                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/25 text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ImageIcon className="h-[18px] w-[18px]" /> Change banner
+                </div>
+              </>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-zinc-400 transition-colors group-hover:text-zinc-500">
+                <div className="w-12 h-12 rounded-2xl bg-white ring-1 ring-zinc-100 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
+                  <ImageIcon className="h-6 w-6 text-zinc-300" />
+                </div>
+                <span className="text-[13px] font-medium">Add banner</span>
+                <span className="text-[11px] text-zinc-300">Shown across your event page</span>
+              </div>
+            )}
+          </button>
+
           {/* Schedule — compact, inline */}
           <div className="rounded-2xl bg-white ring-1 ring-zinc-100 overflow-hidden">
             <EventTimestamps
@@ -337,40 +331,44 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             />
           </div>
 
-          {/* Location — clickable row, opens modal */}
-          <button type="button" onClick={() => setIsLocationOpen(true)}
-            className="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400 shrink-0">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
-            </svg>
-            <span className={`text-sm flex-1 truncate ${hasLocation ? "text-zinc-700" : "text-zinc-500"}`}>
-              {hasLocation ? [physicalLocation.trim(), onlineUrl.trim()].filter(Boolean).join(" · ") : "Add Event Location"}
-            </span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-zinc-300"><polyline points="9 18 15 12 9 6" /></svg>
-          </button>
+          {/* Detail rows — done-states (check + snippet) + hover motion */}
+          <div className="space-y-2.5">
+            <button type="button" onClick={() => setIsLocationOpen(true)}
+              className="group w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
+              {hasLocation ? (
+                <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
+              ) : <MapPin className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
+              <span className="flex-1 min-w-0">
+                <span className={`block text-sm truncate ${hasLocation ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{hasLocation ? "Location" : "Add location"}</span>
+                {hasLocation && <span className="block text-[12.5px] text-zinc-500 truncate">{[physicalLocation.trim(), onlineUrl.trim()].filter(Boolean).join(" · ")}</span>}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+            </button>
 
-          {/* Description — clickable row, opens modal */}
-          <button type="button" onClick={() => setIsDescriptionOpen(true)}
-            className="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400 shrink-0">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            <span className={`text-sm flex-1 truncate ${description ? "text-zinc-700" : "text-zinc-500"}`}>{description ? "Edit description..." : "Add Description"}</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-zinc-300"><polyline points="9 18 15 12 9 6" /></svg>
-          </button>
+            <button type="button" onClick={() => setIsDescriptionOpen(true)}
+              className="group w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
+              {description.replace(/<[^>]*>/g, "").trim() ? (
+                <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
+              ) : <FileText className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
+              <span className="flex-1 min-w-0">
+                <span className={`block text-sm truncate ${description.replace(/<[^>]*>/g, "").trim() ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{description.replace(/<[^>]*>/g, "").trim() ? "Description" : "Add description"}</span>
+                {description.replace(/<[^>]*>/g, "").trim() && <span className="block text-[12.5px] text-zinc-500 truncate">{description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()}</span>}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+            </button>
 
-          {/* Tags — clickable row, opens modal */}
-          <button type="button" onClick={() => setIsTagsOpen(true)}
-            className="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-5 py-3.5 text-left hover:bg-zinc-50/50 transition-colors cursor-pointer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400 shrink-0">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" />
-            </svg>
-            <span className={`text-sm flex-1 truncate ${tags.length > 0 ? "text-zinc-700" : "text-zinc-500"}`}>
-              {tags.length > 0 ? tags.map(t => t.name).join(", ") : "Add Tags"}
-            </span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-zinc-300"><polyline points="9 18 15 12 9 6" /></svg>
-          </button>
-        </div>
+            <button type="button" onClick={() => setIsTagsOpen(true)}
+              className="group w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
+              {tags.length > 0 ? (
+                <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
+              ) : <TagIcon className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
+              <span className="flex-1 min-w-0">
+                <span className={`block text-sm truncate ${tags.length > 0 ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{tags.length > 0 ? "Tags" : "Add tags"}</span>
+                {tags.length > 0 && <span className="block text-[12.5px] text-zinc-500 truncate">{tags.map(t => t.name).join(" · ")}</span>}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+            </button>
+          </div>
       </div>
 
       {/* Banner Crop Modal */}
