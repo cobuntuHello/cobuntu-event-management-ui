@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -41,7 +41,8 @@ import {
 } from "./PriceEditModal/helpers";
 import { SortableTierRow } from "./PriceEditModal/TierRow";
 import { Switch, StepFade } from "./PriceEditModal/_primitives";
-import { TierHubView, STEP_TITLES, STEP_SUBTITLES, type StepId } from "./PriceEditModal/TierHubView";
+import { STEP_TITLES, STEP_SUBTITLES, type StepId } from "./PriceEditModal/TierHubView";
+import { TierEditView } from "./PriceEditModal/TierEditView";
 import { StepView } from "./PriceEditModal/StepView";
 import { FooterSlotContext } from "./PriceEditModal/footer-slot";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
@@ -133,6 +134,13 @@ export interface PriceEditModalProps {
   /** Called on Save in draftMode. Parent persists the result in its
    *  own form state. Modal then closes via onSaved. */
   onDraftCommit?: (payload: { tiers: DraftTier[]; donation: DonationDraft }) => void;
+  /**
+   * Open the modal straight on a tier's EDIT screen (Level 2), skipping the
+   * list — the tier list now lives inline in the form. Pass the tapped tier's
+   * localId (edit) or a freshly-appended blank tier's localId (add). When set,
+   * backing out of Level 2 closes the modal instead of returning to the list.
+   */
+  openTierLocalId?: string;
 }
 
 export function PriceEditModal({
@@ -146,6 +154,7 @@ export function PriceEditModal({
   initialDraftTiers,
   initialDraftDonation,
   onDraftCommit,
+  openTierLocalId,
 }: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
@@ -180,6 +189,19 @@ export function PriceEditModal({
   // details").
   const [activeTier, setActiveTier] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<StepId | null>(null);
+
+  // Opened directly on a tier from the form's inline list: jump to Level 2
+  // (edit screen) once drafts have loaded, once. `openedDirect` also tells the
+  // Level-2 back action to CLOSE the modal (the list lives in the form) rather
+  // than pop to the in-modal list.
+  const openedDirect = !!openTierLocalId;
+  const jumpedRef = useRef(false);
+  useEffect(() => {
+    if (openTierLocalId && !loading && !jumpedRef.current) {
+      jumpedRef.current = true;
+      setActiveTier(openTierLocalId);
+    }
+  }, [openTierLocalId, loading]);
 
   // Footer "step actions" slot. A step that owns primary actions (the
   // form builder's "+ Question" etc.) portals its buttons into this DOM
@@ -730,20 +752,25 @@ export function PriceEditModal({
     activeDraft && activeStep
       ? STEP_SUBTITLES[activeStep]
       : activeDraft
-        ? "Choose what to configure for this tier."
+        ? "Buyers pick one tier at checkout."
         : "Tickets, donations, and per-tier registration forms.";
 
   // Breadcrumb segments — each is clickable except the last (current
   // level). L1 has none. Clicking a crumb pops navigation back to it.
   const crumbs: Array<{ label: string; onClick?: () => void }> = [];
   if (activeDraft) {
-    crumbs.push({
-      label: "Pricing tiers",
-      onClick: () => {
-        setActiveStep(null);
-        setActiveTier(null);
-      },
-    });
+    // When opened directly on a tier (list lives in the form), the tier edit
+    // screen is the root — no "Pricing tiers" crumb. From a sub-step, the only
+    // crumb is the tier name (back to the edit screen).
+    if (!openedDirect) {
+      crumbs.push({
+        label: "Pricing tiers",
+        onClick: () => {
+          setActiveStep(null);
+          setActiveTier(null);
+        },
+      });
+    }
     if (activeStep) {
       crumbs.push({ label: tierName, onClick: () => setActiveStep(null) });
     }
@@ -757,9 +784,18 @@ export function PriceEditModal({
         when the body overflows. */}
     <ModalShell onClose={onClose} width="w-full sm:w-[600px]">
       <FooterSlotContext.Provider value={footerSlot}>
-      <div className="flex flex-col max-h-[78vh]">
+      <div className="relative flex flex-col max-h-[78vh]">
+      {/* Circular close — muted bg, top-right of the modal. */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute -top-1 -right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 hover:bg-zinc-200 transition-colors cursor-pointer"
+      >
+        <X className="h-[18px] w-[18px]" />
+      </button>
       {/* ─── Header ─── ONE breadcrumb + ONE title + ONE subtitle. */}
-      <div className="shrink-0 mb-4">
+      <div className="shrink-0 mb-4 pr-9">
         {crumbs.length > 0 && (
           <nav className="flex items-center flex-wrap gap-1 mb-1.5 text-[12px]" aria-label="Breadcrumb">
             {crumbs.map((c, i) => (
@@ -811,10 +847,23 @@ export function PriceEditModal({
           showToast={showToast}
         />
       ) : activeDraft ? (
-        // Level 2: per-tier hub takeover — a pure navigation menu of tiles.
-        <TierHubView
+        // Level 2: per-tier EDIT screen — name/description/pricing inline, the
+        // rest as Advanced rows that drill into a sub-step (Level 3).
+        <TierEditView
           t={activeDraft}
+          onUpdate={(patch) => {
+            const idx = activeIdx();
+            if (idx != null) updateDraft(idx, patch);
+          }}
           onEnterStep={(step) => setActiveStep(step)}
+          showMemberPricing={!!showMemberPricing}
+          memberPricingState={activeDraft.id ? memberPricingByTier.get(activeDraft.id) : undefined}
+          onMemberPricingRowChange={
+            activeDraft.id
+              ? (idx, patch) => updateMemberPricingRow(activeDraft.id!, idx, patch)
+              : undefined
+          }
+          showToast={showToast}
         />
       ) : (
         // Level 1: default tier list. Add tier + Donations + Save.
@@ -886,10 +935,10 @@ export function PriceEditModal({
           <>
             <button
               type="button"
-              onClick={() => setActiveTier(null)}
+              onClick={() => (openedDirect ? onClose() : setActiveTier(null))}
               className="px-4 py-2 text-[13px] font-medium text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer"
             >
-              Back
+              {openedDirect ? "Cancel" : "Back"}
             </button>
             {/* Delete is ALWAYS shown (no hiding features without
                 explanation). When it can't proceed it says why via a toast
@@ -965,23 +1014,18 @@ export function PriceEditModal({
             />
           </div>
         )}
-        {/* Save shows at L1 (tier list) and L3 (step) — where you actually
-            edit. The L2 hub is a pure navigation menu (no fields of its
-            own), so it has no Save: edits made in a step commit via that
-            step's Save (which commits the whole modal), and the list has
-            its own Save. The hub keeps only Back / Delete / Duplicate /
-            Published. */}
-        {!(activeDraft && !activeStep) && (
-          <button
-            type="button"
-            onClick={onSaveClicked}
-            disabled={saving || loading || memberPricingPending}
-            title={memberPricingPending ? "Loading member pricing…" : undefined}
-            className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        )}
+        {/* Save shows at every level now — L2 is a real edit screen (name,
+            description, pricing inline), so it commits from here too. Save
+            always commits the whole modal. */}
+        <button
+          type="button"
+          onClick={onSaveClicked}
+          disabled={saving || loading || memberPricingPending}
+          title={memberPricingPending ? "Loading member pricing…" : undefined}
+          className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
       </div>
       </div>
       </FooterSlotContext.Provider>

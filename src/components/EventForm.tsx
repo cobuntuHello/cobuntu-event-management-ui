@@ -120,6 +120,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isTagsOpen, setIsTagsOpen] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
+  // Which tier the modal opens on. The tier LIST lives inline in this form now,
+  // so the modal jumps straight to the per-tier edit screen.
+  const [editTierLocalId, setEditTierLocalId] = useState<string | undefined>(undefined);
   const [showStripeWarning, setShowStripeWarning] = useState(false);
 
   // Stripe status — read via the shared hook, which pulls apiBaseUrl +
@@ -153,6 +156,23 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     // (matches the admin's legacy `stripeConnected === false` gate).
     if (!stripe.loading && !stripeReady) { setShowStripeWarning(true); return; }
     setShowTierModal(true);
+  }
+
+  // Open the per-tier edit screen for an existing tier (edit) or a freshly
+  // appended blank tier (add). Same Stripe gate as openTierModal.
+  function openTierEditor(localId: string) {
+    if (!stripe.loading && !stripeReady) { setShowStripeWarning(true); return; }
+    setEditTierLocalId(localId);
+    setShowTierModal(true);
+  }
+  function addAndEditTier() {
+    const nt: TierItem = {
+      localId: crypto.randomUUID(),
+      name: "", description: "", price: "", currency: "EUR",
+      capacity: "", isRecurring: false, recurringInterval: "monthly",
+    };
+    setTiers((prev) => [...prev, nt]);
+    openTierEditor(nt.localId);
   }
 
   function handleTiersCommit({ tiers: drafts }: { tiers: DraftTier[]; donation: DonationDraft }) {
@@ -383,7 +403,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                   <button
                     type="button"
                     key={t.localId}
-                    onClick={openTierModal}
+                    onClick={() => openTierEditor(t.localId)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-colors cursor-pointer text-left"
                   >
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200 text-zinc-600">
@@ -400,10 +420,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 ))}
               </div>
             )}
-            <button type="button" onClick={openTierModal}
+            <button type="button" onClick={addAndEditTier}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[13px] font-medium text-zinc-500 hover:text-zinc-700 border border-dashed border-zinc-200 hover:border-zinc-300 rounded-xl cursor-pointer transition-colors">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              {tiers.length === 0 ? "Add Ticket Tier (optional)" : "Manage tiers"}
+              {tiers.length === 0 ? "Add ticket tier" : "Add ticket tier"}
             </button>
           </div>
 
@@ -494,6 +514,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           showToast={(msg) => console.warn("[EventForm tier modal]", msg)}
           draftMode
           initialDraftTiers={tiersToDrafts(tiers)}
+          openTierLocalId={editTierLocalId}
           onDraftCommit={handleTiersCommit}
         />
       )}
