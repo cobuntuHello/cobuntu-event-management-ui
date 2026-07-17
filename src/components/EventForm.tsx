@@ -90,11 +90,22 @@ interface EventFormProps {
   communityIcon?: string | null;
   userName?: string;
   userAvatar?: string | null;
+  /**
+   * When true, the built-in Visibility + Attendance rows (viewability +
+   * accessibility — the members-only community gates) are NOT rendered. Used
+   * by the community-app create flow for MEMBER submissions: a member can't
+   * set members-only gating (that's a community-leader capability), so the
+   * consumer hides the controls and the form emits its default PUBLIC/PUBLIC.
+   * Leaders creating in-context pass `false` and configure them inline.
+   * Mirrors ProductForm's `hideVisibility`. The backend independently clamps
+   * member submissions to PUBLIC, so this is a UI affordance, not the guard.
+   */
+  hideVisibility?: boolean;
 }
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility }: EventFormProps) {
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -294,7 +305,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           {/* Banner hero — big cover; object-cover so it fills without
               distorting (WYSIWYG with the event card), never stretched. */}
           <button type="button" onClick={() => setIsBannerCropOpen(true)}
-            className={`group relative block w-full aspect-[16/9] rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 ${bannerUrl ? "ring-1 ring-zinc-100 hover:ring-zinc-200 hover:shadow-[0_16px_34px_-18px_rgba(60,40,30,0.5)]" : "bg-zinc-50 border-2 border-dashed border-zinc-200 hover:border-zinc-300"}`}>
+            className={`group relative block w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 ${bannerUrl ? "ring-1 ring-zinc-100 hover:ring-zinc-200 hover:shadow-[0_16px_34px_-18px_rgba(60,40,30,0.5)]" : "bg-zinc-50 border-2 border-dashed border-zinc-200 hover:border-zinc-300"}`}>
             {bannerUrl ? (
               <>
                 <img src={bannerUrl} alt="Event banner" className="w-full h-full object-cover" />
@@ -425,6 +436,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             </button>
           </div>
 
+          {/* Visibility + Attendance — the members-only community gates.
+              Leader-only: dropped for member submissions via `hideVisibility`
+              (the consumer owns the values, defaulting PUBLIC/PUBLIC). */}
+          {!hideVisibility && (
+            <>
           {/* Visibility — who can SEE the event (view gate) */}
           <div
             onClick={() => setViewability(viewability === "PUBLIC" ? "MEMBERS_ONLY" : "PUBLIC")}
@@ -456,6 +472,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               onCheckedChange={checked => setAccessibility(checked ? "MEMBERS_ONLY" : "PUBLIC")}
               onClick={e => e.stopPropagation()} />
           </div>
+            </>
+          )}
 
           {/* Require Approval */}
           <div
