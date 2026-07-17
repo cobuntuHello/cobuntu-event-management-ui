@@ -12,7 +12,7 @@ import { EventTags } from "../ui/event-tags";
 import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
 import { RichTextEditor } from "../ui/rich-text-editor";
 import {
-  Ticket, Lock, UserCheck, Image as ImageIcon,
+  Ticket, Lock, UserCheck, Image as ImageIcon, X,
   Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
@@ -127,6 +127,21 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
   // UI state
   const [isBannerCropOpen, setIsBannerCropOpen] = useState(false);
+  // Inline banner upload — tap the banner → native device picker (our own
+  // hidden input) → the square cropper (the only popup) → the banner is set.
+  // No upload/stock "options" popup. bannerCropSrc feeds the cropper directly.
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
+  const [bannerCropSrc, setBannerCropSrc] = useState<string | null>(null);
+  function pickBanner() { bannerInputRef.current?.click(); }
+  function onBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (bannerInputRef.current) bannerInputRef.current.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { setBannerCropSrc(reader.result as string); setIsBannerCropOpen(true); };
+    reader.readAsDataURL(file);
+  }
+  function recropBanner() { if (!bannerUrl) return; setBannerCropSrc(bannerUrl); setIsBannerCropOpen(true); }
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isTagsOpen, setIsTagsOpen] = useState(false);
@@ -302,28 +317,35 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             )}
           </div>
 
-          {/* Banner hero — big cover; object-cover so it fills without
-              distorting (WYSIWYG with the event card), never stretched. */}
-          <button type="button" onClick={() => setIsBannerCropOpen(true)}
-            className={`group relative block w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 ${bannerUrl ? "ring-1 ring-zinc-100 hover:ring-zinc-200 hover:shadow-[0_16px_34px_-18px_rgba(60,40,30,0.5)]" : "bg-zinc-50 border-2 border-dashed border-zinc-200 hover:border-zinc-300"}`}>
-            {bannerUrl ? (
-              <>
+          {/* Banner — single square (1:1) cover. Tap it → device photo picker
+              → square cropper (the only popup) → it lands here. Tap again to
+              recrop, the corner X to remove. Responsive: full-width up to
+              360px. No gallery/options popup. */}
+          {bannerUrl ? (
+            <div className="group relative w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden ring-1 ring-zinc-100">
+              <button type="button" onClick={recropBanner} className="block w-full h-full cursor-pointer" aria-label="Recrop banner">
                 <img src={bannerUrl} alt="Event banner" className="w-full h-full object-cover" />
                 <span className="absolute top-3 left-3 text-[11px] font-semibold tracking-wide bg-white/85 backdrop-blur-sm text-zinc-800 px-2.5 py-1 rounded-full">Cover</span>
-                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/25 text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ImageIcon className="h-[18px] w-[18px]" /> Change banner
-                </div>
-              </>
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-zinc-400 transition-colors group-hover:text-zinc-500">
-                <div className="w-12 h-12 rounded-2xl bg-white ring-1 ring-zinc-100 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
-                  <ImageIcon className="h-6 w-6 text-zinc-300" />
-                </div>
-                <span className="text-[13px] font-medium">Add banner</span>
-                <span className="text-[11px] text-zinc-300">Shown across your event page</span>
-              </div>
-            )}
-          </button>
+                <span className="absolute inset-0 flex items-center justify-center gap-2 bg-black/25 text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ImageIcon className="h-[18px] w-[18px]" /> Recrop
+                </span>
+              </button>
+              <button type="button" onClick={() => setBannerUrl("")} aria-label="Remove banner"
+                className="absolute top-2.5 right-2.5 h-7 w-7 rounded-full bg-black/55 hover:bg-black/75 text-white flex items-center justify-center transition-colors cursor-pointer">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={pickBanner}
+              className="group relative w-full max-w-[360px] aspect-square rounded-2xl bg-zinc-50 border-2 border-dashed border-zinc-200 hover:border-zinc-300 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2.5 text-zinc-400 hover:text-zinc-500">
+              <span className="w-12 h-12 rounded-2xl bg-white ring-1 ring-zinc-100 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
+                <ImageIcon className="h-6 w-6 text-zinc-300" />
+              </span>
+              <span className="text-[13px] font-medium">Add banner</span>
+              <span className="text-[11px] text-zinc-300">Shown across your event page</span>
+            </button>
+          )}
+          <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={onBannerFile} />
 
           {/* Schedule — compact, inline */}
           <div className="rounded-2xl bg-white ring-1 ring-zinc-100 overflow-hidden">
@@ -386,9 +408,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       <BannerCropModal
         open={isBannerCropOpen}
         onOpenChange={setIsBannerCropOpen}
-        initialImageSrc={bannerUrl}
-        onSave={(result: BannerCropResult) => { setBannerUrl(result.base64 || ""); }}
-        title="Event Image"
+        directCropSrc={bannerCropSrc}
+        onSave={(result: BannerCropResult) => { if (result.base64) setBannerUrl(result.base64); }}
+        title="Frame your photo"
+        hideStockPhotos
       />
 
       {/* ─── Options ─── */}
