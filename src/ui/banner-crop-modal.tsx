@@ -22,10 +22,18 @@ interface BannerCropModalProps {
   onSave: (result: BannerCropResult) => Promise<void> | void;
   title?: string;
   hideStockPhotos?: boolean;
+  /**
+   * When set, the modal opens STRAIGHT on the cropper with this image and
+   * skips the upload/stock "options" step. Used by the event banner flow,
+   * where the caller ran the device file picker itself (tap banner → native
+   * picker → this cropper → done). No intermediate popup.
+   */
+  directCropSrc?: string | null;
 }
 
 export function BannerCropModal({
   open, onOpenChange, initialImageSrc = null, onSave, title = "Edit Banner", hideStockPhotos = false,
+  directCropSrc = null,
 }: BannerCropModalProps) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [optionsOpen, setOptionsOpen] = React.useState(false);
@@ -41,15 +49,22 @@ export function BannerCropModal({
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setCroppedAreaPixels(null);
-      setOptionsOpen(true);
       setStockPhotoOpen(false);
-      setImageSrc(null);
+      if (directCropSrc) {
+        // Caller handed us the image already — go straight to the cropper,
+        // no upload/stock options step.
+        setImageSrc(directCropSrc);
+        setOptionsOpen(false);
+      } else {
+        setOptionsOpen(true);
+        setImageSrc(null);
+      }
     } else {
       setImageSrc(null);
       setOptionsOpen(false);
       setStockPhotoOpen(false);
     }
-  }, [open]);
+  }, [open, directCropSrc]);
 
   const triggerFilePicker = () => { requestAnimationFrame(() => fileInputRef.current?.click()); };
 
@@ -163,7 +178,7 @@ export function BannerCropModal({
 
       {/* Crop Modal */}
       <Dialog open={open && showCropModal} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogContent hideClose className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-100 flex-shrink-0">
             <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
             <p className="text-sm text-zinc-500 mt-1">Adjust the image to fit a square (1:1) format</p>
