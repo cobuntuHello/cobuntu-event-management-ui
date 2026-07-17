@@ -22,6 +22,8 @@ type Attendee = {
   profileImage?: string | null;
   status?: string | null;
   tier?: { id: string; name: string } | null;
+  /** Host-only private note captured on manual add. Never shown to the attendee. */
+  internalNote?: string | null;
   formAnswers?: { fields: FormField[]; answer: Record<string, unknown> } | null;
   createdAt?: string;
 };
@@ -183,6 +185,19 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
               )}
             </div>
           </div>
+
+          {/* Internal note — host-only, captured when a host manually added
+              this attendee. Only reaches the drawer for host viewers (gated
+              server-side in normalizeAttendees). */}
+          {attendee.internalNote && (
+            <div className="px-5 pt-6">
+              <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-3">Internal note</p>
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                <p className="text-sm text-zinc-800 whitespace-pre-wrap break-words">{attendee.internalNote}</p>
+                <p className="text-[11px] text-zinc-400 mt-2">Only hosts can see this — never shown to the attendee.</p>
+              </div>
+            </div>
+          )}
 
           {/* Form answers */}
           {hasAnswers && (
