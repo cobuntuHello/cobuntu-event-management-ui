@@ -527,7 +527,15 @@ export function PriceEditModal({
   // Only matters when showMemberPricing is on; admin-only feature.
   // Brand-new (unsaved) tiers don't have a slot in the map and so
   // can't race — `id` filter below skips them.
-  const memberPricingPending = !!showMemberPricing && drafts.some((d) => {
+  //
+  // CRITICAL: gate on `memberPricingSegments.length > 0`. When a community has
+  // NO segments the per-tier fetch effect returns early (nothing to fetch), so
+  // `memberPricingByTier` never populates and a saved tier's state stays
+  // undefined — which read as "still loading" forever, permanently DISABLING
+  // Save (clicking it did nothing, no toast). With no segments there is nothing
+  // to load or commit, so it must not be pending. (Every no-segment community
+  // could not save event tiers.)
+  const memberPricingPending = !!showMemberPricing && memberPricingSegments.length > 0 && drafts.some((d) => {
     if (!d.id || d.deleted) return false;
     const state = memberPricingByTier.get(d.id);
     return !state || state.loading;

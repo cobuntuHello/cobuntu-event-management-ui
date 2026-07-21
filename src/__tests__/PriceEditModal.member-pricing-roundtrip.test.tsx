@@ -68,6 +68,23 @@ function stubLoadRoutes() {
 }
 
 describe("PriceEditModal — Member Pricing round-trip", () => {
+  it("keeps Save ENABLED when the community has no segments (regression: was permanently disabled)", async () => {
+    // Prod bug (same as the product modal): with showMemberPricing + a saved
+    // tier + ZERO segments, the per-tier member-pricing fetch effect returns
+    // early, so memberPricingByTier never populates → memberPricingPending was
+    // stuck true → the footer Save was disabled forever (clicking did nothing,
+    // no toast). A no-segment community could not save any event tier.
+    mockFetch([
+      { method: "GET", url: /\/api\/communities\/c-1\/events\/evt-1\/tiers$/, body: [tier] },
+      { method: "GET", url: /\/api\/communities\/c-1\/tiers\/tier-1\/form$/, status: 404, body: {} },
+      { method: "GET", url: /\/api\/communities\/c-1\/stripe\/connected$/, body: { connected: true, chargesEnabled: true } },
+      { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: [] }, // NO segments
+    ]);
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+    const saveBtn = await screen.findByRole("button", { name: /^save$/i });
+    await waitFor(() => expect(saveBtn).not.toBeDisabled());
+  });
+
   it("dirty rows committed via outer Save after exiting the Members step (bug #1)", async () => {
     const user = userEvent.setup();
     const fetchFn = mockFetch([
