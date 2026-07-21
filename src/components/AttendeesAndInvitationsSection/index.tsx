@@ -898,7 +898,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             {heldInEscrow && (
               <span
                 className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100 shrink-0 tabular-nums"
-                title="Held by Cobuntu in escrow. Approving releases the funds toward the next bi-weekly payout. Rejecting auto-refunds the buyer (net of Stripe's processing fee, which the buyer absorbs)."
+                title="Held by Cobuntu in escrow. Approving releases the funds toward the daily payout sweep. Rejecting auto-refunds the buyer (net of Stripe's processing fee, which the buyer absorbs)."
               >
                 {SYMBOLS[sale!.currency] || sale!.currency} {(sale!.grossAmount / 100).toFixed(2)} held
               </span>
