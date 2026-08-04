@@ -36,12 +36,15 @@ describe("SettingsDrawer — visibility", () => {
         expect(screen.queryByText("Settings")).not.toBeInTheDocument();
     });
 
-    it("renders the heading + the four remaining rows when isOpen=true", () => {
+    it("renders the heading + the settings rows when isOpen=true", () => {
         renderWithConfig(<SettingsDrawer {...baseProps()} />);
         expect(screen.getByText("Settings")).toBeInTheDocument();
         expect(screen.getByText("Visibility")).toBeInTheDocument();
         expect(screen.getByText("Access")).toBeInTheDocument();
         expect(screen.getByText("Distribution")).toBeInTheDocument();
+        // After-checkout config row (feat/purchase-flow-upsell). Reclaims the
+        // slot the removed Membership funnel row occupied.
+        expect(screen.getByText("After checkout")).toBeInTheDocument();
         expect(screen.getByText("Refund policy")).toBeInTheDocument();
         // Membership funnel row removed in PR 13a — assert it stays gone.
         expect(screen.queryByText("Membership funnel")).not.toBeInTheDocument();

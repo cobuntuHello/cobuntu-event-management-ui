@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ViewabilityEditModal } from "./ViewabilityEditModal";
 import { AccessibilityEditModal } from "./AccessibilityEditModal";
 import { DistributionEditModal } from "./DistributionEditModal";
+import { AfterCheckoutEditModal } from "./AfterCheckoutEditModal";
 import { RefundPolicyEditModal, refundPolicySummary } from "./RefundPolicyEditModal";
 
 /**
@@ -29,7 +30,7 @@ import { RefundPolicyEditModal, refundPolicySummary } from "./RefundPolicyEditMo
  * and calls onSaved() to trigger the parent's reload.
  */
 
-type ModalKey = "viewability" | "accessibility" | "distribution" | "refund-policy" | null;
+type ModalKey = "viewability" | "accessibility" | "distribution" | "after-checkout" | "refund-policy" | null;
 
 interface Props {
     event: any;
@@ -139,6 +140,17 @@ export function SettingsDrawer({
             />
         );
     }
+    if (modal === "after-checkout") {
+        return (
+            <AfterCheckoutEditModal
+                event={event}
+                communityTag={communityTag}
+                onClose={closeModalAndReopenDrawer}
+                onSaved={modalSaved}
+                showToast={showToast}
+            />
+        );
+    }
     if (modal === "refund-policy") {
         return (
             <RefundPolicyEditModal
@@ -233,6 +245,21 @@ export function SettingsDrawer({
                                 <path d="M4 14h16v6H4z" />
                                 <circle cx="8" cy="7" r="1" fill="currentColor" />
                                 <circle cx="8" cy="17" r="1" fill="currentColor" />
+                            </svg>
+                        }
+                    />
+                    <SettingsRow
+                        label="After checkout"
+                        summary={
+                            event.afterCheckoutMode === "MEMBERSHIP_UPSELL" ? "Membership upsell"
+                                : event.afterCheckoutMode === "EXTERNAL" ? "External redirect"
+                                    : "Normal confirmation"
+                        }
+                        onClick={() => openModal("after-checkout")}
+                        icon={
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
+                                <path d="M9 11l3 3L22 4" />
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                             </svg>
                         }
                     />
