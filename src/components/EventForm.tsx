@@ -359,7 +359,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={onBannerFile} />
 
           {/* Schedule — compact, inline */}
-          <div className="rounded-2xl bg-white ring-1 ring-zinc-100 overflow-hidden">
+          <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 overflow-hidden">
             <EventTimestamps
               startDate={startDate}
               endDate={endDate}
@@ -378,7 +378,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           {/* Detail rows — done-states (check + snippet) + hover motion */}
           <div className="space-y-2.5">
             <button type="button" onClick={() => setIsLocationOpen(true)}
-              className="group w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
+              className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
               {hasLocation ? (
                 <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
               ) : <MapPin className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
@@ -390,7 +390,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             </button>
 
             <button type="button" onClick={() => setIsDescriptionOpen(true)}
-              className="group w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
+              className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
               {description.replace(/<[^>]*>/g, "").trim() ? (
                 <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
               ) : <FileText className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
@@ -402,7 +402,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             </button>
 
             <button type="button" onClick={() => setIsTagsOpen(true)}
-              className="group w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-zinc-100 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
+              className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
               {tags.length > 0 ? (
                 <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
               ) : <TagIcon className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
@@ -430,7 +430,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           On mobile no left padding — section uses full container width. */}
       <div className={`${maxWidthClassName} mt-8`}>
         <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Event Options</p>
-        <div className="rounded-2xl bg-white ring-1 ring-zinc-100 divide-y divide-zinc-100">
+        <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
           {/* Ticket Tiers */}
           <div className="px-5 py-4 first:rounded-t-2xl">
             <div className="flex items-center justify-between mb-3">
