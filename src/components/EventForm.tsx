@@ -101,11 +101,22 @@ interface EventFormProps {
    * member submissions to PUBLIC, so this is a UI affordance, not the guard.
    */
   hideVisibility?: boolean;
+  /**
+   * Tailwind max-width class applied to both content sections (name/banner/
+   * schedule, and the Event Options card below it). Defaults to `max-w-3xl`
+   * — the form's original fixed width, kept as the default so existing
+   * consumers embedding this in a wider page shell (which was relying on
+   * the form self-narrowing) don't change. A consumer whose OWN page
+   * wrapper already caps the available width (e.g. a `max-w-[1080px]`
+   * page shell) can pass `"max-w-none"` here to let the form fill that
+   * width instead of narrowing further on top of it.
+   */
+  maxWidthClassName?: string;
 }
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, maxWidthClassName = "max-w-3xl" }: EventFormProps) {
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -262,7 +273,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     <div>
       {/* ─── Single column: title → banner hero → schedule → detail rows.
             Mirrors the product form's polish (media hero + done-states). ─── */}
-      <div className="space-y-5 max-w-3xl">
+      <div className={`space-y-5 ${maxWidthClassName}`}>
           {/* Ownership selector */}
           {ownership && onOwnershipChange && (
             <div className="relative inline-block">
@@ -417,7 +428,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       {/* ─── Options ─── */}
       {/* On md+ aligned with the form column (264px = image width 240 + gap 24).
           On mobile no left padding — section uses full container width. */}
-      <div className="max-w-3xl mt-8">
+      <div className={`${maxWidthClassName} mt-8`}>
         <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Event Options</p>
         <div className="rounded-2xl bg-white ring-1 ring-zinc-100 divide-y divide-zinc-100">
           {/* Ticket Tiers */}
