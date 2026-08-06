@@ -5,6 +5,85 @@ import { ModalShell } from "../ui/modal-shell";
 import { EventTimestamps } from "../ui/event-timestamps";
 import { useUpdateEvent } from "../config";
 
+/**
+ * Format a UTC datetime as HH:MM in a specific timezone.
+ * @param utcDate ISO datetime or Date object (in UTC)
+ * @param timezone IANA timezone (e.g., "Europe/Lisbon")
+ * @returns Time string in HH:MM format
+ */
+function formatTimeInTimezone(
+  utcDate: Date | string | null | undefined,
+  timezone: string
+): string {
+  if (!utcDate) return "15:00";
+  const date = typeof utcDate === "string" ? new Date(utcDate) : utcDate;
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: timezone,
+  });
+  return formatter.format(date).replace(":", ":");
+}
+
+/**
+ * Convert a date + time (in a specific timezone) to UTC ISO string.
+ * @param date Local date (Date object)
+ * @param timeStr Time in HH:MM format (in the specified timezone)
+ * @param timezone IANA timezone (e.g., "Europe/Lisbon")
+ * @returns UTC ISO datetime string
+ */
+function dateTimeToUTC(date: Date, timeStr: string, timezone: string): string {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+
+  // Create a date string for the specified timezone
+  // We'll use a temporary UTC date and adjust for the timezone offset
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const timeFormatted = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+
+  // Create a formatter to get the offset of the timezone at this date
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: timezone,
+  }).formatToParts(new Date(`${year}-${month}-${day}T${timeFormatted}:00Z`));
+
+  // Extract parsed timezone time
+  const tzParts = parts.reduce(
+    (acc, p) => ({ ...acc, [p.type]: p.value }),
+    {} as Record<string, string>
+  );
+
+  // Calculate the offset by comparing what we said and what the formatter returned
+  const targetDateStr = `${year}-${month}-${day}T${timeFormatted}`;
+  const testUTC = new Date(targetDateStr + "Z");
+
+  const tzFormatter = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: timezone,
+  });
+
+  const tzTime = tzFormatter.format(testUTC);
+  const [tzY, tzM, tzD, tzH, tzMin, tzS] = tzTime.match(/\d+/g)!.map(Number);
+
+  const localDate = new Date(year, parseInt(month) - 1, parseInt(day), hours, minutes, 0);
+  const offset = testUTC.getTime() - new Date(tzY, tzM - 1, tzD, tzH, tzMin, tzS).getTime();
+  const utcTime = new Date(localDate.getTime() - offset);
+
+  return utcTime.toISOString();
+}
+
 interface Props {
   event: any;
   communityTag: string;
@@ -15,29 +94,28 @@ interface Props {
 
 export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
   const updateEvent = useUpdateEvent();
+  const tz = event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const sd = event.startDate ? new Date(event.startDate) : null;
   const ed = event.endDate ? new Date(event.endDate) : null;
 
   const [startDate, setStartDate] = useState<Date | null>(sd);
   const [endDate, setEndDate] = useState<Date | null>(ed);
-  const [startTime, setStartTime] = useState(sd ? sd.toTimeString().slice(0, 5) : "15:00");
-  const [endTime, setEndTime] = useState(ed ? ed.toTimeString().slice(0, 5) : "16:00");
-  const [timezone, setTimezone] = useState(event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  // FIX: Use event's timezone instead of browser timezone for time display
+  const [startTime, setStartTime] = useState(formatTimeInTimezone(event.startDate, tz));
+  const [endTime, setEndTime] = useState(formatTimeInTimezone(event.endDate, tz));
+  const [timezone, setTimezone] = useState(tz);
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!startDate || !endDate) return;
-    const s = new Date(startDate);
-    const [sh, sm] = startTime.split(":").map(Number);
-    s.setHours(sh, sm, 0, 0);
-    const e = new Date(endDate);
-    const [eh, em] = endTime.split(":").map(Number);
-    e.setHours(eh, em, 0, 0);
     setSaving(true);
     try {
+      // FIX: Convert times in event's timezone to UTC ISO strings
+      const startDateUTC = dateTimeToUTC(startDate, startTime, timezone);
+      const endDateUTC = dateTimeToUTC(endDate, endTime, timezone);
       await updateEvent(communityTag, event.id, {
-        startDate: s.toISOString(),
-        endDate: e.toISOString(),
+        startDate: startDateUTC,
+        endDate: endDateUTC,
         timezone,
       });
       showToast("Date updated");
