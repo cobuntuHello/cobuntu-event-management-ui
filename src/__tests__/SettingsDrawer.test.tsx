@@ -137,3 +137,64 @@ describe("SettingsDrawer — close + row → sub-modal", () => {
         expect(found).toBeTruthy();
     });
 });
+
+/**
+ * `hideAfterCheckout` — the after-checkout config (post-purchase membership
+ * upsell / external redirect) is a community-LEADER capability. The backend
+ * requires the event to be community-owned AND the caller to hold
+ * EVENTS_CREATE, so a member host of their own event gets a 403 on save.
+ *
+ * Before this prop the row rendered for anyone with manage access, and a
+ * member host who used it hit a dead-end error. Mirrors EventForm's
+ * `hideVisibility`: the affordance is hidden, the route stays the guard.
+ */
+describe("SettingsDrawer — hideAfterCheckout gating", () => {
+    it("shows the After checkout row by default (leader view)", () => {
+        renderWithConfig(<SettingsDrawer {...baseProps()} />);
+        expect(screen.getByText("After checkout")).toBeInTheDocument();
+    });
+
+    it("hides the After checkout row when hideAfterCheckout, keeping every other row", () => {
+        renderWithConfig(<SettingsDrawer {...baseProps({ hideAfterCheckout: true })} />);
+        expect(screen.queryByText("After checkout")).not.toBeInTheDocument();
+        expect(screen.getByText("Visibility")).toBeInTheDocument();
+        expect(screen.getByText("Access")).toBeInTheDocument();
+        expect(screen.getByText("Distribution")).toBeInTheDocument();
+        expect(screen.getByText("Refund policy")).toBeInTheDocument();
+    });
+
+    it("still hides the row when the event already has a saved config", () => {
+        renderWithConfig(
+            <SettingsDrawer
+                {...baseProps({
+                    event: baseEvent({ afterCheckoutMode: "EXTERNAL", postCheckoutUrl: "https://acme.test/thanks" }),
+                    hideAfterCheckout: true,
+                })}
+            />,
+        );
+        expect(screen.queryByText("After checkout")).not.toBeInTheDocument();
+        expect(screen.queryByText("External redirect")).not.toBeInTheDocument();
+    });
+
+    it("summarises a saved EXTERNAL config for a leader (the read-shape regression)", () => {
+        renderWithConfig(
+            <SettingsDrawer
+                {...baseProps({
+                    event: baseEvent({ afterCheckoutMode: "EXTERNAL", postCheckoutUrl: "https://acme.test/thanks" }),
+                })}
+            />,
+        );
+        const row = screen.getByText("After checkout").closest("button");
+        expect(row).toHaveTextContent(/External redirect/);
+    });
+
+    it("summarises a saved MEMBERSHIP_UPSELL config for a leader", () => {
+        renderWithConfig(
+            <SettingsDrawer
+                {...baseProps({ event: baseEvent({ afterCheckoutMode: "MEMBERSHIP_UPSELL" }) })}
+            />,
+        );
+        const row = screen.getByText("After checkout").closest("button");
+        expect(row).toHaveTextContent(/Membership upsell/);
+    });
+});
