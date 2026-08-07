@@ -6,82 +6,108 @@ import { EventTimestamps } from "../ui/event-timestamps";
 import { useUpdateEvent } from "../config";
 
 /**
- * Format a UTC datetime as HH:MM in a specific timezone.
- * @param utcDate ISO datetime or Date object (in UTC)
- * @param timezone IANA timezone (e.g., "Europe/Lisbon")
- * @returns Time string in HH:MM format
+ * Event times are stored UTC with the intended wall-clock timezone alongside
+ * (`events.timezone`). Everything the organiser sees and edits in this modal is
+ * wall clock IN THAT ZONE, never the browser's. The browser's own zone must not
+ * appear in any calculation here: an organiser in New York editing a Lisbon
+ * event has to see and save Lisbon time.
+ *
+ * The helpers below therefore route every conversion through
+ * `Intl.DateTimeFormat` with an explicit `timeZone` and `Date.UTC`, and never
+ * through the local-time `Date` getters/constructor. The one exception is the
+ * `Date` handed to the date picker, which is deliberately built at LOCAL
+ * midnight carrying the event-zone calendar date, so the picker (which reads
+ * local getters) displays the right day. `dateTimeToUTC` reads the same local
+ * getters back, so the pair stays consistent.
  */
+
+/** Wall-clock HH:MM that `timeZone` shows at this instant. */
 function formatTimeInTimezone(
   utcDate: Date | string | null | undefined,
   timezone: string
 ): string {
   if (!utcDate) return "15:00";
   const date = typeof utcDate === "string" ? new Date(utcDate) : utcDate;
-  const formatter = new Intl.DateTimeFormat("en-GB", {
+  if (Number.isNaN(date.getTime())) return "15:00";
+  // hourCycle h23 rather than hour12:false — some ICU builds render midnight as
+  // "24:00" under hour12:false, which would round-trip to the wrong day.
+  return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
     timeZone: timezone,
-  });
-  return formatter.format(date).replace(":", ":");
+  }).format(date);
 }
 
 /**
- * Convert a date + time (in a specific timezone) to UTC ISO string.
- * @param date Local date (Date object)
- * @param timeStr Time in HH:MM format (in the specified timezone)
- * @param timezone IANA timezone (e.g., "Europe/Lisbon")
- * @returns UTC ISO datetime string
+ * The calendar date `timeZone` is on at this instant, returned as a Date at
+ * LOCAL midnight so the date picker renders the event-zone day.
+ *
+ * Without this the picker showed the BROWSER's day: an event at 23:00Z is
+ * July 2nd in Lisbon but July 1st in New York, so a NY organiser opening it saw
+ * the 1st and saving moved the event back a day.
+ */
+function dateInTimezone(
+  utcDate: Date | string | null | undefined,
+  timezone: string
+): Date | null {
+  if (!utcDate) return null;
+  const date = typeof utcDate === "string" ? new Date(utcDate) : utcDate;
+  if (Number.isNaN(date.getTime())) return null;
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: timezone,
+  })
+    .format(date)
+    .match(/\d+/g)!
+    .map(Number);
+  return new Date(y!, m! - 1, d!);
+}
+
+/**
+ * `timeZone`'s offset from UTC at a given instant, in ms. Positive east of
+ * Greenwich. Derived by reading the zone's wall clock back as if it were UTC.
+ */
+function tzOffsetMs(instant: Date, timeZone: string): number {
+  const [y, mo, d, h, mi, s] = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  })
+    .format(instant)
+    .match(/\d+/g)!
+    .map(Number);
+  return Date.UTC(y!, mo! - 1, d!, h!, mi!, s!) - instant.getTime();
+}
+
+/**
+ * Wall clock (`date`'s calendar day + `timeStr`) in `timezone` → UTC ISO string.
+ *
+ * Two passes: the offset depends on the instant, and the instant depends on the
+ * offset. The first pass guesses using the offset at the wall time read as UTC;
+ * the second re-reads the offset at that guess, which lands the DST-transition
+ * days correctly.
  */
 function dateTimeToUTC(date: Date, timeStr: string, timezone: string): string {
   const [hours, minutes] = timeStr.split(":").map(Number);
-
-  // Create a date string for the specified timezone
-  // We'll use a temporary UTC date and adjust for the timezone offset
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const timeFormatted = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
-
-  // Create a formatter to get the offset of the timezone at this date
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    timeZone: timezone,
-  }).formatToParts(new Date(`${year}-${month}-${day}T${timeFormatted}:00Z`));
-
-  // Extract parsed timezone time
-  const tzParts = parts.reduce(
-    (acc, p) => ({ ...acc, [p.type]: p.value }),
-    {} as Record<string, string>
+  const wallAsUTC = Date.UTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    hours || 0,
+    minutes || 0,
+    0
   );
-
-  // Calculate the offset by comparing what we said and what the formatter returned
-  const targetDateStr = `${year}-${month}-${day}T${timeFormatted}`;
-  const testUTC = new Date(targetDateStr + "Z");
-
-  const tzFormatter = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    timeZone: timezone,
-  });
-
-  const tzTime = tzFormatter.format(testUTC);
-  const [tzY, tzM, tzD, tzH, tzMin, tzS] = tzTime.match(/\d+/g)!.map(Number);
-
-  const localDate = new Date(year, parseInt(month) - 1, parseInt(day), hours, minutes, 0);
-  const offset = testUTC.getTime() - new Date(tzY, tzM - 1, tzD, tzH, tzMin, tzS).getTime();
-  const utcTime = new Date(localDate.getTime() - offset);
-
-  return utcTime.toISOString();
+  let ms = wallAsUTC - tzOffsetMs(new Date(wallAsUTC), timezone);
+  ms = wallAsUTC - tzOffsetMs(new Date(ms), timezone);
+  return new Date(ms).toISOString();
 }
 
 interface Props {
@@ -95,12 +121,11 @@ interface Props {
 export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
   const updateEvent = useUpdateEvent();
   const tz = event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const sd = event.startDate ? new Date(event.startDate) : null;
-  const ed = event.endDate ? new Date(event.endDate) : null;
 
-  const [startDate, setStartDate] = useState<Date | null>(sd);
-  const [endDate, setEndDate] = useState<Date | null>(ed);
-  // FIX: Use event's timezone instead of browser timezone for time display
+  // Both halves of the picker are seeded in the EVENT's zone, not the browser's
+  // — see the helper block above.
+  const [startDate, setStartDate] = useState<Date | null>(dateInTimezone(event.startDate, tz));
+  const [endDate, setEndDate] = useState<Date | null>(dateInTimezone(event.endDate, tz));
   const [startTime, setStartTime] = useState(formatTimeInTimezone(event.startDate, tz));
   const [endTime, setEndTime] = useState(formatTimeInTimezone(event.endDate, tz));
   const [timezone, setTimezone] = useState(tz);
@@ -110,7 +135,6 @@ export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showT
     if (!startDate || !endDate) return;
     setSaving(true);
     try {
-      // FIX: Convert times in event's timezone to UTC ISO strings
       const startDateUTC = dateTimeToUTC(startDate, startTime, timezone);
       const endDateUTC = dateTimeToUTC(endDate, endTime, timezone);
       await updateEvent(communityTag, event.id, {
