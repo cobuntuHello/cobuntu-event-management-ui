@@ -44,6 +44,21 @@ interface Props {
      * Defaults to false for backwards compatibility.
      */
     isPast?: boolean;
+    /**
+     * Drops the "After checkout" row (post-purchase membership upsell /
+     * external redirect). That config is a community-LEADER capability: the
+     * backend requires the event to be community-owned AND the caller to hold
+     * EVENTS_CREATE, so a member who created their own event, a plain host, and
+     * a personal (non-community) event all get a 403 on save.
+     *
+     * Without this, the row rendered for everyone with manage access and a
+     * member host hit a dead-end error. Mirrors EventForm's `hideVisibility`.
+     * Consumers pass `!(event.communityId && hasPermission(EVENTS_CREATE))`.
+     * Defaults to false so the admin (leaders only) needs no change.
+     *
+     * This is an affordance, not the guard — the route re-enforces it.
+     */
+    hideAfterCheckout?: boolean;
     onClose: () => void;
     onSaved: () => void;
     showToast: (msg: string) => void;
@@ -54,6 +69,7 @@ export function SettingsDrawer({
     communityTag,
     isOpen,
     isPast,
+    hideAfterCheckout,
     onClose,
     onSaved,
     showToast,
@@ -140,7 +156,9 @@ export function SettingsDrawer({
             />
         );
     }
-    if (modal === "after-checkout") {
+    // Gated identically to the row that opens it, so a stale `modal` state
+    // can't surface the editor to someone the backend would 403.
+    if (modal === "after-checkout" && !hideAfterCheckout) {
         return (
             <AfterCheckoutEditModal
                 event={event}
@@ -248,21 +266,23 @@ export function SettingsDrawer({
                             </svg>
                         }
                     />
-                    <SettingsRow
-                        label="After checkout"
-                        summary={
-                            event.afterCheckoutMode === "MEMBERSHIP_UPSELL" ? "Membership upsell"
-                                : event.afterCheckoutMode === "EXTERNAL" ? "External redirect"
-                                    : "Normal confirmation"
-                        }
-                        onClick={() => openModal("after-checkout")}
-                        icon={
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
-                                <path d="M9 11l3 3L22 4" />
-                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                            </svg>
-                        }
-                    />
+                    {!hideAfterCheckout && (
+                        <SettingsRow
+                            label="After checkout"
+                            summary={
+                                event.afterCheckoutMode === "MEMBERSHIP_UPSELL" ? "Membership upsell"
+                                    : event.afterCheckoutMode === "EXTERNAL" ? "External redirect"
+                                        : "Normal confirmation"
+                            }
+                            onClick={() => openModal("after-checkout")}
+                            icon={
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
+                                    <path d="M9 11l3 3L22 4" />
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                </svg>
+                            }
+                        />
+                    )}
                     <SettingsRow
                         label="Refund policy"
                         summary={refundPolicySummary(event.refundPolicy)}
