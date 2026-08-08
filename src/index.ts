@@ -236,3 +236,7 @@ export { AccessibilityEditModal } from "./components/AccessibilityEditModal";
 export { DescriptionEditModal } from "./components/DescriptionEditModal";
 export { TagsEditModal } from "./components/TagsEditModal";
 // (MembershipFunnelEditModal removed alongside the BE module kill.)
+
+// Category picker — the consumer loads the options and passes them to
+// EventForm; the type is exported so it can shape that fetch.
+export { CategoryPickerRow, type CategoryOption } from "./components/CategoryPickerRow";
