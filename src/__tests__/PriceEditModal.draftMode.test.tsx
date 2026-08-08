@@ -183,3 +183,89 @@ describe("PriceEditModal — draftMode save failures are visible without a host 
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+/**
+ * Registration form on an UNSAVED tier.
+ *
+ * Reported 2026-08-08: "the form picker is disabled and says I must save
+ * first — this is the free default price tier that is always on display on
+ * the form either way. Why can't I add a form already?"
+ *
+ * It was disabled because a form is keyed on tierId and a draft tier has none.
+ * The backend now takes the form inline on the create payload, so in draftMode
+ * the builder edits t.draftForm and it ships with the tier. These pin the two
+ * halves that could regress independently: the row being reachable at all, and
+ * what the builder does with no tier to PUT against.
+ */
+describe("PriceEditModal — draftMode registration form", () => {
+  it("the Registration form row is reachable on an unsaved tier", async () => {
+    mockFetch([]);
+    const user = userEvent.setup();
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    await user.click(await screen.findByRole("button", { name: /Standard/ }));
+
+    const row = await screen.findByRole("button", { name: /Registration form/i });
+    expect(row).not.toBeDisabled();
+    // The old copy told the user to go away; it must not come back.
+    expect(row.textContent).not.toMatch(/save first/i);
+    expect(row.textContent).toMatch(/none/i);
+  });
+
+  it("reports the staged field count, not the server's", async () => {
+    mockFetch([]);
+    const user = userEvent.setup();
+    const props = baseProps({
+      initialDraftTiers: [{
+        ...blankTier(),
+        name: "Standard",
+        price: "10",
+        // hasForm/formFieldCount describe a SAVED tier's server copy and must
+        // not be consulted for a draft — reading them here would show 0.
+        draftForm: { fields: [{ id: "a", label: "A" }, { id: "b", label: "B" }] },
+      }],
+    });
+    renderWithConfig(<PriceEditModal {...props} />);
+
+    await user.click(await screen.findByRole("button", { name: /Standard/ }));
+
+    const row = await screen.findByRole("button", { name: /Registration form/i });
+    expect(row.textContent).toMatch(/2 fields/i);
+  });
+
+  it("fires no request when opening the builder on a draft tier", async () => {
+    // The whole point: there is no tier to GET a form from. A stray call would
+    // 404 against a tierId that does not exist.
+    const fetchFn = mockFetch([]);
+    const user = userEvent.setup();
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    await user.click(await screen.findByRole("button", { name: /Standard/ }));
+    await user.click(await screen.findByRole("button", { name: /Registration form/i }));
+
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("carries the staged form out through onDraftCommit", async () => {
+    // End to end for this layer: what the parent receives is what the create
+    // payload sends.
+    mockFetch([]);
+    const user = userEvent.setup();
+    const props = baseProps({
+      initialDraftTiers: [{
+        ...blankTier(),
+        name: "Standard",
+        price: "10",
+        draftForm: { fields: [{ id: "a", label: "Your name" }] },
+      }],
+    });
+    renderWithConfig(<PriceEditModal {...props} />);
+
+    await screen.findByRole("button", { name: /Standard/ });
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(props.onDraftCommit).toHaveBeenCalled());
+    const committed = props.onDraftCommit.mock.calls[0][0];
+    expect(committed.tiers[0].draftForm.fields).toHaveLength(1);
+  });
+});

@@ -24,6 +24,8 @@ export interface StepViewProps {
   memberPricingState?: MemberPricingTierState;
   onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
   showToast: (msg: string) => void;
+  /** Create flow — the tier has no server id, so the form step edits draft state. */
+  draftMode?: boolean;
 }
 
 /**
@@ -42,6 +44,7 @@ export function StepView({
   memberPricingState,
   onMemberPricingRowChange,
   showToast,
+  draftMode,
 }: StepViewProps) {
   return (
     <div>
@@ -78,7 +81,15 @@ export function StepView({
       )}
       {step === "config" && <ConfigStep t={t} onUpdate={onUpdate} />}
       {step === "form" && (
-        <FormStep t={t} communityTag={communityTag} showToast={showToast} />
+        <FormStep
+          t={t}
+          communityTag={communityTag}
+          showToast={showToast}
+          draftMode={draftMode}
+          // Reuses the existing draft-patch channel rather than adding a
+          // second one — the form is just another field on the tier.
+          onDraftFormChange={(form) => onUpdate({ draftForm: form })}
+        />
       )}
     </div>
   );

@@ -56,6 +56,12 @@ export function TierEditView({
 }: TierEditViewProps) {
   const locked = isTierLocked(t);
 
+  // Saved tiers report the server's copy via hasForm/formFieldCount; a draft
+  // tier reports what is staged locally. Same row, two sources.
+  const formFieldCount = t.id ? (t.hasForm ? t.formFieldCount : 0) : (t.draftForm?.fields?.length ?? 0);
+  const fieldCountLabel =
+    formFieldCount > 0 ? `${formFieldCount} field${formFieldCount !== 1 ? "s" : ""}` : "None";
+
   return (
     <div className="space-y-5">
       {locked && (
@@ -129,9 +135,16 @@ export function TierEditView({
           <AdvancedRow
             icon={<ClipboardList className="h-[17px] w-[17px]" />}
             label="Registration form"
-            value={!t.id ? "Save first" : t.hasForm ? `${t.formFieldCount} field${t.formFieldCount !== 1 ? "s" : ""}` : "None"}
+            /*
+             * Reachable on an UNSAVED tier since 2026-08-08. A form used to
+             * need a tierId to key on, so during create the row read
+             * "Save first" and was disabled — which made no sense on the free
+             * default tier that is always on display. The create payload now
+             * carries the form inline, so the builder edits draft state and it
+             * ships with the tier.
+             */
+            value={fieldCountLabel}
             onClick={() => onEnterStep("form")}
-            disabled={!t.id}
           />
         </div>
       </div>
