@@ -163,6 +163,16 @@ export function PriceEditModal({
   const [drafts, setDrafts] = useState<DraftTier[]>([]);
   const [originalTiers, setOriginalTiers] = useState<Map<string, OriginalTierSnapshot>>(new Map());
   const [saving, setSaving] = useState(false);
+  /**
+   * Why the modal keeps its own error state instead of relying on showToast:
+   * consumers were passing stubs. EventForm passed a console.warn and
+   * ProductForm passed `() => {}`, so a failed Save was invisible — the user
+   * pressed Save, validation threw "Price required", the message went nowhere
+   * and nothing on screen changed. Reported 2026-08-08 against the product
+   * form; identical here. A modal has to be able to explain its own refusal
+   * without depending on the host app wiring something up.
+   */
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [publishToggling, setPublishToggling] = useState(false);
   // Notify-attendees confirmation states — mirrors EditEventDrawer so the
   // host gets the same prompt shape when they edit ticket pricing/name.
@@ -572,6 +582,7 @@ export function PriceEditModal({
 
   async function save(notifyAttendees: boolean = false, opts: { suppressFinalToast?: boolean } = {}) {
     setSaving(true);
+    setSaveError(null);
     // Defer onSaved() until after we've cleared local state (setSaving,
     // any pending toast). The parent typically unmounts the modal in
     // response to onSaved, so calling it inline causes the toast call
@@ -701,10 +712,15 @@ export function PriceEditModal({
       // When the caller is the confirm modal it wants the exception so it
       // can switch into its error state. The plain Save button path catches
       // it here and surfaces a toast — same behavior as before.
+      const msg = e?.message || "Failed to save";
+      // The confirm-modal caller wants the exception so it can switch into
+      // its own error state; it renders the message itself, so setting ours
+      // too would double-report.
       if (opts.suppressFinalToast) {
         throw e;
       }
-      showToast(e.message || "Failed to save");
+      setSaveError(msg);
+      showToast(msg);
     }
     finally { setSaving(false); }
     // onSaved() fires AFTER the finally cleanup so the parent's
@@ -930,6 +946,14 @@ export function PriceEditModal({
           Back / Cancel / Delete / Duplicate live here so the action
           surface stays predictable across levels — no inline pill-shaped
           affordances inside the body. */}
+      {saveError && (
+        <div
+          role="alert"
+          className="shrink-0 mt-4 rounded-lg bg-red-50 px-3 py-2 text-[12.5px] text-red-700 ring-1 ring-red-100"
+        >
+          {saveError}
+        </div>
+      )}
       <div className="shrink-0 flex items-center gap-2 mt-4 pt-4 border-t border-zinc-100">
         {activeDraft && activeStep ? (
           <button
