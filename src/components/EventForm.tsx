@@ -569,6 +569,15 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           communityTag={communityTag}
           onClose={() => setShowTierModal(false)}
           onSaved={() => setShowTierModal(false)}
+          /*
+           * Console-only on purpose: EventForm has no toast host of its own,
+           * and inventing one would collide with whatever the consuming app
+           * renders. Safe only because PriceEditModal surfaces its own
+           * failures inline (see saveError there) — until 2026-08-08 it did
+           * not, so this stub meant a rejected Save printed to a console the
+           * member never opens and changed nothing on screen. If a consumer
+           * wants toasts, thread its own through rather than filling this in.
+           */
           showToast={(msg) => console.warn("[EventForm tier modal]", msg)}
           draftMode
           initialDraftTiers={tiersToDrafts(tiers)}
