@@ -11,6 +11,7 @@ import { EventLocationSelector } from "../ui/event-location-selector";
 import { EventTags } from "../ui/event-tags";
 import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
 import { RichTextEditor } from "../ui/rich-text-editor";
+import { htmlToPlainText } from "../lib/htmlToPlainText";
 import {
   Ticket, Lock, UserCheck, Image as ImageIcon, X,
   Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
@@ -120,6 +121,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
+  // Collapsed-row preview. htmlToPlainText, not an inline tag-strip: the rich
+  // text editor emits &nbsp; for runs of spaces, and stripping tags alone left
+  // those entities to render literally as "Two&nbsp;communities". Same helper
+  // EditEventDrawer already uses, so the create and edit rows agree.
+  const descriptionPreview = htmlToPlainText(description);
   const [bannerUrl, setBannerUrl] = useState(initialData?.bannerUrl || "");
   const [startDate, setStartDate] = useState<Date | null>(initialData?.startDate || null);
   const [endDate, setEndDate] = useState<Date | null>(initialData?.endDate || null);
@@ -391,12 +397,12 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
             <button type="button" onClick={() => setIsDescriptionOpen(true)}
               className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
-              {description.replace(/<[^>]*>/g, "").trim() ? (
+              {descriptionPreview ? (
                 <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
               ) : <FileText className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
               <span className="flex-1 min-w-0">
-                <span className={`block text-sm truncate ${description.replace(/<[^>]*>/g, "").trim() ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{description.replace(/<[^>]*>/g, "").trim() ? "Description" : "Add description"}</span>
-                {description.replace(/<[^>]*>/g, "").trim() && <span className="block text-[12.5px] text-zinc-500 truncate">{description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()}</span>}
+                <span className={`block text-sm truncate ${descriptionPreview ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{descriptionPreview ? "Description" : "Add description"}</span>
+                {descriptionPreview && <span className="block text-[12.5px] text-zinc-500 truncate">{descriptionPreview}</span>}
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
             </button>

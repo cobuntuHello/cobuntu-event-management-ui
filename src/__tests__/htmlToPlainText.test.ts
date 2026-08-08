@@ -34,3 +34,20 @@ describe("htmlToPlainText", () => {
     expect(htmlToPlainText("a &amp;nbsp; b")).toBe("a &nbsp; b");
   });
 });
+
+/**
+ * Regression guard for the create form specifically. htmlToPlainText was added
+ * for the EDIT drawer and EventForm kept its own inline `replace(/<[^>]*>/g)`,
+ * so the bug stayed live on the create surface for the whole time the helper
+ * existed. Asserting the exact string a member reported keeps that from
+ * silently coming back if someone reintroduces an inline strip.
+ */
+describe("EventForm description preview (reported 2026-08-08)", () => {
+  it("does not leak &nbsp; into the collapsed row", () => {
+    const fromEditor = "<p>Test&nbsp;product Test&nbsp;product</p>";
+    const preview = htmlToPlainText(fromEditor);
+    expect(preview).toBe("Test product Test product");
+    expect(preview).not.toContain("&nbsp;");
+    expect(preview).not.toContain("&");
+  });
+});
