@@ -55,6 +55,13 @@ export interface TierItem {
   capacity: string;
   isRecurring: boolean;
   recurringInterval: "monthly" | "yearly";
+  /**
+   * Registration form staged in the tier modal before the event exists.
+   * Carried on TierItem purely so it survives the DraftTier -> TierItem
+   * round-trip below; the consumer forwards it on the create payload and the
+   * backend writes it with the tier. Undefined for a tier with no form.
+   */
+  draftForm?: { fields: any[]; stepLabels?: string[] } | null;
 }
 
 export interface EventFormData {
@@ -190,6 +197,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       price: t.price,
       currency: t.currency,
       capacity: t.capacity,
+      // Seed the staged form back so reopening the modal shows the questions
+      // already added, rather than an empty builder that silently replaces
+      // them on the next commit.
+      draftForm: t.draftForm ?? null,
     }));
   }
 
@@ -229,6 +240,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         price: d.price,
         currency: d.currency,
         capacity: d.capacity,
+        // Carried explicitly: this mapping is a field allowlist, so anything
+        // not named here is dropped silently on every modal close.
+        draftForm: d.draftForm ?? null,
         // Recurring fields aren't surfaced by the events PriceEditModal
         // (events don't support subscription tiers); reset to defaults.
         isRecurring: false,
