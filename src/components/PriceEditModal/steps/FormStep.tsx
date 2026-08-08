@@ -43,6 +43,14 @@ export interface FormStepProps {
   t: DraftTier;
   communityTag: string;
   showToast: (msg: string) => void;
+  /**
+   * Draft mode: the tier does not exist server-side yet, so there is nothing
+   * to GET or PUT against. The builder reads t.draftForm and reports every
+   * change up through onDraftFormChange; the form ships inline with the tier
+   * in the create payload.
+   */
+  draftMode?: boolean;
+  onDraftFormChange?: (form: { fields: any[]; stepLabels?: string[] } | null) => void;
 }
 
 type SubView =
@@ -72,7 +80,7 @@ type SubView =
  * step views inside the FormStep rather than overlay modals — per the
  * user's redesign feedback ("Add a question should open its own step").
  */
-export function FormStep({ t, communityTag, showToast }: FormStepProps) {
+export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormChange }: FormStepProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   // The form builder's primary actions live in the modal footer, not in
@@ -124,6 +132,18 @@ export function FormStep({ t, communityTag, showToast }: FormStepProps) {
   }, [items]);
 
   useEffect(() => {
+    // Draft mode: seed from the parent-owned draft. Runs once per tier —
+    // re-seeding on every draftForm change would clobber what the user is
+    // typing, since we are also the thing producing those changes.
+    if (draftMode) {
+      const { items: rebuilt, step0Label: s0 } = payloadToItems(
+        t.draftForm?.fields ?? [],
+        t.draftForm?.stepLabels ?? [],
+      );
+      setItems(rebuilt);
+      setStep0Label(s0);
+      return;
+    }
     if (!t.id) return;
     let cancelled = false;
     (async () => {
@@ -163,8 +183,17 @@ export function FormStep({ t, communityTag, showToast }: FormStepProps) {
       pendingRef.current = { items: nextItems, step0Label: nextStep0Label };
       return;
     }
-    inFlightRef.current = true;
     const { fields, stepLabels } = itemsToPayload(nextItems, nextStep0Label);
+
+    // Draft mode: no tier to PUT against. Hand the payload up and let the
+    // create request carry it. Synchronous, so none of the in-flight
+    // coalescing below applies — there is no request to race.
+    if (draftMode) {
+      onDraftFormChange?.(fields.length > 0 ? { fields, stepLabels } : null);
+      return;
+    }
+
+    inFlightRef.current = true;
     setSaving(true);
     try {
       const res = await fetch(

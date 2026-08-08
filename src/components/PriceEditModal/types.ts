@@ -61,6 +61,19 @@ export interface DraftTier {
   hasForm: boolean;
   /** Number of fields in the linked form (0 when not linked). */
   formFieldCount: number;
+  /**
+   * Draft-mode registration form, held locally until the tier exists.
+   *
+   * A saved tier's form lives server-side keyed on tierId, which is why a
+   * tier being CREATED could not have one — no id to key on, so the modal
+   * disabled the row with "Save first". The backend now accepts a form
+   * inline on the create payload, so during create the builder edits this
+   * instead and it ships with the tier.
+   *
+   * Only meaningful in draftMode. For a saved tier, hasForm/formFieldCount
+   * describe the server's copy and this stays undefined.
+   */
+  draftForm?: { fields: any[]; stepLabels?: string[] } | null;
   /** Non-refunded sales — drives sold display + lock UI. */
   salesCount: number;
   /** 'fixed' = listed price is the price. 'pwyw' = listed price is
