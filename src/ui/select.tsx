@@ -1,5 +1,21 @@
 "use client";
 
+/*
+ * STACKING LADDER — read this before changing any z-index in this package.
+ *
+ *   120  ModalShell backdrop (@cobuntu/management-ui-shared)
+ *   130  Dialog — a dialog opened from INSIDE a modal must sit above it
+ *   200  Select / Popover / HelpTip — anything that opens from inside EITHER
+ *
+ * Everything in the 200 band is portalled to <body> and must clear the modal,
+ * or it renders behind the thing that opened it and looks like a dead control.
+ *
+ * That is not hypothetical: ModalShell moved from z-50 to z-[120] on
+ * 2026-08-08 to cover the community app's sidebar, and this file's popovers
+ * were left at z-50 / z-[80]. The currency dropdown and every ⓘ tooltip in the
+ * tier modal silently stopped appearing. Reported 2026-08-09.
+ */
+
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
@@ -37,7 +53,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "relative z-50 max-h-60 min-w-[8rem] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl",
+        "relative z-[200] max-h-60 min-w-[8rem] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl",
         position === "popper" && "translate-y-1",
         className
       )}
