@@ -41,7 +41,7 @@ import {
 } from "./PriceEditModal/helpers";
 import { SortableTierRow } from "./PriceEditModal/TierRow";
 import { Switch, StepFade } from "./PriceEditModal/_primitives";
-import { STEP_TITLES, STEP_SUBTITLES, type StepId } from "./PriceEditModal/TierHubView";
+import { STEP_TITLES, STEP_SUBTITLES, type StepId } from "./PriceEditModal/steps";
 import { TierEditView } from "./PriceEditModal/TierEditView";
 import { StepView } from "./PriceEditModal/StepView";
 import { FooterSlotContext } from "./PriceEditModal/footer-slot";
