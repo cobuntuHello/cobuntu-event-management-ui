@@ -15,7 +15,8 @@ import { Info } from "lucide-react";
  * HelpTip — the ⓘ affordance next to a field label. Click/tap toggles a
  * short explainer popover; on desktop it also opens on hover. Portaled
  * (Radix) so it escapes the modal's overflow clipping and layers above
- * everything (z-[80] > modal > datetime popover). The label-context is
+ * everything (z-[200], the top of the stacking ladder in src/ui/select.tsx
+ * — it must clear ModalShell's z-[120] backdrop). The label-context is
  * uppercase/tracked, so the content resets to normal-case body text.
  */
 export function HelpTip({ text, label }: { text: string; label?: string }) {
@@ -38,7 +39,7 @@ export function HelpTip({ text, label }: { text: string; label?: string }) {
           sideOffset={6}
           collisionPadding={12}
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="z-[80] max-w-[240px] rounded-lg bg-zinc-900 px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-relaxed text-white shadow-lg"
+          className="z-[200] max-w-[240px] rounded-lg bg-zinc-900 px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-relaxed text-white shadow-lg"
         >
           {text}
           <Popover.Arrow className="fill-zinc-900" />
