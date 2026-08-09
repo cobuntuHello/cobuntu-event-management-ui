@@ -289,7 +289,15 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
 
   // ─── Gates ────────────────────────────────────────────────────────
 
-  if (!t.id) {
+  // draftMode is the create flow: the tier has no id BY DESIGN and the form is
+  // carried inline on the create payload, so there is nothing to save first.
+  //
+  // This gate was missed when draft support was added — the load and save paths
+  // both learned about draftMode but this render-level early return did not, so
+  // the builder still refused to draw and the row above it led to a dead end.
+  // Reported 2026-08-09: "I am still unable to create a form on the standard
+  // tier."
+  if (!t.id && !draftMode) {
     return (
       <div className="px-4 py-6 rounded-lg border border-dashed border-zinc-300 text-center">
         <p className="text-[12px] font-medium text-zinc-700">Save tier first</p>

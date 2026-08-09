@@ -233,6 +233,35 @@ describe("PriceEditModal — draftMode registration form", () => {
     expect(row.textContent).toMatch(/2 fields/i);
   });
 
+  it("actually RENDERS the builder on a draft tier", async () => {
+    // The test below this one — "fires no request" — passed the whole time the
+    // builder was still refusing to draw, because an early return produces no
+    // fetch just as effectively as a working draft path does. Absence of a
+    // request is not evidence of presence of a form.
+    //
+    // So this asserts the builder is USABLE: the "+ Question" action it
+    // portals into the footer is only rendered once the gate is passed.
+    // Reported 2026-08-09 after the first fix shipped: "I am still unable to
+    // create a form on the standard tier."
+    mockFetch([]);
+    const user = userEvent.setup();
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+
+    await user.click(await screen.findByRole("button", { name: /Standard/ }));
+    await user.click(await screen.findByRole("button", { name: /Registration form/i }));
+
+    // The gate's own copy is the sharpest signal: if it is on screen the
+    // builder did not draw. Asserting its ABSENCE plus the presence of the
+    // page-label input proves the component got past the early return.
+    // ("+ Question" portals into the footer slot, which does not mount here.)
+    expect(screen.queryByText(/save tier first/i)).toBeNull();
+    // "Add question" is the builder's own action — it only exists past the
+    // gate. Paired with the gate copy being absent, that is the difference
+    // between "did not fetch" and "actually works".
+    expect(await screen.findByRole("button", { name: /add question/i })).toBeTruthy();
+    expect(screen.getAllByText(/no questions yet/i).length).toBeGreaterThan(0);
+  });
+
   it("fires no request when opening the builder on a draft tier", async () => {
     // The whole point: there is no tier to GET a form from. A stray call would
     // 404 against a tierId that does not exist.
