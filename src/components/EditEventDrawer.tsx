@@ -10,6 +10,7 @@ import { useEventManagementConfig, useJsonHeaders } from "../config";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
 import { DistributionEditModal } from "./DistributionEditModal";
 import { htmlToPlainText } from "../lib/htmlToPlainText";
+import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 
 /**
  * Right-side edit-event drawer. The host edits the full set of event
@@ -26,6 +27,13 @@ import { htmlToPlainText } from "../lib/htmlToPlainText";
  */
 
 interface Props {
+  /**
+   * The community's EVENT categories, loaded by the consumer — same contract
+   * as EventForm. This drawer does make its own API calls, but categories stay
+   * a consumer concern so the create and edit surfaces cannot disagree about
+   * the list.
+   */
+  categories?: CategoryOption[];
   event: any;
   communityTag: string;
   isOpen: boolean;
@@ -52,6 +60,9 @@ interface FormState {
   // alongside the existing action gate.
   viewability: string;
   tags: { id: string; name: string }[];
+  /** Community taxonomy. null = unfiled; the pair moves together. */
+  categoryId: string | null;
+  subCategoryId: string | null;
 }
 
 function eventToForm(event: any): FormState {
@@ -70,13 +81,15 @@ function eventToForm(event: any): FormState {
     accessibility: event.accessibility || "PUBLIC",
     viewability: event.viewability || "PUBLIC",
     tags: event.tags?.map((t: any) => ({ id: t.id || t.tagId, name: t.name || t.tag?.name })).filter((t: any) => t.id && t.name) || [],
+    categoryId: (event as any).categoryId ?? null,
+    subCategoryId: (event as any).subCategoryId ?? null,
   };
 }
 
 type ConfirmState = "hidden" | "options" | "loading" | "success" | "error";
 type SubModal = "description" | "location" | "access" | "tags" | null;
 
-export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved, showToast }: Props) {
+export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved, showToast, categories }: Props) {
   const { apiBaseUrl } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   const [form, setForm] = useState<FormState>(() => eventToForm(event));
@@ -217,6 +230,9 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
         accessibility: form.accessibility,
         viewability: form.viewability,
         tagIds: form.tags.map(t => t.id),
+        // null clears; the backend clears the sub-category alongside it.
+        categoryId: form.categoryId,
+        subCategoryId: form.subCategoryId,
         notifyAttendees,
       });
       // Toast fires immediately on backend success. The drawer was
@@ -421,6 +437,25 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
                 : `View: ${form.viewability === "MEMBERS_ONLY" ? "members only" : "public"} · RSVP: ${form.accessibility === "MEMBERS_ONLY" ? "members only" : "public"}`}
             </p>
           </ClickableRow>
+
+          {/*
+            Category — reuses CategoryPickerRow, the same control the create
+            form uses, so filing an event does not look like two different
+            features depending on where you do it. It renders its own row and
+            dialog, so it does not go through openSubModal.
+
+            Hides itself when the community has no categories.
+          */}
+          <CategoryPickerRow
+            categories={categories ?? []}
+            categoryId={form.categoryId}
+            subCategoryId={form.subCategoryId}
+            noun="event"
+            onChange={({ categoryId, subCategoryId }) => {
+              set("categoryId", categoryId);
+              set("subCategoryId", subCategoryId);
+            }}
+          />
 
           {/* Tags → modal */}
           <ClickableRow icon={<Icon d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z M7 7h.01" />} label="Tags" onClick={() => openSubModal("tags")}>
