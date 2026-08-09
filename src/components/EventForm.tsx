@@ -12,6 +12,7 @@ import { EventTags } from "../ui/event-tags";
 import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
 import { RichTextEditor } from "../ui/rich-text-editor";
 import { htmlToPlainText } from "../lib/htmlToPlainText";
+import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
   Ticket, Lock, UserCheck, Image as ImageIcon, X,
   Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
@@ -95,6 +96,9 @@ export interface TierItem {
 export interface EventFormData {
   name: string;
   description: string;
+  /** Community taxonomy. null = unfiled. Sub-category is only ever set with its parent. */
+  categoryId: string | null;
+  subCategoryId: string | null;
   bannerUrl: string;
   startDate: Date | null;
   endDate: Date | null;
@@ -117,6 +121,15 @@ export interface EventFormData {
 
 interface EventFormProps {
   communityTag: string;
+  /**
+   * The community's EVENT categories, loaded by the CONSUMER.
+   *
+   * Not fetched here: this form runs the create wizard without a configured
+   * API base, so a fetch would quietly break embedding. The row hides itself
+   * when empty, so a community with no taxonomy sees no picker rather than an
+   * empty one. Mirrors ProductForm.
+   */
+  categories?: CategoryOption[];
   initialData?: Partial<EventFormData>;
   onChange?: (data: EventFormData) => void;
   showErrors?: boolean;
@@ -152,7 +165,7 @@ interface EventFormProps {
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, maxWidthClassName = "max-w-3xl" }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, maxWidthClassName = "max-w-3xl" }: EventFormProps) {
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -205,6 +218,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     initialData?.tiers && initialData.tiers.length > 0 ? initialData.tiers : [standardTier()],
   );
   const [tags, setTags] = useState<Tag[]>(initialData?.tags || []);
+  const [categoryId, setCategoryId] = useState<string | null>(initialData?.categoryId ?? null);
+  const [subCategoryId, setSubCategoryId] = useState<string | null>(initialData?.subCategoryId ?? null);
 
   // UI state
   const [isBannerCropOpen, setIsBannerCropOpen] = useState(false);
@@ -420,10 +435,20 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     onChangeRef.current?.({
       name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, onlineUrl,
+      /*
+       * `submittableTiers` (main #111/#112), not raw `tiers`: the raw list
+       * includes rows the host has not configured, and emitting those dropped
+       * pay-what-you-want and installment plans on create.
+       *
+       * categoryId / subCategoryId ride alongside — they are listing
+       * properties, not tier properties, so they sit outside the tier list.
+       */
       accessibility, viewability, requiresApproval, tiers: submittableTiers, tags,
+      categoryId, subCategoryId,
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
-      physicalLocation, onlineUrl, accessibility, viewability, requiresApproval, submittableTiers, tags]); // eslint-disable-line react-hooks/exhaustive-deps
+      physicalLocation, onlineUrl, accessibility, viewability, requiresApproval, submittableTiers, tags,
+      categoryId, subCategoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
 
@@ -559,6 +584,17 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
             </button>
+
+            <CategoryPickerRow
+              categories={categories ?? []}
+              categoryId={categoryId}
+              subCategoryId={subCategoryId}
+              noun="event"
+              onChange={({ categoryId: c, subCategoryId: sc }) => {
+                setCategoryId(c);
+                setSubCategoryId(sc);
+              }}
+            />
 
             <button type="button" onClick={() => setIsTagsOpen(true)}
               className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
