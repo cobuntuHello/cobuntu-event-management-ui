@@ -10,7 +10,7 @@ import { DetailsStep } from "./steps/DetailsStep";
 import { BasicsStep } from "./steps/BasicsStep";
 import { ConfigStep } from "./steps/ConfigStep";
 import { FormStep } from "./steps/FormStep";
-import type { StepId } from "./TierHubView";
+import type { StepId } from "./steps";
 import { Eyebrow, StepInput, Switch } from "./_primitives";
 import { isTierLocked } from "./helpers";
 

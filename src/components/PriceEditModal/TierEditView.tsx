@@ -5,7 +5,7 @@ import { Eyebrow, StepInput, StepTextarea, Switch } from "./_primitives";
 import { TIER_NAME_MAX, TIER_DESCRIPTION_MAX, type DraftTier } from "./types";
 import { isTierLocked } from "./helpers";
 import { BasicsStep } from "./steps/BasicsStep";
-import type { StepId } from "./TierHubView";
+import type { StepId } from "./steps";
 import type { MemberPricingRow, MemberPricingTierState } from "./member-pricing";
 
 export interface TierEditViewProps {
