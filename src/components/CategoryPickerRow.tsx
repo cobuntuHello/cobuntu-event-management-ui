@@ -7,10 +7,28 @@ import {
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 
-export interface CategoryOption {
+/**
+ * Sub-categories carry the same icon fields as their parent — iconId
+ * (Iconify), iconColor and imageUrl — which is MORE than Atlas gives its own
+ * sub-categories (a single iconUrl). Typing them as `{ id, name }` silently
+ * threw that away, so an admin could set a sub-category icon in the admin app
+ * and never see it anywhere.
+ */
+export interface CategoryIconFields {
+  iconId?: string | null;
+  iconColor?: string | null;
+  imageUrl?: string | null;
+}
+
+export interface SubCategoryOption extends CategoryIconFields {
   id: string;
   name: string;
-  subcategories?: { id: string; name: string }[];
+}
+
+export interface CategoryOption extends CategoryIconFields {
+  id: string;
+  name: string;
+  subcategories?: SubCategoryOption[];
 }
 
 export interface CategoryPickerRowProps {
