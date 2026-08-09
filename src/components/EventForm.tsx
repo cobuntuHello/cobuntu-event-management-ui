@@ -69,6 +69,27 @@ export interface TierItem {
    * published before the row toggle existed.
    */
   publishedAt?: string | null;
+  /**
+   * Pricing model + plan + sales window.
+   *
+   * All of these are configurable in the tier modal (BasicsStep offers
+   * pay-what-you-want and an installment plan; ConfigStep offers a sales
+   * window) and all of them are accepted by the backend's TierData on inline
+   * event-tier create. They were simply not named on this interface, which is
+   * a field allowlist in BOTH directions — so a host could set up PWYW or an
+   * installment plan, watch the modal show it back correctly, and have the
+   * whole thing vanish the moment the modal closed. Found 2026-08-09 while
+   * auditing the create payloads after the photo-upload bug.
+   */
+  priceMode?: "fixed" | "pwyw";
+  pwywMin?: string;
+  installmentEnabled?: boolean;
+  installmentTotal?: string;
+  installmentCount?: string;
+  installmentInterval?: string;
+  autoScheduleEnabled?: boolean;
+  salesStartAt?: string;
+  salesEndAt?: string;
 }
 
 export interface EventFormData {
@@ -242,6 +263,17 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       // publishedAt to "now", and defaulting undefined to null here would
       // silently unpublish every tier of a consumer that never sets the field.
       ...(t.publishedAt !== undefined ? { publishedAt: t.publishedAt } : {}),
+      // Same allowlist caveat as publishedAt: only override when the caller
+      // actually set it, so blankTier's defaults stand otherwise.
+      ...(t.priceMode !== undefined ? { priceMode: t.priceMode } : {}),
+      ...(t.pwywMin !== undefined ? { pwywMin: t.pwywMin } : {}),
+      ...(t.installmentEnabled !== undefined ? { installmentEnabled: t.installmentEnabled } : {}),
+      ...(t.installmentTotal !== undefined ? { installmentTotal: t.installmentTotal } : {}),
+      ...(t.installmentCount !== undefined ? { installmentCount: t.installmentCount } : {}),
+      ...(t.installmentInterval !== undefined ? { installmentInterval: t.installmentInterval } : {}),
+      ...(t.autoScheduleEnabled !== undefined ? { autoScheduleEnabled: t.autoScheduleEnabled } : {}),
+      ...(t.salesStartAt !== undefined ? { salesStartAt: t.salesStartAt } : {}),
+      ...(t.salesEndAt !== undefined ? { salesEndAt: t.salesEndAt } : {}),
     }));
   }
 
@@ -311,6 +343,17 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         // not named here is dropped silently on every modal close.
         draftForm: d.draftForm ?? null,
         publishedAt: d.publishedAt ?? null,
+        // Carried explicitly — see TierItem. Omitting any of these silently
+        // reverted the host's pricing model, plan or sales window on close.
+        priceMode: d.priceMode,
+        pwywMin: d.pwywMin,
+        installmentEnabled: d.installmentEnabled,
+        installmentTotal: d.installmentTotal,
+        installmentCount: d.installmentCount,
+        installmentInterval: d.installmentInterval,
+        autoScheduleEnabled: d.autoScheduleEnabled,
+        salesStartAt: d.salesStartAt,
+        salesEndAt: d.salesEndAt,
         // Recurring fields aren't surfaced by the events PriceEditModal
         // (events don't support subscription tiers); reset to defaults.
         isRecurring: false,

@@ -305,3 +305,62 @@ export function findTiersWithMaterialChanges(
     return nameChanged || priceChanged;
   });
 }
+
+/**
+ * Builds the inline `tiers` array for the CREATE-an-event payload.
+ *
+ * Separate from buildTierBody because the create path is a different
+ * contract: EventLifecycleService takes `TierData`, which has no id to PUT
+ * against and no notion of locked tiers, and which does NOT accept a sales
+ * window (autoScheduleEnabled / salesStartAt / salesEndAt are update-only —
+ * EventTierHelpers.createTier never writes them). Sending them would be
+ * silently ignored, so they are deliberately absent here rather than passed
+ * along to look supported.
+ *
+ * This exists so consumers stop hand-rolling the mapping. The community app's
+ * CreateEventClient had its own inline version listing name/description/price/
+ * currency/capacity/form, which meant a host could configure pay-what-you-want
+ * or an installment plan in the modal and have it dropped on the way out —
+ * even though the backend accepts both. Found 2026-08-09 auditing the create
+ * payloads after the photo-upload bug.
+ *
+ * Mirrors draftTiersToCreatePayload in @cobuntu/product-management-ui.
+ */
+export function draftTiersToCreatePayload(drafts: DraftTier[]): Record<string, unknown>[] {
+  return drafts
+    .filter((t) => !t.deleted && t.name.trim())
+    .map((t) => {
+      const pwywMinSmallest =
+        t.priceMode === "pwyw" && t.pwywMin?.trim()
+          ? toSmallestUnit(parseFloat(t.pwywMin), t.currency)
+          : null;
+
+      const body: Record<string, unknown> = {
+        name: t.name.trim(),
+        description: t.description?.trim() || undefined,
+        // Display units — the service converts to smallest unit itself.
+        price: parseFloat(t.price) || 0,
+        currency: t.currency,
+        capacity: t.capacity ? parseInt(t.capacity, 10) : undefined,
+        isRecurring: false,
+        priceMode: t.priceMode || "fixed",
+        pwywMinAmount: pwywMinSmallest,
+        // Publish state from the per-tier switch. undefined leaves the
+        // service default (draft); null is an explicit "keep it draft".
+        publishedAt: t.publishedAt === undefined ? undefined : t.publishedAt,
+      };
+
+      if (t.installmentEnabled) {
+        body.installmentTotalPrice = toSmallestUnit(parseFloat(t.installmentTotal), t.currency);
+        body.installmentCount = parseInt(t.installmentCount, 10);
+        body.installmentIntervalMonths = parseInt(t.installmentInterval, 10);
+      }
+
+      // Registration form staged before the event exists — written with the
+      // tier in the same transaction. Omitted rather than sent empty: an
+      // empty form would gate registration behind a form with no questions.
+      if (t.draftForm && t.draftForm.fields?.length) body.form = t.draftForm;
+
+      return body;
+    });
+}
