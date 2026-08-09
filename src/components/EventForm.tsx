@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import {
@@ -70,6 +70,27 @@ export interface TierItem {
    * published before the row toggle existed.
    */
   publishedAt?: string | null;
+  /**
+   * Pricing model + plan + sales window.
+   *
+   * All of these are configurable in the tier modal (BasicsStep offers
+   * pay-what-you-want and an installment plan; ConfigStep offers a sales
+   * window) and all of them are accepted by the backend's TierData on inline
+   * event-tier create. They were simply not named on this interface, which is
+   * a field allowlist in BOTH directions — so a host could set up PWYW or an
+   * installment plan, watch the modal show it back correctly, and have the
+   * whole thing vanish the moment the modal closed. Found 2026-08-09 while
+   * auditing the create payloads after the photo-upload bug.
+   */
+  priceMode?: "fixed" | "pwyw";
+  pwywMin?: string;
+  installmentEnabled?: boolean;
+  installmentTotal?: string;
+  installmentCount?: string;
+  installmentInterval?: string;
+  autoScheduleEnabled?: boolean;
+  salesStartAt?: string;
+  salesEndAt?: string;
 }
 
 export interface EventFormData {
@@ -166,7 +187,36 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [accessibility, setAccessibility] = useState<"PUBLIC" | "MEMBERS_ONLY">(initialData?.accessibility || "PUBLIC");
   const [viewability, setViewability] = useState<"PUBLIC" | "MEMBERS_ONLY">(initialData?.viewability || "PUBLIC");
   const [requiresApproval, setRequiresApproval] = useState(initialData?.requiresApproval || false);
-  const [tiers, setTiers] = useState<TierItem[]>(initialData?.tiers || []);
+  /**
+   * The default "Standard" ticket tier.
+   *
+   * ProductForm seeds one of these; this form used to start empty, so a host
+   * creating a free event saw "Free event" and no row at all — and since
+   * capacity and registration forms are BOTH per-tier (event-level capacity
+   * was removed in the tier-only refactor above), there was nowhere to set
+   * either one. A free event with limited spots or an application form was
+   * simply unreachable from here.
+   *
+   * Published by default so that a host who does configure it can actually
+   * list the event — EventListingService refuses to list an event whose tiers
+   * are all draft.
+   */
+  const standardTier = (): TierItem => ({
+    localId: crypto.randomUUID(),
+    name: "Standard",
+    // "0", not "" — deliberately one step better than ProductForm's seed.
+    // validateTier rejects an empty price, so a blank seed makes Save fail
+    // with "Price required for Standard" the moment a host adds a SECOND
+    // tier, which is a dead end they did nothing to cause. "0" renders
+    // identically ("Free": both fail the price > 0 test) and saves cleanly.
+    description: "", price: "0", currency: "EUR", capacity: "",
+    isRecurring: false, recurringInterval: "monthly",
+    publishedAt: new Date().toISOString(),
+  });
+
+  const [tiers, setTiers] = useState<TierItem[]>(
+    initialData?.tiers && initialData.tiers.length > 0 ? initialData.tiers : [standardTier()],
+  );
   const [tags, setTags] = useState<Tag[]>(initialData?.tags || []);
   const [categoryId, setCategoryId] = useState<string | null>(initialData?.categoryId ?? null);
   const [subCategoryId, setSubCategoryId] = useState<string | null>(initialData?.subCategoryId ?? null);
@@ -228,6 +278,17 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       // publishedAt to "now", and defaulting undefined to null here would
       // silently unpublish every tier of a consumer that never sets the field.
       ...(t.publishedAt !== undefined ? { publishedAt: t.publishedAt } : {}),
+      // Same allowlist caveat as publishedAt: only override when the caller
+      // actually set it, so blankTier's defaults stand otherwise.
+      ...(t.priceMode !== undefined ? { priceMode: t.priceMode } : {}),
+      ...(t.pwywMin !== undefined ? { pwywMin: t.pwywMin } : {}),
+      ...(t.installmentEnabled !== undefined ? { installmentEnabled: t.installmentEnabled } : {}),
+      ...(t.installmentTotal !== undefined ? { installmentTotal: t.installmentTotal } : {}),
+      ...(t.installmentCount !== undefined ? { installmentCount: t.installmentCount } : {}),
+      ...(t.installmentInterval !== undefined ? { installmentInterval: t.installmentInterval } : {}),
+      ...(t.autoScheduleEnabled !== undefined ? { autoScheduleEnabled: t.autoScheduleEnabled } : {}),
+      ...(t.salesStartAt !== undefined ? { salesStartAt: t.salesStartAt } : {}),
+      ...(t.salesEndAt !== undefined ? { salesEndAt: t.salesEndAt } : {}),
     }));
   }
 
@@ -297,6 +358,17 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         // not named here is dropped silently on every modal close.
         draftForm: d.draftForm ?? null,
         publishedAt: d.publishedAt ?? null,
+        // Carried explicitly — see TierItem. Omitting any of these silently
+        // reverted the host's pricing model, plan or sales window on close.
+        priceMode: d.priceMode,
+        pwywMin: d.pwywMin,
+        installmentEnabled: d.installmentEnabled,
+        installmentTotal: d.installmentTotal,
+        installmentCount: d.installmentCount,
+        installmentInterval: d.installmentInterval,
+        autoScheduleEnabled: d.autoScheduleEnabled,
+        salesStartAt: d.salesStartAt,
+        salesEndAt: d.salesEndAt,
         // Recurring fields aren't surfaced by the events PriceEditModal
         // (events don't support subscription tiers); reset to defaults.
         isRecurring: false,
@@ -330,18 +402,53 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notify parent — use useLayoutEffect to ensure data is synced before unmount
+  /**
+   * What actually gets submitted.
+   *
+   * The seeded "Standard" tier is an ENTRY POINT, not a decision: a host who
+   * never opens it wanted a plain free event, and creating a ticket tier for
+   * them would move the event off the tier-less RSVP path (attendances would
+   * start carrying a tierId). So an untouched seed is dropped and the event
+   * submits with no tiers — the same end state as before this row existed,
+   * and the same end state ProductForm produces for its own untouched seed.
+   *
+   * "Touched" is deliberately wider than "charges money", which is the test
+   * ProductForm uses. Products drops a free tier even when it carries a
+   * capacity or a registration form, silently discarding both. Events can
+   * already ship a named free tier and that is worth keeping, so anything the
+   * host actually configured counts.
+   */
+  const submittableTiers = useMemo(() => tiers.filter((t) => {
+    const charges = !!t.price && parseFloat(t.price) > 0;
+    const configured = !!t.capacity || !!t.draftForm?.fields?.length;
+    const renamed = t.name.trim() !== "" && t.name.trim() !== "Standard";
+    return charges || configured || renamed;
+  // Memoised so the emit effect below has a stable dependency. Without it the
+  // effect fires on every render and the consumer's onChange runs each time
+  // (CreateEventClient setStates from it — React bails on an unchanged value,
+  // but relying on that bail-out for correctness is not worth it).
+  }), [tiers]);
+
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   useLayoutEffect(() => {
     onChangeRef.current?.({
       name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, onlineUrl,
-      accessibility, viewability, requiresApproval, tiers, tags,
+      /*
+       * `submittableTiers` (main #111/#112), not raw `tiers`: the raw list
+       * includes rows the host has not configured, and emitting those dropped
+       * pay-what-you-want and installment plans on create.
+       *
+       * categoryId / subCategoryId ride alongside — they are listing
+       * properties, not tier properties, so they sit outside the tier list.
+       */
+      accessibility, viewability, requiresApproval, tiers: submittableTiers, tags,
       categoryId, subCategoryId,
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
-      physicalLocation, onlineUrl, accessibility, viewability, requiresApproval, tiers, tags,
-      categoryId, subCategoryId]);
+      physicalLocation, onlineUrl, accessibility, viewability, requiresApproval, submittableTiers, tags,
+      categoryId, subCategoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
 
@@ -437,6 +544,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           {/* Schedule — compact, inline */}
           <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 overflow-hidden">
             <EventTimestamps
+              flat
               startDate={startDate}
               endDate={endDate}
               startTime={startTime}

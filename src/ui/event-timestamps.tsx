@@ -23,6 +23,16 @@ interface EventTimestampsProps {
   className?: string;
   disabled?: boolean;
   errors?: { startDate?: string; endDate?: string; startTime?: string; endTime?: string };
+  /**
+   * Match the surrounding detail rows instead of looking like form controls.
+   *
+   * On the create page these sit inside a zinc-50 card next to "Add location"
+   * / "Add description", and the default outlined buttons read as a different
+   * kind of thing entirely — hard borders and white fills against flat tinted
+   * rows. Opt-in rather than global: DateTimeEditModal and EditEventDrawer
+   * render this on white, where a bordered control is the right call.
+   */
+  flat?: boolean;
 }
 
 // 30-min time slots
@@ -60,7 +70,7 @@ const TIMEZONES = [
 export function EventTimestamps({
   startDate, endDate, startTime, endTime, timezone,
   onStartDateChange, onEndDateChange, onStartTimeChange, onEndTimeChange, onTimezoneChange,
-  className, disabled = false, errors,
+  className, disabled = false, errors, flat = false,
 }: EventTimestampsProps) {
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
   const [isEndDateOpen, setIsEndDateOpen] = useState(false);
@@ -115,6 +125,17 @@ export function EventTimestamps({
     });
   };
 
+  /*
+   * Flat treatment — same language as the "Add location" detail rows: no
+   * border, zinc-50 fill, a ring that only appears on hover, the 0.5px lift
+   * and the same soft shadow. Kept as strings so the trigger buttons below
+   * stay readable.
+   */
+  const flatTrigger = flat
+    ? "border-0 bg-zinc-50 ring-1 ring-zinc-100/0 rounded-xl shadow-none transition-all duration-150 hover:bg-zinc-50 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 text-zinc-800"
+    : "";
+  const flatIcon = flat ? "text-zinc-400 transition-colors group-hover:text-zinc-500" : "text-zinc-400";
+
   const selectedTz = TIMEZONES.find(tz => tz.value === timezone) || { label: timezone.split("/").pop()?.replace(/_/g, " ") || timezone, offset: "" };
   const filteredTimezones = timezoneSearch
     ? TIMEZONES.filter(tz => tz.label.toLowerCase().includes(timezoneSearch.toLowerCase()) || tz.value.toLowerCase().includes(timezoneSearch.toLowerCase()))
@@ -132,8 +153,8 @@ export function EventTimestamps({
               <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={disabled}
-                    className={cn("w-[160px] h-10 justify-start text-left font-normal", errors?.startDate && "border-red-300")}>
-                    <CalendarIcon className="h-5 w-5 mr-2 text-zinc-400" />
+                    className={cn("group w-[160px] h-10 justify-start text-left font-normal", flatTrigger, errors?.startDate && "border-red-300")}>
+                    <CalendarIcon className={cn("h-[18px] w-[18px] mr-2", flatIcon)} />
                     {formatDateDisplay(startDate)}
                   </Button>
                 </PopoverTrigger>
@@ -145,8 +166,8 @@ export function EventTimestamps({
               </Popover>
               <Popover open={isStartTimeOpen} onOpenChange={setIsStartTimeOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" disabled={disabled} className="w-[110px] h-10 justify-start text-left font-normal">
-                    <Clock className="h-5 w-5 mr-2 text-zinc-400" />
+                  <Button variant="outline" disabled={disabled} className={cn("group w-[110px] h-10 justify-start text-left font-normal", flatTrigger)}>
+                    <Clock className={cn("h-[18px] w-[18px] mr-2", flatIcon)} />
                     {startTime || "15:00"}
                   </Button>
                 </PopoverTrigger>
@@ -174,8 +195,8 @@ export function EventTimestamps({
               <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={disabled}
-                    className={cn("w-[160px] h-10 justify-start text-left font-normal", errors?.endDate && "border-red-300")}>
-                    <CalendarIcon className="h-5 w-5 mr-2 text-zinc-400" />
+                    className={cn("group w-[160px] h-10 justify-start text-left font-normal", flatTrigger, errors?.endDate && "border-red-300")}>
+                    <CalendarIcon className={cn("h-[18px] w-[18px] mr-2", flatIcon)} />
                     {formatDateDisplay(endDate)}
                   </Button>
                 </PopoverTrigger>
@@ -187,8 +208,8 @@ export function EventTimestamps({
               </Popover>
               <Popover open={isEndTimeOpen} onOpenChange={setIsEndTimeOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" disabled={disabled} className="w-[110px] h-10 justify-start text-left font-normal">
-                    <Clock className="h-5 w-5 mr-2 text-zinc-400" />
+                  <Button variant="outline" disabled={disabled} className={cn("group w-[110px] h-10 justify-start text-left font-normal", flatTrigger)}>
+                    <Clock className={cn("h-[18px] w-[18px] mr-2", flatIcon)} />
                     {endTime || "16:00"}
                   </Button>
                 </PopoverTrigger>
@@ -217,10 +238,13 @@ export function EventTimestamps({
         <Popover open={isTimezoneOpen} onOpenChange={(open) => { setIsTimezoneOpen(open); if (!open) setTimezoneSearch(""); }}>
           <PopoverTrigger asChild>
             <div className={cn(
-              "w-[80px] self-stretch border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 cursor-pointer flex flex-col items-center justify-center",
+              "group w-[80px] self-stretch cursor-pointer flex flex-col items-center justify-center",
+              flat
+                ? "border-0 bg-zinc-50 ring-1 ring-zinc-100/0 rounded-xl transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0"
+                : "border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50",
               disabled && "opacity-50 cursor-not-allowed pointer-events-none"
             )}>
-              <Globe className="h-3.5 w-3.5 mb-0.5 text-zinc-400" />
+              <Globe className={cn("h-3.5 w-3.5 mb-0.5", flatIcon)} />
               <div className="text-[11px] text-zinc-800 font-medium leading-tight">{selectedTz.offset}</div>
               <div className="text-[10px] text-zinc-400 leading-tight">{selectedTz.label}</div>
             </div>

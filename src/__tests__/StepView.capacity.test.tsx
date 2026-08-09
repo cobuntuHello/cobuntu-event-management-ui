@@ -19,7 +19,7 @@ import type { DraftTier } from "../components/PriceEditModal/types";
  */
 
 function tier(overrides: Partial<DraftTier> = {}): DraftTier {
-  return { ...blankTier({ currency: "EUR" }), ...overrides } as DraftTier;
+  return { ...blankTier("EUR", 1), ...overrides } as DraftTier;
 }
 
 function renderCapacity(t: DraftTier) {

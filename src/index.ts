@@ -68,6 +68,7 @@ export {
   blankTier,
   blankDonation,
   buildTierBody,
+  draftTiersToCreatePayload,
   buildDonationBody,
 } from "./components/PriceEditModal/helpers";
 export { EditEventDrawer } from "./components/EditEventDrawer";

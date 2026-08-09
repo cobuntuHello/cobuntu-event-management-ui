@@ -17,6 +17,10 @@ import { renderWithConfig, mockFetch } from "./test-utils";
  * The fix makes handleTiersCommit the only writer of the tiers array. These
  * tests pin it, because the failure is silent — a stray tier looks like
  * something the host did rather than a bug.
+ *
+ * Baseline is ONE row, not zero: the form seeds a "Standard" tier the same way
+ * ProductForm does, so "leaves no tier behind" means the count is unchanged,
+ * not that it is empty.
  */
 
 const TIER_ROW = /Unnamed tier|Standard|Tier \d/;
@@ -64,10 +68,11 @@ describe("EventForm — adding a ticket tier", () => {
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /^cancel$/i }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(tierRowNames()).toEqual([]);
+    // Just the seeded "Standard" — the cancelled one left nothing behind.
+    expect(tierRowNames()).toHaveLength(1);
 
-    // The parent was never told about a tier either — rows and the submitted
-    // payload read the same state, so both have to stay clean.
+    // And the untouched seed is not submitted, so the event still creates as a
+    // plain free RSVP with no tiers (see submittableTiers in EventForm).
     const lastCall = onChange.mock.calls.at(-1)?.[0];
     expect(lastCall?.tiers ?? []).toEqual([]);
   });
@@ -83,7 +88,7 @@ describe("EventForm — adding a ticket tier", () => {
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     }
 
-    expect(tierRowNames()).toEqual([]);
+    expect(tierRowNames()).toHaveLength(1);
   });
 
   it("saving the tier modal adds exactly one tier", async () => {
@@ -96,7 +101,8 @@ describe("EventForm — adding a ticket tier", () => {
     await user.click(within(dialog).getByRole("button", { name: /^save$/i }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(tierRowNames()).toHaveLength(1);
+    // Seeded "Standard" + the one just added.
+    expect(tierRowNames()).toHaveLength(2);
   });
 
   it("names an added tier rather than leaving it Unnamed", async () => {
@@ -111,7 +117,97 @@ describe("EventForm — adding a ticket tier", () => {
     await user.click(within(dialog).getByRole("button", { name: /^save$/i }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
+    expect(tierRowNames()).toHaveLength(2);
+    expect(tierRowNames().some((n) => /Unnamed tier/.test(n))).toBe(false);
+    expect(tierRowNames().some((n) => /Tier 2/.test(n))).toBe(true);
+  });
+});
+
+/**
+ * The seeded "Standard" tier.
+ *
+ * This form used to start with no tiers at all: a host creating a free event
+ * saw "Free event" and no row, and since capacity and registration forms are
+ * BOTH per-tier (event-level capacity was removed in the tier-only refactor),
+ * a free event with limited spots or an application form was unreachable.
+ * ProductForm has always seeded one; this is that parity.
+ *
+ * The half that is easy to regress is what gets SUBMITTED. An untouched seed
+ * must not create a ticket tier — that would move every wizard-created event
+ * off the tier-less RSVP path and start stamping a tierId on attendances.
+ */
+describe("EventForm — the seeded Standard tier", () => {
+  beforeEach(() => {
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: true, chargesEnabled: true } }]);
+  });
+
+  it("shows a Standard row on a fresh form", async () => {
+    renderWithConfig(<EventForm communityTag="c-1" />);
     expect(tierRowNames()).toHaveLength(1);
-    expect(tierRowNames()[0]).not.toMatch(/Unnamed tier/);
+    expect(tierRowNames()[0]).toMatch(/Standard/);
+  });
+
+  it("reads as Free, since the seed does not charge", async () => {
+    renderWithConfig(<EventForm communityTag="c-1" />);
+    expect(tierRowNames()[0]).toMatch(/Free/);
+  });
+
+  it("does NOT submit the seed when the host never touches it", async () => {
+    // The load-bearing one. A plain free event must still create with zero
+    // tiers, exactly as it did before this row existed.
+    const onChange = vi.fn();
+    renderWithConfig(<EventForm communityTag="c-1" onChange={onChange} />);
+
+    expect(onChange.mock.calls.at(-1)?.[0].tiers).toEqual([]);
+  });
+
+  it("submits the seed once it carries a capacity", async () => {
+    // A free event with limited spots — the case that had nowhere to live.
+    const onChange = vi.fn();
+    renderWithConfig(
+      <EventForm communityTag="c-1" onChange={onChange}
+        initialData={{ tiers: [{ localId: "s", name: "Standard", description: "", price: "0",
+          currency: "EUR", capacity: "40", isRecurring: false, recurringInterval: "monthly" }] } as any} />,
+    );
+
+    const t = onChange.mock.calls.at(-1)?.[0].tiers;
+    expect(t).toHaveLength(1);
+    expect(t[0].capacity).toBe("40");
+  });
+
+  it("submits the seed once it carries a registration form", async () => {
+    const onChange = vi.fn();
+    renderWithConfig(
+      <EventForm communityTag="c-1" onChange={onChange}
+        initialData={{ tiers: [{ localId: "s", name: "Standard", description: "", price: "0",
+          currency: "EUR", capacity: "", isRecurring: false, recurringInterval: "monthly",
+          draftForm: { fields: [{ id: "q1", label: "Why?", type: "text" }] } }] } as any} />,
+    );
+
+    expect(onChange.mock.calls.at(-1)?.[0].tiers).toHaveLength(1);
+  });
+
+  it("submits a free tier the host renamed", async () => {
+    // Events could already ship a named free tier and that stays true —
+    // ProductForm drops one of these, which is a separate bug over there.
+    const onChange = vi.fn();
+    renderWithConfig(
+      <EventForm communityTag="c-1" onChange={onChange}
+        initialData={{ tiers: [{ localId: "s", name: "Early bird", description: "", price: "0",
+          currency: "EUR", capacity: "", isRecurring: false, recurringInterval: "monthly" }] } as any} />,
+    );
+
+    expect(onChange.mock.calls.at(-1)?.[0].tiers).toHaveLength(1);
+  });
+
+  it("submits the seed once it charges", async () => {
+    const onChange = vi.fn();
+    renderWithConfig(
+      <EventForm communityTag="c-1" onChange={onChange}
+        initialData={{ tiers: [{ localId: "s", name: "Standard", description: "", price: "25",
+          currency: "EUR", capacity: "", isRecurring: false, recurringInterval: "monthly" }] } as any} />,
+    );
+
+    expect(onChange.mock.calls.at(-1)?.[0].tiers).toHaveLength(1);
   });
 });
