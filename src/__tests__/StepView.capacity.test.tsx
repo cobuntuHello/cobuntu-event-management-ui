@@ -25,7 +25,7 @@ function tier(overrides: Partial<DraftTier> = {}): DraftTier {
 function renderCapacity(t: DraftTier) {
   const onUpdate = vi.fn();
   const utils = render(
-    <StepView t={t} step="capacity" communityTag="orbis" onUpdate={onUpdate} />,
+    <StepView t={t} step="capacity" communityTag="orbis" onUpdate={onUpdate} showToast={vi.fn()} />,
   );
   return { onUpdate, ...utils };
 }
@@ -82,12 +82,12 @@ describe("capacity step — Unlimited switch", () => {
     // behaviour covered by the last test.
     const base = tier({ localId: "same-tier", capacity: "40" });
     const { rerender } = render(
-      <StepView t={base} step="capacity" communityTag="orbis" onUpdate={vi.fn()} />,
+      <StepView t={base} step="capacity" communityTag="orbis" onUpdate={vi.fn()} showToast={vi.fn()} />,
     );
 
     await user.clear(screen.getByRole("spinbutton"));
     rerender(
-      <StepView t={{ ...base, capacity: "" }} step="capacity" communityTag="orbis" onUpdate={vi.fn()} />,
+      <StepView t={{ ...base, capacity: "" }} step="capacity" communityTag="orbis" onUpdate={vi.fn()} showToast={vi.fn()} />,
     );
 
     expect(screen.getByRole("spinbutton")).toBeInTheDocument();
@@ -121,11 +121,11 @@ describe("capacity step — Unlimited switch", () => {
     const b = tier({ localId: "b", capacity: "" });
 
     const { rerender } = render(
-      <StepView t={a} step="capacity" communityTag="orbis" onUpdate={vi.fn()} />,
+      <StepView t={a} step="capacity" communityTag="orbis" onUpdate={vi.fn()} showToast={vi.fn()} />,
     );
     expect(unlimitedSwitch()).toHaveAttribute("aria-checked", "false");
 
-    rerender(<StepView t={b} step="capacity" communityTag="orbis" onUpdate={vi.fn()} />);
+    rerender(<StepView t={b} step="capacity" communityTag="orbis" onUpdate={vi.fn()} showToast={vi.fn()} />);
     expect(unlimitedSwitch()).toHaveAttribute("aria-checked", "true");
   });
 });
