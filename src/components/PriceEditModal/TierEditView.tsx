@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronRight, Package, Calendar, ClipboardList, Lock } from "lucide-react";
-import { Eyebrow, StepInput, StepTextarea } from "./_primitives";
+import { ChevronRight, Package, Calendar, ClipboardList, Lock, Eye, EyeOff, Info } from "lucide-react";
+import { Eyebrow, StepInput, StepTextarea, Switch } from "./_primitives";
 import { TIER_NAME_MAX, TIER_DESCRIPTION_MAX, type DraftTier } from "./types";
 import { isTierLocked } from "./helpers";
 import { BasicsStep } from "./steps/BasicsStep";
@@ -17,6 +17,17 @@ export interface TierEditViewProps {
   memberPricingState?: MemberPricingTierState;
   onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
   showToast?: (msg: string) => void;
+  /**
+   * Publish state + its toggle, lifted from the modal footer.
+   *
+   * It lived down there as a bare "Published" switch next to Save, which said
+   * nothing about what publishing does or when it takes effect — and those two
+   * answers genuinely differ (see the banner copy below).
+   */
+  onTogglePublish?: () => void;
+  publishToggling?: boolean;
+  /** Create wizard: the listing does not exist yet, so publishing is staged. */
+  draftMode?: boolean;
 }
 
 /** A settings row in the Advanced group — opens a sub-screen (Level 3). */
@@ -53,6 +64,9 @@ export function TierEditView({
   memberPricingState,
   onMemberPricingRowChange,
   showToast,
+  onTogglePublish,
+  publishToggling,
+  draftMode,
 }: TierEditViewProps) {
   const locked = isTierLocked(t);
 
@@ -61,6 +75,9 @@ export function TierEditView({
   const formFieldCount = t.id ? (t.hasForm ? t.formFieldCount : 0) : (t.draftForm?.fields?.length ?? 0);
   const fieldCountLabel =
     formFieldCount > 0 ? `${formFieldCount} field${formFieldCount !== 1 ? "s" : ""}` : "None";
+
+  // publishedAt is the source of truth; the switch is just its presence.
+  const published = !!t.publishedAt;
 
   return (
     <div className="space-y-5">
@@ -148,6 +165,54 @@ export function TierEditView({
           />
         </div>
       </div>
+
+      {/* Availability — the publish switch, with an explanation. Was a bare
+          switch in the modal footer. */}
+      {onTogglePublish && (
+        <div>
+          <Eyebrow>Availability</Eyebrow>
+          <div className="mt-1.5 rounded-2xl ring-1 ring-zinc-100 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <span className="text-zinc-400 shrink-0">
+                {published ? <Eye className="h-[17px] w-[17px]" /> : <EyeOff className="h-[17px] w-[17px]" />}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-zinc-700">{published ? "Published" : "Draft"}</p>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  {published
+                    ? "Buyers can see and choose this tier."
+                    : "Hidden from buyers. Only you can see it."}
+                </p>
+              </div>
+              <Switch
+                checked={published}
+                disabled={!!publishToggling}
+                onChange={() => onTogglePublish()}
+                label="Published"
+              />
+            </div>
+
+            {/* Quiet left rail, no buttons — modelled on the admin revamp's
+                InfoBanner. That one is indigo-600, which fights a community's
+                own brand here, so this uses --brand-color like the rest of the
+                member-facing surfaces. */}
+            <div
+              className="flex items-start gap-2.5 px-4 py-3 border-t border-zinc-100"
+              style={{
+                borderLeft: "3px solid var(--brand-color, #71717a)",
+                background: "color-mix(in srgb, var(--brand-color, #71717a) 5%, transparent)",
+              }}
+            >
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: "var(--brand-color, #71717a)" }} />
+              <p className="text-[11.5px] text-zinc-600 leading-relaxed">
+                {draftMode
+                  ? `This choice is saved with the event — nothing goes live until you create it.`
+                  : "Changes here take effect immediately."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

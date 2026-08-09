@@ -62,6 +62,13 @@ export interface TierItem {
    * backend writes it with the tier. Undefined for a tier with no form.
    */
   draftForm?: { fields: any[]; stepLabels?: string[] } | null;
+  /**
+   * Publish state, staged before the event exists. Same reason as draftForm:
+   * this interface is a field allowlist, so a field not named here is dropped
+   * on every modal close — which is what silently reset every tier to
+   * published before the row toggle existed.
+   */
+  publishedAt?: string | null;
 }
 
 export interface EventFormData {
@@ -201,6 +208,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       // already added, rather than an empty builder that silently replaces
       // them on the next commit.
       draftForm: t.draftForm ?? null,
+      // Carried explicitly (allowlist — see TierItem.publishedAt). Only
+      // overrides when the consumer actually set it: blankTier above defaults
+      // publishedAt to "now", and defaulting undefined to null here would
+      // silently unpublish every tier of a consumer that never sets the field.
+      ...(t.publishedAt !== undefined ? { publishedAt: t.publishedAt } : {}),
     }));
   }
 
@@ -219,14 +231,40 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     setEditTierLocalId(localId);
     setShowTierModal(true);
   }
+  /**
+   * A tier being added but not yet committed.
+   *
+   * It is NOT written into `tiers` up front. It used to be — addAndEditTier
+   * appended a blank TierItem and then opened the modal — and since the
+   * modal's direct-open footer says "Cancel" and only calls onClose(), backing
+   * out left the tier behind. Its name was "" so it surfaced as "Unnamed
+   * tier"; cancelling three times produced three of them. Reported 2026-08-09
+   * as "opening/closing the modal creates a new tier".
+   *
+   * handleTiersCommit is now the only thing that writes `tiers`.
+   */
+  const [pendingNewTier, setPendingNewTier] = useState<TierItem | null>(null);
+
   function addAndEditTier() {
+    // Named by position rather than left blank, so a second tier reads
+    // "Tier 2" instead of another "Unnamed tier" (matches products).
+    const live = tiers.filter((t) => t.name.trim()).length;
     const nt: TierItem = {
       localId: crypto.randomUUID(),
-      name: "", description: "", price: "", currency: "EUR",
+      name: live === 0 ? "Standard" : `Tier ${live + 1}`,
+      description: "", price: "", currency: "EUR",
       capacity: "", isRecurring: false, recurringInterval: "monthly",
+      publishedAt: new Date().toISOString(),
     };
-    setTiers((prev) => [...prev, nt]);
+    setPendingNewTier(nt);
     openTierEditor(nt.localId);
+  }
+
+  /** Shared by every path that closes the modal — commit or not. */
+  function closeTierModal() {
+    setShowTierModal(false);
+    setPendingNewTier(null);
+    setEditTierLocalId(undefined);
   }
 
   function handleTiersCommit({ tiers: drafts }: { tiers: DraftTier[]; donation: DonationDraft }) {
@@ -243,13 +281,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         // Carried explicitly: this mapping is a field allowlist, so anything
         // not named here is dropped silently on every modal close.
         draftForm: d.draftForm ?? null,
+        publishedAt: d.publishedAt ?? null,
         // Recurring fields aren't surfaced by the events PriceEditModal
         // (events don't support subscription tiers); reset to defaults.
         isRecurring: false,
         recurringInterval: "monthly",
       })),
     );
-    setShowTierModal(false);
+    closeTierModal();
   }
   const [ownershipOpen, setOwnershipOpen] = useState(false);
 
@@ -462,25 +501,49 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             </div>
             {tiers.length > 0 && (
               <div className="space-y-2 mb-3">
-                {tiers.map((t) => (
-                  <button
-                    type="button"
+                {tiers.map((t) => {
+                  const published = t.publishedAt !== null && t.publishedAt !== undefined;
+                  return (
+                  <div
                     key={t.localId}
-                    onClick={() => openTierEditor(t.localId)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 hover:translate-x-0.5 transition-all duration-150 cursor-pointer text-left"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-all duration-150"
                   >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200 text-zinc-600">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    {/* Only this part opens the tier. The row itself cannot be
+                        the button — the publish switch is interactive, and
+                        nesting the two is invalid HTML that fires both
+                        handlers on a single click. */}
+                    <button
+                      type="button"
+                      onClick={() => openTierEditor(t.localId)}
+                      className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200 text-zinc-600">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-zinc-800 truncate">{t.name || "Unnamed tier"}</p>
+                        <p className="text-[11px] text-zinc-400">
+                          {t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : "Free"}
+                          {t.capacity ? ` · ${t.capacity} spots` : ""}
+                        </p>
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10.5px] ${published ? "text-zinc-500" : "text-zinc-400"}`}>
+                        {published ? "Published" : "Draft"}
+                      </span>
+                      <Switch
+                        checked={published}
+                        aria-label={`Publish ${t.name || "tier"}`}
+                        onCheckedChange={(next: boolean) => setTiers(prev => prev.map(x =>
+                          x.localId === t.localId
+                            ? { ...x, publishedAt: next ? new Date().toISOString() : null }
+                            : x))}
+                      />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-zinc-800 truncate">{t.name || "Unnamed tier"}</p>
-                      <p className="text-[11px] text-zinc-400">
-                        {t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : "Free"}
-                        {t.capacity ? ` · ${t.capacity} spots` : ""}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+                  </div>
+                  );
+                })}
               </div>
             )}
             <button type="button" onClick={addAndEditTier}
@@ -504,7 +567,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             <div className="flex items-center gap-3">
               {viewability === "PUBLIC" ? <Eye className="h-[18px] w-[18px] text-zinc-400" /> : <EyeOff className="h-[18px] w-[18px] text-zinc-400" />}
               <div>
-                <span className="text-sm font-medium text-zinc-800">Visibility: {viewability === "PUBLIC" ? "Public" : "Members Only"}</span>
+                <span className="text-sm font-medium text-zinc-800">Visibility: {viewability === "PUBLIC" ? "Everyone" : "Members only"}</span>
                 <p className="text-[11px] text-zinc-400 mt-0.5">Who can see this event listing</p>
               </div>
             </div>
@@ -520,7 +583,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             <div className="flex items-center gap-3">
               {accessibility === "PUBLIC" ? <UserCheck className="h-[18px] w-[18px] text-zinc-400" /> : <Lock className="h-[18px] w-[18px] text-zinc-400" />}
               <div>
-                <span className="text-sm font-medium text-zinc-800">Attendance: {accessibility === "PUBLIC" ? "Public" : "Members Only"}</span>
+                <span className="text-sm font-medium text-zinc-800">Attendance: {accessibility === "PUBLIC" ? "Everyone" : "Members only"}</span>
                 <p className="text-[11px] text-zinc-400 mt-0.5">Who can register / RSVP</p>
               </div>
             </div>
@@ -581,8 +644,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       {showTierModal && (
         <PriceEditModal
           communityTag={communityTag}
-          onClose={() => setShowTierModal(false)}
-          onSaved={() => setShowTierModal(false)}
+          onClose={closeTierModal}
+          onSaved={closeTierModal}
           /*
            * Console-only on purpose: EventForm has no toast host of its own,
            * and inventing one would collide with whatever the consuming app
@@ -594,7 +657,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
            */
           showToast={(msg) => console.warn("[EventForm tier modal]", msg)}
           draftMode
-          initialDraftTiers={tiersToDrafts(tiers)}
+          initialDraftTiers={tiersToDrafts(pendingNewTier ? [...tiers, pendingNewTier] : tiers)}
           openTierLocalId={editTierLocalId}
           onDraftCommit={handleTiersCommit}
         />

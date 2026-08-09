@@ -889,6 +889,12 @@ export function PriceEditModal({
               : undefined
           }
           showToast={showToast}
+          onTogglePublish={() => {
+            const idx = activeIdx();
+            if (idx != null) togglePublish(idx);
+          }}
+          publishToggling={publishToggling}
+          draftMode={draftMode}
         />
       ) : (
         // Level 1: default tier list. Add tier + Donations + Save.
@@ -1028,25 +1034,9 @@ export function PriceEditModal({
             action bar. `contents` → buttons sit directly in this flex row,
             left of Save. Empty (zero-width) for steps that don't use it. */}
         <div ref={setFooterSlot} className="contents" />
-        {/* L2 (per-tier hub): a Publish switch sits left of Save. Publishing
-            is a top-level rollout action that hits the backend instantly
-            (no Save) — see togglePublish. */}
-        {activeDraft && !activeStep && (
-          <div className="flex items-center gap-2 mr-1">
-            <span className="text-[12px] font-medium text-zinc-600">
-              {activeDraft.publishedAt ? "Published" : "Draft"}
-            </span>
-            <Switch
-              checked={!!activeDraft.publishedAt}
-              disabled={publishToggling}
-              onChange={() => {
-                const idx = activeIdx();
-                if (idx != null) togglePublish(idx);
-              }}
-              label="Published"
-            />
-          </div>
-        )}
+        {/* The Publish switch used to sit here, left of Save, as a bare
+            control with nothing saying what it did. It now lives in the L2
+            "Availability" section with an explanation — see TierEditView. */}
         {/* Save shows at every level now — L2 is a real edit screen (name,
             description, pricing inline), so it commits from here too. Save
             always commits the whole modal. */}
