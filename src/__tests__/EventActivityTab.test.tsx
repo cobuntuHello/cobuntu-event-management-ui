@@ -166,3 +166,43 @@ describe("EventActivityTab — errors", () => {
         expect(screen.queryByText(/Failed to load activity/)).not.toBeInTheDocument();
     });
 });
+
+/**
+ * The relative-base regression.
+ *
+ * The community app is same-origin and passes apiBaseUrl: "" so the session
+ * cookie rides along. This tab built its request with `new URL()`, which needs
+ * an absolute base, so it threw "Failed to construct 'URL': Invalid URL" and
+ * every host on that app saw an error where the log should be. The admin app
+ * passes an absolute base, which is why it went unnoticed.
+ */
+describe("EventActivityTab — relative api base", () => {
+    it("fetches without throwing when apiBaseUrl is empty", async () => {
+        const fetchMock = mockFetch([
+            { url: /\/api\/communities\/pbn\/events\/evt-1\/activity/, body: { entries: [makeEntry()], nextCursor: null } },
+        ]);
+        renderWithConfig(<EventActivityTab event={event} communityTag="pbn" />, {
+            config: { apiBaseUrl: "" },
+        });
+        await waitFor(() => expect(screen.getByText(/created the event/)).toBeInTheDocument());
+        expect(String(fetchMock.mock.calls[0][0])).toMatch(/^\/api\/communities\/pbn\/events\/evt-1\/activity\?/);
+    });
+
+    it("keeps limit + cursor on a relative base", async () => {
+        const fetchMock = mockFetch([{ url: /activity/, body: { entries: [], nextCursor: null } }]);
+        renderWithConfig(<EventActivityTab event={event} communityTag="pbn" pageSize={7} />, {
+            config: { apiBaseUrl: "" },
+        });
+        await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+        expect(String(fetchMock.mock.calls[0][0])).toContain("limit=7");
+    });
+
+    it("still works with an absolute base", async () => {
+        const fetchMock = mockFetch([{ url: /activity/, body: { entries: [], nextCursor: null } }]);
+        renderWithConfig(<EventActivityTab event={event} communityTag="pbn" />, {
+            config: { apiBaseUrl: "https://api.example.com" },
+        });
+        await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+        expect(String(fetchMock.mock.calls[0][0])).toMatch(/^https:\/\/api\.example\.com\/api\/communities\//);
+    });
+});

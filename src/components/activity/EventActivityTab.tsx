@@ -85,12 +85,23 @@ export function EventActivityTab({ event, communityTag, pageSize = 25 }: EventAc
             setLoading(true);
             setError(null);
             try {
-                const url = new URL(
-                    `${API}/api/communities/${communityTag}/events/${eventIdOrSlug}/activity`,
+                /*
+                 * Built as a STRING, not with `new URL()`.
+                 *
+                 * The community app passes apiBaseUrl: "" — same-origin, so the
+                 * session cookie rides along and no Bearer is read from JS.
+                 * `new URL("/api/...")` with no base throws "Failed to
+                 * construct 'URL': Invalid URL", so this tab rendered an error
+                 * instead of the log for every host on that app. The admin app
+                 * passes an absolute base and never hit it, which is why it
+                 * went unnoticed. URLSearchParams still does the encoding.
+                 */
+                const qs = new URLSearchParams({ limit: String(pageSize) });
+                if (pageCursor) qs.set("cursor", pageCursor);
+                const res = await fetch(
+                    `${API}/api/communities/${communityTag}/events/${eventIdOrSlug}/activity?${qs.toString()}`,
+                    { headers: config.authHeaders() },
                 );
-                url.searchParams.set("limit", String(pageSize));
-                if (pageCursor) url.searchParams.set("cursor", pageCursor);
-                const res = await fetch(url.toString(), { headers: config.authHeaders() });
                 if (!res.ok) {
                     // 403 from this endpoint means the manage-page gate
                     // didn't fire (PR 1's redirect). Surface a clear
