@@ -29,6 +29,14 @@ export interface EventManagementConfig {
   authHeaders: () => Record<string, string>;
 
   /**
+   * Builds the public community-app URL for a tag, e.g. the "view it live"
+   * link. Injected because the two host apps sit on different origins — the
+   * admin app links OUT to the community app, the community app links to
+   * itself.
+   */
+  communityAppUrl?: (communityTag: string) => string;
+
+  /**
    * Builds the URL to send the host to when they need to connect Stripe.
    * The community-leader-facing admin app uses `/${communityTag}/connect-stripe`;
    * the host-facing community app may use a different path (e.g. the
@@ -87,6 +95,32 @@ export interface EventManagementConfig {
 
 const Ctx = React.createContext<EventManagementConfig | null>(null);
 
+/*
+ * The SAME config, reachable without a hook.
+ *
+ * The page shell moved in from the admin app brings module-level helpers with
+ * it — `authHeaders()`, `jsonHeaders()` — that are imported by views and
+ * modals alike. Rewriting each into a hook would mean restructuring six files
+ * whose only sin is not being components, for no behavioural gain.
+ *
+ * The provider mirrors its value here on render, so a plain function can read
+ * the host app's auth exactly like a component does. It is deliberately a
+ * mirror and not the source of truth: components still read the CONTEXT, so
+ * nothing changes for them, and two providers on one page (which does not
+ * happen, but could) leave the hooks correct.
+ */
+let currentConfig: EventManagementConfig | null = null;
+
+/** Non-hook accessor for module-level helpers. Throws the same way the hook does. */
+export function getEventManagementConfig(): EventManagementConfig {
+  if (!currentConfig) {
+    throw new Error(
+      "getEventManagementConfig() called before <EventManagementConfigProvider> rendered",
+    );
+  }
+  return currentConfig;
+}
+
 export function EventManagementConfigProvider({
   value,
   children,
@@ -94,6 +128,10 @@ export function EventManagementConfigProvider({
   value: EventManagementConfig;
   children: React.ReactNode;
 }) {
+  // Mirror for module-level helpers (see getEventManagementConfig). Assigned
+  // during render rather than in an effect so a helper called by a child's
+  // first render already sees it.
+  currentConfig = value;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
