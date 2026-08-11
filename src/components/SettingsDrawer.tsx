@@ -188,14 +188,14 @@ export function SettingsDrawer({
     return createPortal(
         <>
             <div
-                className={`fixed inset-0 z-50 transition-opacity duration-300 ${
+                className={`fixed inset-0 z-[120] transition-opacity duration-300 ${
                     animating ? "bg-black/50" : "bg-black/0"
                 }`}
                 onClick={handleClose}
             />
 
             <div
-                className={`fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col rounded-l-2xl overflow-hidden transition-transform duration-300 ease-out ${
+                className={`fixed inset-y-0 right-0 z-[120] w-full max-w-lg bg-white shadow-2xl flex flex-col rounded-l-2xl overflow-hidden transition-transform duration-300 ease-out ${
                     animating ? "translate-x-0" : "translate-x-full"
                 }`}
             >

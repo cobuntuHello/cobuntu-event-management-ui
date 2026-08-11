@@ -11,6 +11,7 @@ import { ListingsView } from "./views/ListingsView";
 import { UpdatesView } from "./views/UpdatesView";
 import { EventActivityTab } from "../components/activity/EventActivityTab";
 import { getEventManagementConfig } from "../config";
+import { EventManageHeader, type EventManageHeaderProps } from "./EventManageHeader";
 
 /**
  * THE event manage page. One implementation, both apps.
@@ -77,7 +78,14 @@ export interface EventManagePageProps {
   view: ViewKey;
   onViewChange: (v: ViewKey) => void;
 
-  /** Rendered above the tabs — each app's own page header. */
+  /**
+   * The shared header's inputs. Preferred over `header`: passing these gets
+   * both apps the SAME breadcrumbs, icons and buttons, which is the whole
+   * point — a slot per app is how the two headers diverged in the first place.
+   */
+  headerProps?: EventManageHeaderProps;
+
+  /** Escape hatch for a genuinely app-specific header. Wins over headerProps. */
   header?: React.ReactNode;
 
   /** Communities the viewer belongs to, for the Listings tab. */
@@ -97,6 +105,7 @@ export function EventManagePage({
   showToast,
   view,
   onViewChange,
+  headerProps,
   header,
   hubs,
   viewerUserId,
@@ -167,7 +176,7 @@ export function EventManagePage({
 
   return (
     <div>
-      {header}
+      {header ?? (headerProps ? <EventManageHeader {...headerProps} /> : null)}
       <SectionsNav communityTag={communityTag} activeView={active} onViewChange={onViewChange} visibleViews={allowed} />
       <ViewTransition viewKey={active}>{content}</ViewTransition>
     </div>

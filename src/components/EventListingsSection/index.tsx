@@ -308,7 +308,7 @@ export function EventListingsSection({
           pkg doesn't bundle a generic ConfirmDialog yet; each consuming
           app has its own variant). */}
       {pendingAction && createPortal(
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => setPendingAction(null)}>
+        <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center" onClick={() => setPendingAction(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-[calc(100vw-2rem)] md:w-[420px] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-3">
               <h3 className="text-[15px] font-semibold text-zinc-900">
@@ -340,7 +340,7 @@ export function EventListingsSection({
       )}
 
       {showAddModal && addMode === "search" && createPortal(
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => setShowAddModal(false)}>
+        <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center" onClick={() => setShowAddModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-[calc(100vw-2rem)] md:w-[480px] h-[520px] max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-4 flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -419,7 +419,7 @@ export function EventListingsSection({
       )}
 
       {showAddModal && addMode === "commission" && pendingCommunity && createPortal(
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => { setAddMode("search"); setPendingCommunity(null); }}>
+        <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center" onClick={() => { setAddMode("search"); setPendingCommunity(null); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-[calc(100vw-2rem)] md:w-[420px] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-4 flex items-start justify-between">
               <div className="flex items-center gap-3">

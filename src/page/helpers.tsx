@@ -104,7 +104,7 @@ import { createPortal } from "react-dom";
 
 export function ModalShell({ children, onClose, width = "w-[420px]" }: { children: React.ReactNode; onClose: () => void; width?: string }) {
   return createPortal(
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[120]" onClick={onClose}>
       <div className={`bg-white rounded-xl shadow-xl ${width} p-6 text-zinc-900`} onClick={e => e.stopPropagation()}>
         {children}
       </div>
@@ -161,7 +161,7 @@ export function useStripeStatus(communityTag: string) {
 
 export function StripeRequiredWarning({ communityTag, onClose }: { communityTag: string; onClose: () => void }) {
   return createPortal(
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 text-zinc-900" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[120] text-zinc-900" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-[calc(100vw-2rem)] md:w-[420px] p-6" onClick={e => e.stopPropagation()}>
         <div className="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center mb-4">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-500"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>

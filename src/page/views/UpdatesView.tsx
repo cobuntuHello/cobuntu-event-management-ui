@@ -185,7 +185,7 @@ function ComposeUpdate({ communityTag, eventId, onClose, onSent, showToast }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-zinc-100">
           <h2 className="text-[15px] font-semibold text-zinc-900">Send update</h2>
@@ -253,7 +253,7 @@ function DetailDrawer({ detail, onClose }: { detail: BroadcastDetail; onClose: (
   const UserAvatar = ConfigAvatar ?? UserAvatarFallback;
   const { stats } = detail;
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex justify-end" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] bg-black/40 flex justify-end" onClick={onClose}>
       <div className="w-full max-w-xl bg-white h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-zinc-100 sticky top-0 bg-white z-10">
           <button onClick={onClose} className="flex items-center gap-1.5 text-[13px] text-zinc-500 hover:text-zinc-900 cursor-pointer">
