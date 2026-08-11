@@ -21,6 +21,21 @@ interface Props {
    * has to cancel + refund first, then delete.
    */
   hasPaidAttendees: boolean;
+  /**
+   * Whether this event can have community-scoped settings at all.
+   *
+   * FALSE ⇒ the Settings card is NOT RENDERED, not disabled. Everything behind
+   * it — visibility, access, distribution, after-checkout — is a statement
+   * about a COMMUNITY: who among its members may see or RSVP, where its
+   * storefront sends people. A user-owned event has no membership to gate
+   * against, and the backend now refuses all of them with a 403 (see
+   * communityScopedSettings on the server).
+   *
+   * A disabled card would advertise a capability this event cannot have and
+   * invite "how do I unlock it?", a question with no answer. Defaults true so
+   * a consumer that has not been updated keeps today's behaviour.
+   */
+  canConfigureSettings?: boolean;
   onShare: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
@@ -46,6 +61,7 @@ interface Props {
  */
 export function OverviewActionCards({
   isPublished, isEventPast, isEventLive, hasPaidAttendees,
+  canConfigureSettings = true,
   onShare, onEdit, onDuplicate, onPublish, onUnpublish, onDelete,
   groupChatExists, onGroupChat,
 }: Props) {
@@ -61,7 +77,7 @@ export function OverviewActionCards({
       disabled: !isPublished,
       onClick: onShare,
     },
-    {
+    ...(canConfigureSettings ? [{
       // feat/manage-event-restructure: was "Edit Event" (opened the legacy
       // EditEventDrawer). Now opens the SettingsDrawer — visibility,
       // access, distribution, membership funnel. The `onEdit` callback
@@ -76,7 +92,7 @@ export function OverviewActionCards({
       // Featured, Membership funnel) — Visibility + custom landing
       // URL stay legitimately editable post-event.
       onClick: onEdit,
-    },
+    }] : []),
     {
       label: "Duplicate Event",
       icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,

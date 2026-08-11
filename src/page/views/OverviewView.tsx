@@ -110,6 +110,7 @@ export function OverviewView({ event, communityTag, eventId, isPublished, onUpda
   return (
     <div className="space-y-6">
       <OverviewActionCards
+        canConfigureSettings={!!event?.communityId}
         isPublished={isPublished}
         isEventPast={!!status.isPast}
         isEventLive={!!status.isLive}
@@ -249,7 +250,11 @@ export function OverviewView({ event, communityTag, eventId, isPublished, onUpda
         title="Event Image"
       />
 
-      <SettingsDrawer
+      {/*
+        Rendered only when the event can have these settings — the action that
+        opens it is gated identically, so this guards a stale open state.
+      */}
+      {!!event?.communityId && <SettingsDrawer
         event={event}
         communityTag={communityTag}
         isOpen={drawerOpen}
@@ -257,7 +262,7 @@ export function OverviewView({ event, communityTag, eventId, isPublished, onUpda
         onClose={() => setDrawerOpen(false)}
         onSaved={() => { onUpdate(); }}
         showToast={showToast}
-      />
+      />}
       {/* The drawer used to be gated on a community fetch (community
           prop was required for MembershipFunnelEditModal). With the
           funnel kill, `community` is no longer needed, the gate is
