@@ -143,7 +143,7 @@ export function AttendeesActionModalShell({
     const reduceMotion = REDUCED_MOTION;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" aria-modal="true" role="dialog">
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center" aria-modal="true" role="dialog">
             {/* Backdrop */}
             <div
                 onClick={requestClose}

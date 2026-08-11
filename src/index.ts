@@ -249,3 +249,4 @@ export { CategoryPickerRow, type CategoryOption } from "./components/CategoryPic
  */
 export { EventManagePage, visibleViews, type EventManagePageProps, type ViewKey } from "./page/EventManagePage";
 export { getEventManagementConfig } from "./config";
+export { EventManageHeader, type EventManageHeaderProps } from "./page/EventManageHeader";

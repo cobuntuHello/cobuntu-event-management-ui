@@ -87,7 +87,7 @@ export function StripeRequiredWarning({
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 text-zinc-900"
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-[120] text-zinc-900"
       onClick={onClose}
     >
       <div

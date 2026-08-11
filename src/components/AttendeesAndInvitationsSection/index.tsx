@@ -473,7 +473,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     <SalesUiConfigProvider config={salesUiConfig}>
     <div>
       {toast && (
-        <div className="fixed top-4 right-4 z-50 px-4 py-2.5 bg-zinc-900 text-white text-[13px] font-medium rounded-lg shadow-lg">
+        <div className="fixed top-4 right-4 z-[120] px-4 py-2.5 bg-zinc-900 text-white text-[13px] font-medium rounded-lg shadow-lg">
           {toast}
         </div>
       )}

@@ -380,9 +380,9 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
   if (typeof document === "undefined") return null;
   return createPortal(
     <>
-      <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${animating ? "bg-black/50" : "bg-black/0"}`} onClick={handleClose} />
+      <div className={`fixed inset-0 z-[120] transition-opacity duration-300 ${animating ? "bg-black/50" : "bg-black/0"}`} onClick={handleClose} />
 
-      <div className={`fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col rounded-l-2xl overflow-hidden transition-transform duration-300 ease-out ${animating ? "translate-x-0" : "translate-x-full"}`}>
+      <div className={`fixed inset-y-0 right-0 z-[120] w-full max-w-lg bg-white shadow-2xl flex flex-col rounded-l-2xl overflow-hidden transition-transform duration-300 ease-out ${animating ? "translate-x-0" : "translate-x-full"}`}>
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-100 shrink-0">
           <button onClick={handleClose} className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center cursor-pointer shrink-0">
@@ -527,7 +527,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
 // ─── Shared sub-components ────────────────────────
 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center text-zinc-900" onClick={onClose}>{children}</div>;
+  return <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center text-zinc-900" onClick={onClose}>{children}</div>;
 }
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
