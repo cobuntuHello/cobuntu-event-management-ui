@@ -1069,7 +1069,7 @@ export function PriceEditModal({
         by PBN (2026-05-19): "Save button does nothing on price." It
         was firing the prompt, but the prompt was invisible. */}
     {confirmState !== "hidden" && typeof document !== "undefined" && createPortal(
-      <div className="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center">
+      <div className="fixed inset-0 z-[120] bg-black/30 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-xl w-[calc(100vw-2rem)] md:w-[400px] p-6">
           {confirmState === "options" && (<>
             <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">Update ticket pricing?</h3>

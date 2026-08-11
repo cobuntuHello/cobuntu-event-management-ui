@@ -492,7 +492,12 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
 
       {/* ─── Update Confirmation ───────────────────── */}
       {confirmState !== "hidden" && (
-        <div className="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center">
+        /*
+          z-[130]: ABOVE this drawer's own z-[120]. At z-[60] the confirmation
+          rendered BEHIND the drawer that opened it, so saving appeared to do
+          nothing — the dialog was there, underneath.
+        */
+        <div className="fixed inset-0 z-[130] bg-black/30 flex items-center justify-center">
           <div className="bg-white rounded-xl shadow-xl w-[calc(100vw-2rem)] md:w-[400px] p-6">
             {confirmState === "options" && (<>
               <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Update this event?</h3>
