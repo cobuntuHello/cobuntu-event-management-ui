@@ -28,6 +28,13 @@ interface Props {
   communityTag: string;
   activeView: ViewKey;
   onViewChange: (key: ViewKey) => void;
+  /**
+   * Which tabs this viewer may use. A member hosting their own event is not a
+   * community leader, so the nav is filtered rather than rendering tabs that
+   * lead to a surface they cannot operate. Omitted = show everything, which is
+   * the admin app's case.
+   */
+  visibleViews?: readonly ViewKey[];
 }
 
 // Attendees-first ordering: the Attendees tab is the most-trafficked
@@ -54,7 +61,7 @@ const SECTIONS: Section[] = [
  * no framer-motion). On `prefers-reduced-motion: reduce` the transition is
  * skipped.
  */
-export function SectionsNav({ communityTag: _communityTag, activeView, onViewChange }: Props) {
+export function SectionsNav({ communityTag: _communityTag, activeView, onViewChange, visibleViews }: Props) {
   const tabRefs = useRef<Map<ViewKey, HTMLButtonElement | null>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
@@ -84,7 +91,7 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
       ref={containerRef}
       className="relative flex items-center gap-1 overflow-x-auto -mx-1 px-1 mb-6 border-b border-zinc-200"
     >
-      {SECTIONS.map((s) => {
+      {SECTIONS.filter((s) => !visibleViews || visibleViews.includes(s.key)).map((s) => {
         const active = s.key === activeView;
         const disabled = !!s.disabled;
         return (

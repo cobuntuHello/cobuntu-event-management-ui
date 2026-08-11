@@ -241,3 +241,11 @@ export { TagsEditModal } from "./components/TagsEditModal";
 // Category picker — the consumer loads the options and passes them to
 // EventForm; the type is exported so it can shape that fetch.
 export { CategoryPickerRow, type CategoryOption } from "./components/CategoryPickerRow";
+
+/**
+ * The event manage PAGE — tabs, views, edit rows. Both apps mount this rather
+ * than composing their own from the pieces above, which is how the two drifted
+ * in the first place.
+ */
+export { EventManagePage, visibleViews, type EventManagePageProps, type ViewKey } from "./page/EventManagePage";
+export { getEventManagementConfig } from "./config";
