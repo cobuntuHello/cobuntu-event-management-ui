@@ -110,7 +110,15 @@ export function OverviewView({ event, communityTag, eventId, isPublished, onUpda
   return (
     <div className="space-y-6">
       <OverviewActionCards
-        canConfigureSettings={!!event?.communityId}
+        /*
+         * Always. This used to be `!!event?.communityId`, which hid the whole
+         * button on a personal event — and with it Approval and the refund
+         * policy, two settings the OWNER of that event is entitled to set
+         * (the backend keeps both out of COMMUNITY_SCOPED_EVENT_FIELDS). The
+         * drawer scopes its own rows now, so the community-only ones stay
+         * out on a personal event without taking the entry point with them.
+         */
+        canConfigureSettings
         isPublished={isPublished}
         isEventPast={!!status.isPast}
         isEventLive={!!status.isLive}

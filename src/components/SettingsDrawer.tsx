@@ -6,6 +6,7 @@ import { ViewabilityEditModal } from "./ViewabilityEditModal";
 import { AccessibilityEditModal } from "./AccessibilityEditModal";
 import { DistributionEditModal } from "./DistributionEditModal";
 import { AfterCheckoutEditModal } from "./AfterCheckoutEditModal";
+import { ApprovalEditModal } from "./ApprovalEditModal";
 import { RefundPolicyEditModal, refundPolicySummary } from "./RefundPolicyEditModal";
 
 /**
@@ -30,7 +31,7 @@ import { RefundPolicyEditModal, refundPolicySummary } from "./RefundPolicyEditMo
  * and calls onSaved() to trigger the parent's reload.
  */
 
-type ModalKey = "viewability" | "accessibility" | "distribution" | "after-checkout" | "refund-policy" | null;
+type ModalKey = "viewability" | "accessibility" | "distribution" | "after-checkout" | "refund-policy" | "approval" | null;
 
 interface Props {
     event: any;
@@ -74,6 +75,25 @@ export function SettingsDrawer({
     onSaved,
     showToast,
 }: Props) {
+    /*
+     * Which rows this drawer may show.
+     *
+     * Four of these settings are statements about a COMMUNITY — who among its
+     * members may see or buy this, where its storefront sends people, what it
+     * promotes after a sale — and the backend refuses them outright on a
+     * user-owned listing (COMMUNITY_SCOPED_EVENT_FIELDS, 403). A personal
+     * event has no membership to gate against and no storefront to redirect.
+     *
+     * Approval and the refund policy are the HOST's own calls. The backend
+     * leaves both out of that list, so a personal event's owner may set them
+     * exactly like a leader may.
+     *
+     * The whole button used to be hidden on a user-owned event, which is how
+     * those two became unreachable — a member selling their own event could
+     * not state a refund policy at all, and approval was settable once in the
+     * create form and never again. Scope the ROWS, keep the entry point.
+     */
+    const isCommunityOwned = !!event?.communityId;
     const [visible, setVisible] = useState(false);
     const [animating, setAnimating] = useState(false);
     const [modal, setModal] = useState<ModalKey>(null);
@@ -122,8 +142,13 @@ export function SettingsDrawer({
         closeModalAndReopenDrawer();
     }
 
-    // ─── Active sub-modal (mutually exclusive with the drawer) ──────
-    if (modal === "viewability") {
+    /*
+     * ─── Active sub-modal (mutually exclusive with the drawer) ──────
+     *
+     * Each editor is gated identically to the row that opens it, so a stale
+     * `modal` state can't surface an editor to someone the backend would 403.
+     */
+    if (modal === "viewability" && isCommunityOwned) {
         return (
             <ViewabilityEditModal
                 event={event}
@@ -134,7 +159,7 @@ export function SettingsDrawer({
             />
         );
     }
-    if (modal === "accessibility") {
+    if (modal === "accessibility" && isCommunityOwned) {
         return (
             <AccessibilityEditModal
                 event={event}
@@ -145,7 +170,7 @@ export function SettingsDrawer({
             />
         );
     }
-    if (modal === "distribution") {
+    if (modal === "distribution" && isCommunityOwned) {
         return (
             <DistributionEditModal
                 event={event}
@@ -156,11 +181,20 @@ export function SettingsDrawer({
             />
         );
     }
-    // Gated identically to the row that opens it, so a stale `modal` state
-    // can't surface the editor to someone the backend would 403.
     if (modal === "after-checkout" && !hideAfterCheckout) {
         return (
             <AfterCheckoutEditModal
+                event={event}
+                communityTag={communityTag}
+                onClose={closeModalAndReopenDrawer}
+                onSaved={modalSaved}
+                showToast={showToast}
+            />
+        );
+    }
+    if (modal === "approval") {
+        return (
+            <ApprovalEditModal
                 event={event}
                 communityTag={communityTag}
                 onClose={closeModalAndReopenDrawer}
@@ -228,6 +262,7 @@ export function SettingsDrawer({
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto">
+                    {isCommunityOwned && (
                     <SettingsRow
                         label="Visibility"
                         summary={event.viewability === "MEMBERS_ONLY" ? "Members only" : "Public"}
@@ -239,6 +274,8 @@ export function SettingsDrawer({
                             </svg>
                         }
                     />
+                    )}
+                    {isCommunityOwned && (
                     <SettingsRow
                         label="Access"
                         summary={event.accessibility === "MEMBERS_ONLY" ? "Members only" : "Public"}
@@ -250,6 +287,8 @@ export function SettingsDrawer({
                             </svg>
                         }
                     />
+                    )}
+                    {isCommunityOwned && (
                     <SettingsRow
                         label="Distribution"
                         summary={
@@ -266,6 +305,7 @@ export function SettingsDrawer({
                             </svg>
                         }
                     />
+                    )}
                     {!hideAfterCheckout && (
                         <SettingsRow
                             label="After checkout"
@@ -283,6 +323,17 @@ export function SettingsDrawer({
                             }
                         />
                     )}
+                    <SettingsRow
+                        label="Approval"
+                        summary={event.requiresApproval ? "You review each registration" : "Registrations confirm instantly"}
+                        onClick={() => openModal("approval")}
+                        icon={
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
+                                <path d="M9 11l3 3L22 4" />
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                            </svg>
+                        }
+                    />
                     <SettingsRow
                         label="Refund policy"
                         summary={refundPolicySummary(event.refundPolicy)}
