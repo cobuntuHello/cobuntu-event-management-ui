@@ -4,16 +4,19 @@ import { renderWithConfig } from "./test-utils";
 import { OverviewActionCards } from "../page/sections/OverviewActionCards";
 
 /**
- * The Settings action is HIDDEN, not disabled, on a user-owned event.
+ * `canConfigureSettings` is a capability switch on the CARD, not a rule.
  *
- * Everything behind it — visibility, access, distribution, after-checkout — is
- * a statement about a COMMUNITY: who among its members may see or RSVP, where
- * its storefront sends people. A personal event has no membership to gate
- * against, and the backend refuses all of them with a 403.
+ * It used to be derived from ownership — OverviewView passed
+ * `!!event.communityId`, so a personal event lost the Settings button
+ * entirely. That was wrong: two of the settings behind it (Approval, Refund
+ * policy) are the HOST's own, and the backend allows both on a user-owned
+ * event. The drawer scopes its own rows now and the manage page always passes
+ * true; see SettingsDrawer.test.tsx for the row-level rule.
  *
- * Mirrors the identical rule on products. A disabled card would advertise a
- * capability this event cannot have and invite "how do I unlock it?", which
- * has no answer.
+ * The prop stays because hiding the card is still the right shape when a
+ * consumer genuinely has nothing to put behind it — a disabled card would
+ * advertise a capability and invite "how do I unlock it?", which has no
+ * answer. These pin that mechanism.
  */
 
 const actions = {

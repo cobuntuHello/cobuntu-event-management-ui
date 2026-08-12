@@ -8,8 +8,14 @@ import { renderWithConfig } from "./test-utils";
 // in cobuntu-backend-monorepo PR #671 (Phase 3 PR 13a of the events-domain
 // architecture refactor umbrella). The feature will be rebuilt as pure-FE
 // later — Workstream 1 in the events-domain roadmap.
+/*
+ * A COMMUNITY-owned event, which is what every test below is about. The
+ * community-scoped rows (Visibility, Access, Distribution) only render when
+ * this is set — see the personal-event block at the bottom for the other half.
+ */
 const baseEvent = (overrides: Record<string, unknown> = {}) => ({
     id: "evt-1",
+    communityId: "com-1",
     slug: "lisbon-meetup",
     viewability: "PUBLIC",
     accessibility: "PUBLIC",
@@ -196,5 +202,66 @@ describe("SettingsDrawer — hideAfterCheckout gating", () => {
         );
         const row = screen.getByText("After checkout").closest("button");
         expect(row).toHaveTextContent(/Membership upsell/);
+    });
+});
+
+describe("SettingsDrawer — a personal (user-owned) event", () => {
+    /*
+     * The Settings button used to be hidden outright on a user-owned event,
+     * on the grounds that everything behind it was a statement about a
+     * community. That was true of four rows and false of two.
+     *
+     * Approval and the refund policy are the HOST's own calls — the backend
+     * keeps both out of COMMUNITY_SCOPED_EVENT_FIELDS, so the owner of a
+     * personal event may set them exactly like a leader may. Hiding the entry
+     * point took them with it: a member selling their own event could not
+     * state a refund policy at all, and approval was settable once in the
+     * create form and then never again.
+     */
+    const personal = (overrides: Record<string, unknown> = {}) =>
+        baseProps({ event: baseEvent({ communityId: null, ...overrides }) });
+
+    it("still opens, with the host's own settings", () => {
+        renderWithConfig(<SettingsDrawer {...personal()} />);
+        expect(screen.getByText("Settings")).toBeInTheDocument();
+        expect(screen.getByText("Approval")).toBeInTheDocument();
+        expect(screen.getByText("Refund policy")).toBeInTheDocument();
+    });
+
+    it("drops the rows the backend would 403", () => {
+        // Not a policy choice here — assertCanConfigureCommunityScoped
+        // refuses these outright when communityId is null.
+        renderWithConfig(<SettingsDrawer {...personal()} />);
+        expect(screen.queryByText("Visibility")).not.toBeInTheDocument();
+        expect(screen.queryByText("Access")).not.toBeInTheDocument();
+        expect(screen.queryByText("Distribution")).not.toBeInTheDocument();
+    });
+
+    it("summarises approval both ways", () => {
+        renderWithConfig(<SettingsDrawer {...personal({ requiresApproval: true })} />);
+        expect(screen.getByText("You review each registration")).toBeInTheDocument();
+    });
+
+    it("says registrations confirm instantly when approval is off", () => {
+        renderWithConfig(<SettingsDrawer {...personal({ requiresApproval: false })} />);
+        expect(screen.getByText("Registrations confirm instantly")).toBeInTheDocument();
+    });
+
+    it("opens the approval editor from its row", async () => {
+        renderWithConfig(<SettingsDrawer {...personal()} />);
+        await userEvent.click(screen.getByText("Approval"));
+        // openModal animates for 300ms before swapping.
+        await vi.waitFor(() =>
+            expect(screen.getByText("What happens when someone registers.")).toBeInTheDocument(),
+        );
+    });
+});
+
+describe("SettingsDrawer — approval is not community-scoped", () => {
+    it("offers Approval on a community event too", () => {
+        // Same row, same place — ownership changes which OTHER rows appear,
+        // never this one.
+        renderWithConfig(<SettingsDrawer {...baseProps()} />);
+        expect(screen.getByText("Approval")).toBeInTheDocument();
     });
 });
