@@ -180,6 +180,9 @@ export function SettingsDrawer({
                 communityTag={communityTag}
                 membershipTiers={membershipTiers}
                 initialTierIds={buyTierIds}
+                // The ceiling: registering cannot be offered to people who
+                // cannot see the event in the first place.
+                viewTierIds={viewTierIds}
                 onClose={closeModalAndReopenDrawer}
                 onSaved={modalSaved}
                 showToast={showToast}

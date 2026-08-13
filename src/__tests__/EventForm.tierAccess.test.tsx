@@ -49,13 +49,37 @@ describe("what reaches the payload", () => {
     expect(d.viewTierIds).toEqual([]);
   });
 
-  it("keeps the two axes independent", () => {
-    // Restricting who can see must not restrict who can register.
+  it("drags registration in when visibility narrows under it", () => {
+    /*
+     * This test used to assert the opposite - "restricting who can see must
+     * not restrict who can register" - and so pinned the bug as behaviour.
+     *
+     * Registering is a SUBSET of seeing. A members-only event that anyone can
+     * register for is not a permissive setting, it is an unreachable one: the
+     * view gate runs first, so the non-members that "PUBLIC" invites never see
+     * the page. The card asserted something it could not do.
+     *
+     * Narrowing view now pulls registration to the widest state still
+     * honourable, which is view itself.
+     */
     const latest = render();
     fireEvent.click(screen.getAllByRole("checkbox", { name: /Public/ })[0]);
     const d = latest();
     expect(d.viewability).toBe("MEMBERS_ONLY");
-    expect(d.accessibility).toBe("PUBLIC");
+    expect(d.accessibility).toBe("MEMBERS_ONLY");
+  });
+
+  it("still lets registration be NARROWER than visibility", () => {
+    // The ceiling only stops registration going wider. Seen by everyone and
+    // sold to one tier is the case the whole feature exists for.
+    const latest = render();
+    // Under Public, "All members" is implied and carries a tag rather than a
+    // checkbox - so the register axis narrows via its OWN Public row.
+    const publicRows = screen.getAllByRole("checkbox", { name: /Public/ });
+    fireEvent.click(publicRows[publicRows.length - 1]);
+    const d = latest();
+    expect(d.viewability).toBe("PUBLIC");
+    expect(d.accessibility).toBe("MEMBERS_ONLY");
   });
 });
 
@@ -67,8 +91,13 @@ describe("opening an existing event", () => {
     const rows = screen.getAllByRole("checkbox", { name: /All members/ });
     expect(rows).toHaveLength(2);
     for (const r of rows) expect(r).toHaveAttribute("aria-checked", "true");
-    // ...and the tier rows under them are frozen, because "all" implies them.
-    expect(screen.getAllByRole("checkbox", { name: /Founding/ })[0]).toHaveAttribute("aria-disabled", "true");
+    /*
+     * ...and the tier rows under them are Included rather than checkboxes.
+     * A ticked-and-greyed box read as broken; an implied row is not a control
+     * at all, so there is nothing to press and nothing announced as a checkbox.
+     */
+    expect(screen.queryByRole("checkbox", { name: /Founding/ })).toBeNull();
+    expect(screen.getAllByText("Included").length).toBeGreaterThan(0);
   });
 
   it("restores a saved tier selection", () => {
