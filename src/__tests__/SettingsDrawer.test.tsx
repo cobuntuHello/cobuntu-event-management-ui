@@ -265,3 +265,31 @@ describe("SettingsDrawer — approval is not community-scoped", () => {
         expect(screen.getByText("Approval")).toBeInTheDocument();
     });
 });
+
+describe("the drawer groups by who owns the setting", () => {
+    /*
+     * Gating alone was not enough. On a personal event the three
+     * community-scoped rows just vanished, which reads as missing features
+     * rather than one rule about ownership. The headings say which is which.
+     */
+    it("labels the community-scoped group on a community event", () => {
+        renderWithConfig(<SettingsDrawer {...baseProps()} />);
+        expect(screen.getByText("Community access")).toBeInTheDocument();
+        expect(screen.getByText("Your settings")).toBeInTheDocument();
+    });
+
+    it("drops the community heading with its rows on a personal event", () => {
+        // The heading must not outlive the rows it introduces.
+        renderWithConfig(<SettingsDrawer {...baseProps({ event: baseEvent({ communityId: null }) })} />);
+        expect(screen.queryByText("Community access")).not.toBeInTheDocument();
+        expect(screen.queryByText("Visibility")).not.toBeInTheDocument();
+    });
+
+    it("keeps the host's own group on a personal event", () => {
+        // Approval and Refund policy are the host's, so the group stays.
+        renderWithConfig(<SettingsDrawer {...baseProps({ event: baseEvent({ communityId: null }) })} />);
+        expect(screen.getByText("Your settings")).toBeInTheDocument();
+        expect(screen.getByText("Approval")).toBeInTheDocument();
+        expect(screen.getByText("Refund policy")).toBeInTheDocument();
+    });
+});
