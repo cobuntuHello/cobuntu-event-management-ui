@@ -187,8 +187,22 @@ export function BannerCropModal({
           <div className="px-6 py-4 space-y-6 overflow-y-auto flex-1 min-h-0">
             <div className="relative w-full rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200 aspect-square shadow-inner max-w-full">
               {imageSrc ? (
+                /*
+                 * restrictPosition (the default) keeps the image covering the
+                 * crop box. It was explicitly disabled, which let the photo be
+                 * dragged clear of the frame - so the square could sit partly
+                 * OUTSIDE the image and the saved crop came back with blank
+                 * edges. The feed's cropper never had this off.
+                 *
+                 * objectFit="cover" is the other half: the default "contain"
+                 * letterboxes a non-square photo inside a 1:1 frame, which is
+                 * why it opened off-centre with grey beside it. Cover fills
+                 * the frame and centres, so the first thing you see is a valid
+                 * crop you can nudge rather than one you must fix.
+                 */
                 <Cropper image={imageSrc} crop={crop} zoom={zoom} aspect={1} showGrid={false} cropShape="rect"
-                  onCropChange={setCrop} onCropComplete={onCropComplete} onZoomChange={setZoom} restrictPosition={false} />
+                  objectFit="cover"
+                  onCropChange={setCrop} onCropComplete={onCropComplete} onZoomChange={setZoom} />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-zinc-400">
                   <div className="text-center space-y-2">
