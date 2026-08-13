@@ -21,6 +21,14 @@ import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
 import { blankTier } from "./PriceEditModal/helpers";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
+import {
+  MembershipTierPicker,
+  toTierAccessValue,
+  fromTierAccessValue,
+  tierAccessSummary,
+  type TierAccessValue,
+  type MembershipTier,
+} from "@cobuntu/management-ui-shared";
 
 // ─── Currencies ────────────────────────────────────────────────
 
@@ -115,6 +123,15 @@ export interface EventFormData {
   // "PUBLIC" if not provided.
   viewability?: "PUBLIC" | "MEMBERS_ONLY";
   requiresApproval: boolean;
+  /**
+   * Membership tiers granted view / register access.
+   *
+   * EMPTY means "every tier", not "nobody" - the same rule the backend applies
+   * (no rows means unrestricted). Consumers send these alongside viewability /
+   * accessibility; the pair is the whole answer.
+   */
+  viewTierIds: string[];
+  buyTierIds: string[];
   tiers: TierItem[];
   tags: Tag[];
 }
@@ -151,6 +168,15 @@ interface EventFormProps {
    */
   hideVisibility?: boolean;
   /**
+   * The community's membership tiers, for the access picker. Passed in rather
+   * than fetched: the form makes no API calls of its own during create, and an
+   * empty list simply renders "no membership tiers yet".
+   */
+  membershipTiers?: MembershipTier[];
+  /** Tier ids currently granted view / register access, from the listing. */
+  initialViewTierIds?: string[];
+  initialBuyTierIds?: string[];
+  /**
    * Tailwind max-width class applied to both content sections (name/banner/
    * schedule, and the Event Options card below it). Defaults to `max-w-3xl`
    * — the form's original fixed width, kept as the default so existing
@@ -165,7 +191,7 @@ interface EventFormProps {
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, maxWidthClassName = "max-w-3xl" }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl" }: EventFormProps) {
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -186,6 +212,18 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   // capacity field was removed in the tier-only capacity refactor (PR C).
   const [accessibility, setAccessibility] = useState<"PUBLIC" | "MEMBERS_ONLY">(initialData?.accessibility || "PUBLIC");
   const [viewability, setViewability] = useState<"PUBLIC" | "MEMBERS_ONLY">(initialData?.viewability || "PUBLIC");
+  /*
+   * The picker's own shape. `MEMBERS_ONLY` with no granted tiers reads as
+   * "all members", never as an empty selection - that is the no-backfill rule
+   * surfacing in the UI, and it is why every event that predates this opens
+   * as All members rather than as a picker with nothing ticked.
+   */
+  const [viewAccess, setViewAccess] = useState<TierAccessValue>(
+    toTierAccessValue(initialData?.viewability ?? "PUBLIC", initialViewTierIds),
+  );
+  const [buyAccess, setBuyAccess] = useState<TierAccessValue>(
+    toTierAccessValue(initialData?.accessibility ?? "PUBLIC", initialBuyTierIds),
+  );
   const [requiresApproval, setRequiresApproval] = useState(initialData?.requiresApproval || false);
   /**
    * The default "Standard" ticket tier.
@@ -401,6 +439,13 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /*
+   * One translation, used by both the payload and the icons, so they cannot
+   * drift: the picker's three modes collapse to an enum plus a tier list.
+   */
+  const viewResolved = fromTierAccessValue(viewAccess);
+  const buyResolved = fromTierAccessValue(buyAccess);
+
   // Notify parent — use useLayoutEffect to ensure data is synced before unmount
   /**
    * What actually gets submitted.
@@ -443,11 +488,21 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
        * categoryId / subCategoryId ride alongside — they are listing
        * properties, not tier properties, so they sit outside the tier list.
        */
-      accessibility, viewability, requiresApproval, tiers: submittableTiers, tags,
+      /*
+       * The picker is the source of truth for both access axes now. It owns
+       * one list where the stored shape is two things - an enum plus grant
+       * rows - so the enum is DERIVED here rather than tracked separately,
+       * which is what stops the summary and the rows disagreeing.
+       */
+      accessibility: buyResolved.visibility,
+      viewability: viewResolved.visibility,
+      viewTierIds: viewResolved.tierIds,
+      buyTierIds: buyResolved.tierIds,
+      requiresApproval, tiers: submittableTiers, tags,
       categoryId, subCategoryId,
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
-      physicalLocation, onlineUrl, accessibility, viewability, requiresApproval, submittableTiers, tags,
+      physicalLocation, onlineUrl, viewAccess, buyAccess, requiresApproval, submittableTiers, tags,
       categoryId, subCategoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
@@ -694,56 +749,6 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
         </div>
 
-        {/* ─── Community access ───
-            Visibility and Purchase exist ONLY because a community owns this
-            event: the backend refuses both on a personal one
-            (COMMUNITY_SCOPED_EVENT_FIELDS, 403). They used to sit in the card
-            above and simply vanish for a member host, which read as two
-            missing features rather than one rule. Grouped and labelled, the
-            absence explains itself. */}
-        {!hideVisibility && (
-          <div className="mt-6">
-            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Community access</p>
-            <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
-
-            {/* Visibility — who can SEE the event (view gate) */}
-            <div
-              onClick={() => setViewability(viewability === "PUBLIC" ? "MEMBERS_ONLY" : "PUBLIC")}
-              className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
-              <div className="flex items-center gap-3">
-                {viewability === "PUBLIC" ? <Eye className="h-[18px] w-[18px] text-zinc-400" /> : <EyeOff className="h-[18px] w-[18px] text-zinc-400" />}
-                <div>
-                  <span className="text-sm font-medium text-zinc-800">Visibility: {viewability === "PUBLIC" ? "Everyone" : "Members only"}</span>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">Who can see this event listing</p>
-                </div>
-              </div>
-              <Switch checked={viewability === "MEMBERS_ONLY"}
-                onCheckedChange={checked => setViewability(checked ? "MEMBERS_ONLY" : "PUBLIC")}
-                onClick={e => e.stopPropagation()} />
-            </div>
-
-            {/* Attendance — who can RSVP/purchase (action gate) */}
-            <div
-              onClick={() => setAccessibility(accessibility === "PUBLIC" ? "MEMBERS_ONLY" : "PUBLIC")}
-              className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
-              <div className="flex items-center gap-3">
-                {accessibility === "PUBLIC" ? <UserCheck className="h-[18px] w-[18px] text-zinc-400" /> : <Lock className="h-[18px] w-[18px] text-zinc-400" />}
-                <div>
-                  <span className="text-sm font-medium text-zinc-800">Attendance: {accessibility === "PUBLIC" ? "Everyone" : "Members only"}</span>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">Who can register / RSVP</p>
-                </div>
-              </div>
-              <Switch checked={accessibility === "MEMBERS_ONLY"}
-                onCheckedChange={checked => setAccessibility(checked ? "MEMBERS_ONLY" : "PUBLIC")}
-                onClick={e => e.stopPropagation()} />
-            </div>
-          </div>
-          <p className="text-[11px] text-zinc-400 mt-2 px-1">
-            Available because {communityName || "this community"} owns this event.
-          </p>
-        </div>
-      )}
-
       {/* ─── Approval ───
           NOT community-scoped. requiresApproval is deliberately outside
           COMMUNITY_SCOPED_EVENT_FIELDS, so a member hosting their own event
@@ -766,6 +771,66 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         <Switch checked={requiresApproval}
           onCheckedChange={setRequiresApproval}
           onClick={e => e.stopPropagation()} />
+
+        {/* ─── Community access ───
+            Visibility and Purchase exist ONLY because a community owns this
+            event: the backend refuses both on a personal one
+            (COMMUNITY_SCOPED_EVENT_FIELDS, 403). They used to sit in the card
+            above and simply vanish for a member host, which read as two
+            missing features rather than one rule. Grouped and labelled, the
+            absence explains itself. */}
+        {!hideVisibility && (
+          <div className="mt-6">
+            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Community access</p>
+            <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
+
+            {/* Who can SEE it. Two tiers of control in one list: Public and
+                All members are shortcuts that imply every membership tier
+                below them, so picking either ticks and freezes the rows. See
+                MembershipTierPicker - "frozen" there means already included,
+                which is the opposite of the card-level rule where a
+                capability you cannot have is not rendered at all. */}
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-3 mb-3">
+                {viewResolved.visibility === "PUBLIC" ? <Eye className="h-[18px] w-[18px] text-zinc-400" /> : <EyeOff className="h-[18px] w-[18px] text-zinc-400" />}
+                <div>
+                  <span className="text-sm font-medium text-zinc-800">Who can see it</span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">{tierAccessSummary(viewAccess, membershipTiers)}</p>
+                </div>
+              </div>
+              <MembershipTierPicker
+                value={viewAccess}
+                onChange={setViewAccess}
+                tiers={membershipTiers}
+                publicLabel="Anyone, including people who are not members"
+              />
+            </div>
+
+            {/* Who can REGISTER. Separate axis on purpose: showing an event to
+                every member while selling to one tier is the case the feature
+                exists for. */}
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-3 mb-3">
+                {buyResolved.visibility === "PUBLIC" ? <UserCheck className="h-[18px] w-[18px] text-zinc-400" /> : <Lock className="h-[18px] w-[18px] text-zinc-400" />}
+                <div>
+                  <span className="text-sm font-medium text-zinc-800">Who can register</span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">{tierAccessSummary(buyAccess, membershipTiers)}</p>
+                </div>
+              </div>
+              <MembershipTierPicker
+                value={buyAccess}
+                onChange={setBuyAccess}
+                tiers={membershipTiers}
+                publicLabel="Anyone can register, members or not"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-zinc-400 mt-2 px-1">
+            Available because {communityName || "this community"} owns this event.
+          </p>
+        </div>
+      )}
+
       </div>
           </div>
         </div>

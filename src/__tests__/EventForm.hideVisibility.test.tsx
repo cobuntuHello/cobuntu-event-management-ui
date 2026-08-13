@@ -17,15 +17,17 @@ describe("EventForm — hideVisibility gating", () => {
 
   it("shows Visibility + Attendance by default (leader view)", () => {
     renderWithConfig(<EventForm communityTag="c-1" />);
-    expect(screen.getByText(/Visibility:/)).toBeTruthy();
-    expect(screen.getByText(/Attendance:/)).toBeTruthy();
+    // Copy changed with the tier picker: the binary "Visibility: Everyone"
+    // toggle became a question with a list under it.
+    expect(screen.getByText("Who can see it")).toBeTruthy();
+    expect(screen.getByText("Who can register")).toBeTruthy();
     expect(screen.getByText(/Require Approval/)).toBeTruthy();
   });
 
   it("hides Visibility + Attendance when hideVisibility, keeps Require Approval (member view)", () => {
     renderWithConfig(<EventForm communityTag="c-1" hideVisibility />);
-    expect(screen.queryByText(/Visibility:/)).toBeNull();
-    expect(screen.queryByText(/Attendance:/)).toBeNull();
+    expect(screen.queryByText("Who can see it")).toBeNull();
+    expect(screen.queryByText("Who can register")).toBeNull();
     expect(screen.getByText(/Require Approval/)).toBeTruthy();
   });
 });
