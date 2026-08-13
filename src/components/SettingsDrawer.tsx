@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { tierAccessSummary, toTierAccessValue } from "@cobuntu/management-ui-shared";
+import { useEventManagementConfig } from "../config";
+import { tierAccessSummary, toTierAccessValue, fetchMembershipTiers } from "@cobuntu/management-ui-shared";
 import { ViewabilityEditModal } from "./ViewabilityEditModal";
 import { AccessibilityEditModal } from "./AccessibilityEditModal";
 import { DistributionEditModal } from "./DistributionEditModal";
@@ -80,13 +81,37 @@ export function SettingsDrawer({
     isOpen,
     isPast,
     hideAfterCheckout,
-    membershipTiers = [],
+    membershipTiers: membershipTiersProp,
     viewTierIds,
     buyTierIds,
     onClose,
     onSaved,
     showToast,
 }: Props) {
+    /*
+     * ── The drawer loads its own tiers ──────────────────────────────
+     *
+     * It accepted a `membershipTiers` prop, OverviewView never passed one, and
+     * EventManagePage did not have the prop at all - so the chain was severed
+     * inside this package and no consumer could repair it from outside. Every
+     * access picker on a manage page said "This community has no membership
+     * tiers yet" for communities with several.
+     *
+     * Fetching here fixes both apps at once and keeps the prop as an override
+     * for anyone who already has the list.
+     */
+    const [fetchedTiers, setFetchedTiers] = useState<{ id: string; name: string }[]>([]);
+    const { apiBaseUrl } = useEventManagementConfig();
+    useEffect(() => {
+        if (membershipTiersProp || !isOpen || !communityTag) return;
+        let cancelled = false;
+        fetchMembershipTiers(apiBaseUrl, communityTag).then((t) => {
+            if (!cancelled) setFetchedTiers(t);
+        });
+        return () => { cancelled = true; };
+    }, [membershipTiersProp, isOpen, communityTag, apiBaseUrl]);
+    const membershipTiers = membershipTiersProp ?? fetchedTiers;
+
     /*
      * Which rows this drawer may show.
      *
