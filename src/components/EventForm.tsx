@@ -691,61 +691,83 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             </button>
           </div>
 
-          {/* Visibility + Attendance — the members-only community gates.
-              Leader-only: dropped for member submissions via `hideVisibility`
-              (the consumer owns the values, defaulting PUBLIC/PUBLIC). */}
-          {!hideVisibility && (
-            <>
-          {/* Visibility — who can SEE the event (view gate) */}
-          <div
-            onClick={() => setViewability(viewability === "PUBLIC" ? "MEMBERS_ONLY" : "PUBLIC")}
-            className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
-            <div className="flex items-center gap-3">
-              {viewability === "PUBLIC" ? <Eye className="h-[18px] w-[18px] text-zinc-400" /> : <EyeOff className="h-[18px] w-[18px] text-zinc-400" />}
-              <div>
-                <span className="text-sm font-medium text-zinc-800">Visibility: {viewability === "PUBLIC" ? "Everyone" : "Members only"}</span>
-                <p className="text-[11px] text-zinc-400 mt-0.5">Who can see this event listing</p>
-              </div>
-            </div>
-            <Switch checked={viewability === "MEMBERS_ONLY"}
-              onCheckedChange={checked => setViewability(checked ? "MEMBERS_ONLY" : "PUBLIC")}
-              onClick={e => e.stopPropagation()} />
-          </div>
 
-          {/* Attendance — who can RSVP/purchase (action gate) */}
-          <div
-            onClick={() => setAccessibility(accessibility === "PUBLIC" ? "MEMBERS_ONLY" : "PUBLIC")}
-            className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
-            <div className="flex items-center gap-3">
-              {accessibility === "PUBLIC" ? <UserCheck className="h-[18px] w-[18px] text-zinc-400" /> : <Lock className="h-[18px] w-[18px] text-zinc-400" />}
-              <div>
-                <span className="text-sm font-medium text-zinc-800">Attendance: {accessibility === "PUBLIC" ? "Everyone" : "Members only"}</span>
-                <p className="text-[11px] text-zinc-400 mt-0.5">Who can register / RSVP</p>
-              </div>
-            </div>
-            <Switch checked={accessibility === "MEMBERS_ONLY"}
-              onCheckedChange={checked => setAccessibility(checked ? "MEMBERS_ONLY" : "PUBLIC")}
-              onClick={e => e.stopPropagation()} />
-          </div>
-            </>
-          )}
+        </div>
 
-          {/* Require Approval */}
-          <div
-            onClick={() => setRequiresApproval(!requiresApproval)}
-            className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
-            <div className="flex items-center gap-3">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
-              <div>
-                <span className="text-sm font-medium text-zinc-800">Require Approval</span>
-                <p className="text-[11px] text-zinc-400 mt-0.5">Review attendees before confirming their registration</p>
-              </div>
-            </div>
-            <Switch checked={requiresApproval}
-              onCheckedChange={setRequiresApproval}
-              onClick={e => e.stopPropagation()} />
-          </div>
+        {/* ─── Community access ───
+            Visibility and Purchase exist ONLY because a community owns this
+            event: the backend refuses both on a personal one
+            (COMMUNITY_SCOPED_EVENT_FIELDS, 403). They used to sit in the card
+            above and simply vanish for a member host, which read as two
+            missing features rather than one rule. Grouped and labelled, the
+            absence explains itself. */}
+        {!hideVisibility && (
+          <div className="mt-6">
+            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Community access</p>
+            <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
 
+            {/* Visibility — who can SEE the event (view gate) */}
+            <div
+              onClick={() => setViewability(viewability === "PUBLIC" ? "MEMBERS_ONLY" : "PUBLIC")}
+              className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
+              <div className="flex items-center gap-3">
+                {viewability === "PUBLIC" ? <Eye className="h-[18px] w-[18px] text-zinc-400" /> : <EyeOff className="h-[18px] w-[18px] text-zinc-400" />}
+                <div>
+                  <span className="text-sm font-medium text-zinc-800">Visibility: {viewability === "PUBLIC" ? "Everyone" : "Members only"}</span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">Who can see this event listing</p>
+                </div>
+              </div>
+              <Switch checked={viewability === "MEMBERS_ONLY"}
+                onCheckedChange={checked => setViewability(checked ? "MEMBERS_ONLY" : "PUBLIC")}
+                onClick={e => e.stopPropagation()} />
+            </div>
+
+            {/* Attendance — who can RSVP/purchase (action gate) */}
+            <div
+              onClick={() => setAccessibility(accessibility === "PUBLIC" ? "MEMBERS_ONLY" : "PUBLIC")}
+              className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
+              <div className="flex items-center gap-3">
+                {accessibility === "PUBLIC" ? <UserCheck className="h-[18px] w-[18px] text-zinc-400" /> : <Lock className="h-[18px] w-[18px] text-zinc-400" />}
+                <div>
+                  <span className="text-sm font-medium text-zinc-800">Attendance: {accessibility === "PUBLIC" ? "Everyone" : "Members only"}</span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">Who can register / RSVP</p>
+                </div>
+              </div>
+              <Switch checked={accessibility === "MEMBERS_ONLY"}
+                onCheckedChange={checked => setAccessibility(checked ? "MEMBERS_ONLY" : "PUBLIC")}
+                onClick={e => e.stopPropagation()} />
+            </div>
+          </div>
+          <p className="text-[11px] text-zinc-400 mt-2 px-1">
+            Available because {communityName || "this community"} owns this event.
+          </p>
+        </div>
+      )}
+
+      {/* ─── Approval ───
+          NOT community-scoped. requiresApproval is deliberately outside
+          COMMUNITY_SCOPED_EVENT_FIELDS, so a member hosting their own event
+          may set it and the backend allows it. It gets its own card rather
+          than moving above, or member hosts would lose a setting they own. */}
+      <div className="mt-6">
+        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Approval</p>
+        <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
+      {/* Require Approval */}
+      <div
+        onClick={() => setRequiresApproval(!requiresApproval)}
+        className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
+        <div className="flex items-center gap-3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+          <div>
+            <span className="text-sm font-medium text-zinc-800">Require Approval</span>
+            <p className="text-[11px] text-zinc-400 mt-0.5">Review attendees before confirming their registration</p>
+          </div>
+        </div>
+        <Switch checked={requiresApproval}
+          onCheckedChange={setRequiresApproval}
+          onClick={e => e.stopPropagation()} />
+      </div>
+          </div>
         </div>
       </div>
 

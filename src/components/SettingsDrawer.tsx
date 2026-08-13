@@ -262,6 +262,16 @@ export function SettingsDrawer({
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto">
+                    {/* Grouped, not just gated. These three are refused on a
+                        user-owned event (COMMUNITY_SCOPED_EVENT_FIELDS, 403),
+                        and hiding them unlabelled read as missing features
+                        rather than one rule. Approval and Refund policy below
+                        are the HOST's own and stay on both ownership kinds. */}
+                    {isCommunityOwned && (
+                        <p className="px-6 pt-4 pb-1 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                            Community access
+                        </p>
+                    )}
                     {isCommunityOwned && (
                     <SettingsRow
                         label="Visibility"
@@ -323,6 +333,9 @@ export function SettingsDrawer({
                             }
                         />
                     )}
+                    <p className="px-6 pt-4 pb-1 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                        Your settings
+                    </p>
                     <SettingsRow
                         label="Approval"
                         summary={event.requiresApproval ? "You review each registration" : "Registrations confirm instantly"}
