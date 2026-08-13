@@ -37,11 +37,20 @@ describe("EventForm groups the options by ownership", () => {
     });
 
     it("keeps Approval outside that gate", () => {
-        // requiresApproval is not in COMMUNITY_SCOPED_EVENT_FIELDS, so a
-        // member host may set it. Moving it would take it away from them.
+        /*
+         * requiresApproval is not in COMMUNITY_SCOPED_EVENT_FIELDS, so a
+         * member host may set it. Moving it inside would take it from them.
+         *
+         * Asserted structurally, not by position: the first cut compared the
+         * two indexes, which broke the moment the cards were reordered to put
+         * the community block last - a true rearrangement failing a test that
+         * was really checking nesting.
+         */
         const src = form();
-        const approvalIdx = src.indexOf('>Approval</p>');
-        const gateEnd = src.indexOf("owns this event");
-        expect(approvalIdx).toBeGreaterThan(gateEnd);
+        const gateStart = src.indexOf("{!hideVisibility && (");
+        const gateEnd = src.indexOf("owns this event", gateStart);
+        const approvalIdx = src.indexOf(">Approval</p>");
+        const insideGate = approvalIdx > gateStart && approvalIdx < gateEnd;
+        expect(insideGate).toBe(false);
     });
 });
