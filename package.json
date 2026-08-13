@@ -1,6 +1,6 @@
 {
   "name": "@cobuntu/event-management-ui",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "description": "Shared event-management UI components for the Cobuntu admin app (community-leader-facing) and community app (host-facing /manage). The single source of truth \u2014 both apps consume this as a git dependency.",
   "private": true,
   "main": "./src/index.ts",
@@ -23,7 +23,7 @@
     "react-dom": ">=19"
   },
   "dependencies": {
-    "@cobuntu/management-ui-shared": "github:cobuntuHello/cobuntu-management-ui-shared#28fccf79521d17f082bc94af538822d13f7f1d59",
+    "@cobuntu/management-ui-shared": "github:cobuntuHello/cobuntu-management-ui-shared#d1bb13bd41a920a393f8e8f8522114db0272237b",
     "@cobuntu/sales-ui": "github:cobuntuHello/cobuntu-sales-ui#e99ca6808d5a129a05497ffc0cbc61b82c575bbc",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",

@@ -7,6 +7,7 @@ import {
     MembershipTierPicker,
     toTierAccessValue,
     fromTierAccessValue,
+    ceilingFor,
     type TierAccessValue,
 } from "@cobuntu/management-ui-shared";
 
@@ -30,13 +31,21 @@ interface Props {
     membershipTiers?: { id: string; name: string }[];
     /** Tier ids currently granted this axis. */
     initialTierIds?: string[];
+    /*
+     * Tier ids granted the VIEW axis.
+     *
+     * Registering is a subset of seeing, and this modal edits one axis - so it
+     * has to be told what the stored viewability already allows, or it would
+     * offer "anyone can register" on an event only one tier can find.
+     */
+    viewTierIds?: string[];
     communityTag: string;
     onClose: () => void;
     onSaved: () => void;
     showToast: (msg: string) => void;
 }
 
-export function AccessibilityEditModal({ event, communityTag, onClose, onSaved, showToast, membershipTiers = [], initialTierIds }: Props) {
+export function AccessibilityEditModal({ event, communityTag, onClose, onSaved, showToast, membershipTiers = [], initialTierIds, viewTierIds }: Props) {
     const updateEvent = useUpdateEvent();
     /*
      * MEMBERS_ONLY with no granted tiers reads as "all members", never as an
@@ -71,13 +80,15 @@ export function AccessibilityEditModal({ event, communityTag, onClose, onSaved, 
             <p className="text-[12px] text-zinc-500 mb-4">Who can register / RSVP for this event.</p>
 
             {/* The same picker the create form uses. Public and All members are
-                shortcuts that imply every membership tier below them; the rows
-                stay ticked and frozen because they are already included. */}
+                shortcuts that imply every membership tier below them; implied
+                rows carry an "Included" tag rather than a checkbox that would
+                have to refuse the click. */}
             <div className="mb-4">
                 <MembershipTierPicker
                     value={access}
                     onChange={setAccess}
                     tiers={membershipTiers}
+                    ceiling={ceilingFor(toTierAccessValue(event?.viewability ?? "PUBLIC", viewTierIds))}
                 />
             </div>
 
