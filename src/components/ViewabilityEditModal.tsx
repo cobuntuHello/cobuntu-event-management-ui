@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useUpdateEvent } from "../config";
+import {
+    MembershipTierPicker,
+    toTierAccessValue,
+    fromTierAccessValue,
+    type TierAccessValue,
+} from "@cobuntu/management-ui-shared";
 
 /**
  * Edit `events.viewability` — who can SEE the event detail page.
@@ -19,23 +25,36 @@ import { useUpdateEvent } from "../config";
 
 interface Props {
     event: any;
+    /** The community's membership tiers, for the picker. */
+    membershipTiers?: { id: string; name: string }[];
+    /** Tier ids currently granted this axis. */
+    initialTierIds?: string[];
     communityTag: string;
     onClose: () => void;
     onSaved: () => void;
     showToast: (msg: string) => void;
 }
 
-export function ViewabilityEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
+export function ViewabilityEditModal({ event, communityTag, onClose, onSaved, showToast, membershipTiers = [], initialTierIds }: Props) {
     const updateEvent = useUpdateEvent();
-    const [value, setValue] = useState<"PUBLIC" | "MEMBERS_ONLY">(
-        event.viewability === "MEMBERS_ONLY" ? "MEMBERS_ONLY" : "PUBLIC",
+    /*
+     * MEMBERS_ONLY with no granted tiers reads as "all members", never as an
+     * empty selection - so every event that predates tier access opens here
+     * correctly instead of with nothing ticked.
+     */
+    const [access, setAccess] = useState<TierAccessValue>(
+        toTierAccessValue(event.viewability ?? "PUBLIC", initialTierIds),
     );
     const [saving, setSaving] = useState(false);
 
     async function save() {
         setSaving(true);
         try {
-            await updateEvent(communityTag, event.id, { viewability: value });
+            const resolved = fromTierAccessValue(access);
+            await updateEvent(communityTag, event.id, {
+                viewability: resolved.visibility,
+                viewTierIds: resolved.tierIds,
+            });
             showToast("Visibility updated");
             onSaved();
         } catch (e: any) {
@@ -50,18 +69,14 @@ export function ViewabilityEditModal({ event, communityTag, onClose, onSaved, sh
             <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">Visibility</h3>
             <p className="text-[12px] text-zinc-500 mb-4">Who can see this event's detail page.</p>
 
-            <div className="space-y-2 mb-4">
-                <RadioRow
-                    selected={value === "PUBLIC"}
-                    onClick={() => setValue("PUBLIC")}
-                    title="Public"
-                    subtitle="Anyone can land on the event page."
-                />
-                <RadioRow
-                    selected={value === "MEMBERS_ONLY"}
-                    onClick={() => setValue("MEMBERS_ONLY")}
-                    title="Members only"
-                    subtitle="Non-members get a 404 — the page is hidden entirely."
+            {/* The same picker the create form uses. Public and All members are
+                shortcuts that imply every membership tier below them; the rows
+                stay ticked and frozen because they are already included. */}
+            <div className="mb-4">
+                <MembershipTierPicker
+                    value={access}
+                    onChange={setAccess}
+                    tiers={membershipTiers}
                 />
             </div>
 
