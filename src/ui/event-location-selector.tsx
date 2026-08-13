@@ -35,6 +35,8 @@ export function EventLocationSelector({
   const [isValidOnline, setIsValidOnline] = useState(false);
   const [isVideoConf, setIsVideoConf] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  /** Why the search came back with nothing, when it was not simply empty. */
+  const [lookupError, setLookupError] = useState<string | null>(null);
 
   const locationInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -46,11 +48,27 @@ export function EventLocationSelector({
     if (physicalLocation.trim() && isGoogleMapsConfigured()) {
       debounceRef.current = setTimeout(async () => {
         setIsLoadingLocations(true);
+        setLookupError(null);
         try {
           const suggestions = await searchLocations(physicalLocation);
           setLocationSuggestions(suggestions);
           setShowLocationSuggestions(true);
-        } catch { setLocationSuggestions([]); }
+        } catch (err) {
+          /*
+           * This used to be a bare `catch {}`. A blocked script, a revoked
+           * key or a REQUEST_DENIED all produced an empty box and told
+           * nobody why — which is exactly the state a report of "the dropdown
+           * doesn't appear" leaves you in, with every layer testing fine in
+           * isolation. Surface it to the user AND to the console.
+           */
+          setLocationSuggestions([]);
+          setLookupError(
+            err instanceof Error && /denied|referer|blocked|load/i.test(err.message)
+              ? "Location search is unavailable here — an extension or network rule may be blocking Google Maps."
+              : "Couldn't reach location search. Type the address manually.",
+          );
+          console.error("[EventLocationSelector] location lookup failed:", err);
+        }
         finally { setIsLoadingLocations(false); }
       }, 300);
     } else {
@@ -141,9 +159,14 @@ export function EventLocationSelector({
                 onChange={e => { onPhysicalLocationChange(e.target.value); if (!e.target.value) onCoordinatesChange?.(null, null); setSelectedSuggestionIndex(-1); }}
                 onKeyDown={handleKeyDown}
                 placeholder="Search for a location or enter address..." className="w-full pr-8" disabled={disabled} />
-              {hasPhysical && !disabled && (
-                <button type="button" onClick={() => { onPhysicalLocationChange(""); onCoordinatesChange?.(null, null); setShowLocationSuggestions(false); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer">
+              {/* The clear control used to be a bare 16px X sharing `right-3`
+                  with the loading spinner, so the two overlapped mid-search and
+                  it carried no accessible name. Proper hit area, real label,
+                  and it steps aside while a search is in flight. */}
+              {hasPhysical && !disabled && !isLoadingLocations && (
+                <button type="button" aria-label="Remove location"
+                  onClick={() => { onPhysicalLocationChange(""); onCoordinatesChange?.(null, null); setShowLocationSuggestions(false); locationInputRef.current?.focus(); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer">
                   <X className="h-4 w-4" />
                 </button>
               )}
@@ -172,6 +195,28 @@ export function EventLocationSelector({
                 </div>
               )}
             </div>
+            {/* Once an address is IN, say so and give it a named way out. The
+                in-field X is a clear-as-you-type affordance; this is the
+                "I picked the wrong place" one, and it should read as an
+                action rather than a glyph. */}
+            {hasPhysical && !disabled && (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2">
+                <span className="flex items-center gap-2 min-w-0 text-[12.5px] text-zinc-600">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                  <span className="truncate">{physicalLocation}</span>
+                </span>
+                <button type="button"
+                  onClick={() => { onPhysicalLocationChange(""); onCoordinatesChange?.(null, null); setShowLocationSuggestions(false); }}
+                  className="shrink-0 text-[12.5px] font-medium text-zinc-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0 px-1">
+                  Remove
+                </button>
+              </div>
+            )}
+
+            {lookupError && (
+              <p role="status" className="text-xs text-amber-600 leading-snug">{lookupError}</p>
+            )}
+
             {!isGoogleMapsConfigured() && (
               <div className="text-xs text-zinc-500 flex items-center gap-1">
                 <Search className="h-3 w-3" />
