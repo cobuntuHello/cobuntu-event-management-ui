@@ -3,6 +3,8 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LocationEditModal } from "../components/LocationEditModal";
 import { renderWithConfig, mockFetch } from "./test-utils";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const event = {
   id: "evt-1",
@@ -111,5 +113,75 @@ describe("LocationEditModal", () => {
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body.physicalLatitude).toBe(38.7223);
     expect(body.physicalLongitude).toBe(-9.1393);
+  });
+});
+
+describe("the location field's affordances", () => {
+  /*
+   * The clear control was a bare 16px X pinned to `right-3` — the same
+   * coordinate as the loading spinner, so the two sat on top of each other
+   * mid-search — and it carried no accessible name at all.
+   */
+  it("names the in-field clear control", async () => {
+    const { EventLocationSelector } = await import("../ui/event-location-selector");
+    renderWithConfig(
+      <EventLocationSelector
+        physicalLocation="Rua Garrett 10"
+        onlineUrl=""
+        onPhysicalLocationChange={vi.fn()}
+        onOnlineUrlChange={vi.fn()}
+        hideHeader
+      />,
+    );
+    expect(screen.getByLabelText("Remove location")).toBeInTheDocument();
+  });
+
+  it("offers a named Remove once an address is in", async () => {
+    const { EventLocationSelector } = await import("../ui/event-location-selector");
+    const onChange = vi.fn();
+    renderWithConfig(
+      <EventLocationSelector
+        physicalLocation="Rua Garrett 10"
+        onlineUrl=""
+        onPhysicalLocationChange={onChange}
+        onOnlineUrlChange={vi.fn()}
+        hideHeader
+      />,
+    );
+    const remove = screen.getByRole("button", { name: "Remove" });
+    await userEvent.click(remove);
+    expect(onChange).toHaveBeenCalledWith("");
+  });
+
+  it("shows nothing to remove when the field is empty", async () => {
+    const { EventLocationSelector } = await import("../ui/event-location-selector");
+    renderWithConfig(
+      <EventLocationSelector
+        physicalLocation=""
+        onlineUrl=""
+        onPhysicalLocationChange={vi.fn()}
+        onOnlineUrlChange={vi.fn()}
+        hideHeader
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Remove location")).not.toBeInTheDocument();
+  });
+});
+
+describe("the location modal's chrome", () => {
+  it("has no top-right X — it carries its own bottom actions", () => {
+    const src = readFileSync(resolve(__dirname, "../components/EventForm.tsx"), "utf8");
+    const modal = src.slice(src.indexOf("Location Modal"), src.indexOf("Tags Modal"));
+    expect(modal).toContain("hideClose");
+  });
+
+  it("closes with a secondary button, not an outline one", () => {
+    // An outline Cancel reads as equal weight to Done and competes with it.
+    const src = readFileSync(resolve(__dirname, "../components/EventForm.tsx"), "utf8");
+    const modal = src.slice(src.indexOf("Location Modal"), src.indexOf("Tags Modal"));
+    // `[^>]*` cannot cross the `>` in the onClick arrow function.
+    expect(modal).toMatch(/variant="secondary"[\s\S]*?>Cancel</);
+    expect(modal).not.toMatch(/variant="outline"[\s\S]{0,80}?>Cancel</);
   });
 });

@@ -822,8 +822,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       )}
 
       {/* ─── Location Modal ─── */}
+      {/* hideClose: house style is no top-right X on a modal that carries its
+          own bottom actions — two ways to dismiss, one of them unlabelled,
+          and the X sits where a form's first field wants to be. */}
       <Dialog open={isLocationOpen} onOpenChange={setIsLocationOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl" hideClose>
           <DialogHeader>
             <DialogTitle>Event Location</DialogTitle>
             <DialogDescription>Add a physical location and/or online event link.</DialogDescription>
@@ -836,7 +839,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             hideHeader
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsLocationOpen(false)}>Cancel</Button>
+            {/* secondary, not outline: an outline button reads as equal weight
+                to Done and competes with it. */}
+            <Button variant="secondary" onClick={() => setIsLocationOpen(false)}>Cancel</Button>
             <Button onClick={() => setIsLocationOpen(false)}>Done</Button>
           </DialogFooter>
         </DialogContent>
