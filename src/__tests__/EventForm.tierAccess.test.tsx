@@ -92,12 +92,15 @@ describe("opening an existing event", () => {
     expect(rows).toHaveLength(2);
     for (const r of rows) expect(r).toHaveAttribute("aria-checked", "true");
     /*
-     * ...and the tier rows under them are Included rather than checkboxes.
-     * A ticked-and-greyed box read as broken; an implied row is not a control
-     * at all, so there is nothing to press and nothing announced as a checkbox.
+     * ...and the tier rows under them are ticked and DISABLED rather than
+     * absent. They carried an "Included" tag for a while; a column that
+     * alternates between a box and a word cannot be scanned, so every row is a
+     * checkbox again and the implied ones are simply not yours to change.
      */
-    expect(screen.queryByRole("checkbox", { name: /Founding/ })).toBeNull();
-    expect(screen.getAllByText("Included").length).toBeGreaterThan(0);
+    const implied = screen.getAllByRole("checkbox", { name: /Founding/ })[0];
+    expect(implied).toHaveAttribute("aria-checked", "true");
+    expect(implied).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText("Included")).toBeNull();
   });
 
   it("restores a saved tier selection", () => {

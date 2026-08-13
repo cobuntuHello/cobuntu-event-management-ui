@@ -772,6 +772,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         </div>
 
       {/* ─── Approval ───
+          A SIBLING of Community access, not a parent of it.
+
+          The community-access block used to sit INSIDE this row's
+          `flex items-center justify-between` div, which made it a flex child
+          next to the switch - so the two rendered side by side on the admin
+          form while the products form stacked them. It read as a deliberate
+          two-column layout; it was a stray nesting.
+
           NOT community-scoped. requiresApproval is deliberately outside
           COMMUNITY_SCOPED_EVENT_FIELDS, so a member hosting their own event
           may set it and the backend allows it. It gets its own card rather
@@ -793,6 +801,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         <Switch checked={requiresApproval}
           onCheckedChange={setRequiresApproval}
           onClick={e => e.stopPropagation()} />
+        </div>
+        </div>
+      </div>
 
         {/* ─── Community access ───
             Visibility and Purchase exist ONLY because a community owns this
@@ -862,10 +873,6 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           </p>
         </div>
       )}
-
-      </div>
-          </div>
-        </div>
       </div>
 
       {/* ─── Description Editor Dialog ─── */}
