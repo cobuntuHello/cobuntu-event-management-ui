@@ -220,13 +220,33 @@ export function BannerCropModal({
                     <ImageIcon className="h-4 w-4 text-zinc-400" />
                     <label className="text-sm font-medium text-zinc-800">Zoom</label>
                   </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setImageSrc(null); setOptionsOpen(true); }} className="text-xs">
+                  {/* A real button, not a link. Same for Remove below: both
+                    * DO something to the photo, so neither should read as
+                    * navigation. */}
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setImageSrc(null); setOptionsOpen(true); }} className="text-xs">
                     Change Image
                   </Button>
                 </div>
-                <Slider value={[zoom]} onValueChange={v => setZoom(v[0] || 1)} min={0.5} max={3} step={0.01} />
+                {/*
+                  * Floor of 100%, not 50%.
+                  *
+                  * This is not a cropper - nothing is clipped OUT of the photo.
+                  * It is a framer: the photo always fills the square window and
+                  * the user pans and zooms to choose which part shows. Under
+                  * that rule the photo can never be smaller than the window.
+                  *
+                  * 50% broke exactly that. Below 100% the photo is SMALLER than
+                  * the frame, so blank edges are unavoidable and restrictPosition
+                  * has nothing left to clamp against - which is why the photo
+                  * could still be dragged off the frame after restrictPosition
+                  * was restored. The two bugs looked like one.
+                  *
+                  * AvatarEditor and the feed's MediaCropModal already sit at 1.
+                  * These three banner framers were the outliers.
+                  */}
+                <Slider value={[zoom]} onValueChange={v => setZoom(v[0] || 1)} min={1} max={3} step={0.01} />
                 <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span>50%</span>
+                  <span>100%</span>
                   <span className="font-medium">{Math.round(zoom * 100)}%</span>
                   <span>300%</span>
                 </div>
@@ -236,8 +256,8 @@ export function BannerCropModal({
 
           <DialogFooter className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 gap-2 flex-shrink-0">
             {imageSrc && (
-              <Button variant="ghost" onClick={handleClear} disabled={isSaving}
-                className="text-red-600 hover:text-red-600 hover:bg-red-50 mr-auto">
+              <Button variant="outline" onClick={handleClear} disabled={isSaving}
+                className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 hover:border-red-300 mr-auto">
                 <Trash2 className="h-4 w-4 mr-2" /> Remove
               </Button>
             )}
