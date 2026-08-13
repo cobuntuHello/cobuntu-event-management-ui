@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { tierAccessSummary, toTierAccessValue } from "@cobuntu/management-ui-shared";
 import { ViewabilityEditModal } from "./ViewabilityEditModal";
 import { AccessibilityEditModal } from "./AccessibilityEditModal";
 import { DistributionEditModal } from "./DistributionEditModal";
@@ -60,6 +61,14 @@ interface Props {
      * This is an affordance, not the guard — the route re-enforces it.
      */
     hideAfterCheckout?: boolean;
+    /**
+     * The community's membership tiers, for the access pickers. Empty renders
+     * "no membership tiers yet" rather than an empty rail.
+     */
+    membershipTiers?: { id: string; name: string }[];
+    /** Tier ids currently granted each axis, from the listing. */
+    viewTierIds?: string[];
+    buyTierIds?: string[];
     onClose: () => void;
     onSaved: () => void;
     showToast: (msg: string) => void;
@@ -71,6 +80,9 @@ export function SettingsDrawer({
     isOpen,
     isPast,
     hideAfterCheckout,
+    membershipTiers = [],
+    viewTierIds,
+    buyTierIds,
     onClose,
     onSaved,
     showToast,
@@ -153,6 +165,8 @@ export function SettingsDrawer({
             <ViewabilityEditModal
                 event={event}
                 communityTag={communityTag}
+                membershipTiers={membershipTiers}
+                initialTierIds={viewTierIds}
                 onClose={closeModalAndReopenDrawer}
                 onSaved={modalSaved}
                 showToast={showToast}
@@ -164,6 +178,8 @@ export function SettingsDrawer({
             <AccessibilityEditModal
                 event={event}
                 communityTag={communityTag}
+                membershipTiers={membershipTiers}
+                initialTierIds={buyTierIds}
                 onClose={closeModalAndReopenDrawer}
                 onSaved={modalSaved}
                 showToast={showToast}
@@ -275,7 +291,7 @@ export function SettingsDrawer({
                     {isCommunityOwned && (
                     <SettingsRow
                         label="Visibility"
-                        summary={event.viewability === "MEMBERS_ONLY" ? "Members only" : "Public"}
+                        summary={tierAccessSummary(toTierAccessValue(event.viewability ?? "PUBLIC", viewTierIds), membershipTiers)}
                         onClick={() => openModal("viewability")}
                         icon={
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
@@ -288,7 +304,7 @@ export function SettingsDrawer({
                     {isCommunityOwned && (
                     <SettingsRow
                         label="Access"
-                        summary={event.accessibility === "MEMBERS_ONLY" ? "Members only" : "Public"}
+                        summary={tierAccessSummary(toTierAccessValue(event.accessibility ?? "PUBLIC", buyTierIds), membershipTiers)}
                         onClick={() => openModal("accessibility")}
                         icon={
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">

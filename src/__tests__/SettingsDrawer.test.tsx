@@ -58,18 +58,36 @@ describe("SettingsDrawer — visibility", () => {
 });
 
 describe("SettingsDrawer — summaries reflect event state", () => {
-    it("Visibility = Public when viewability=PUBLIC", () => {
+    it("Visibility = Everyone when viewability=PUBLIC", () => {
+        // Copy follows the tier picker now: "Everyone" / "All members" /
+        // named tiers, rather than the old Public / Members only pair.
         renderWithConfig(<SettingsDrawer {...baseProps()} />);
         const row = screen.getByText("Visibility").closest("button");
-        expect(row).toHaveTextContent(/Public/);
+        expect(row).toHaveTextContent(/Everyone/);
     });
 
-    it("Visibility = Members only when viewability=MEMBERS_ONLY", () => {
+    it("Visibility = All members when MEMBERS_ONLY with no tier grants", () => {
+        // No rows means every tier - the no-backfill rule surfacing in the
+        // summary, so an event predating tier access reads correctly.
         renderWithConfig(
             <SettingsDrawer {...baseProps({ event: baseEvent({ viewability: "MEMBERS_ONLY" }) })} />,
         );
         const row = screen.getByText("Visibility").closest("button");
-        expect(row).toHaveTextContent(/Members only/);
+        expect(row).toHaveTextContent(/All members/);
+    });
+
+    it("Visibility names the tiers when only some are granted", () => {
+        renderWithConfig(
+            <SettingsDrawer
+                {...baseProps({
+                    event: baseEvent({ viewability: "MEMBERS_ONLY" }),
+                    membershipTiers: [{ id: "t1", name: "Founding" }, { id: "t2", name: "Alumni" }],
+                    viewTierIds: ["t1"],
+                })}
+            />,
+        );
+        const row = screen.getByText("Visibility").closest("button");
+        expect(row).toHaveTextContent(/Founding/);
     });
 
     it("Distribution = Cobuntu event page (no Featured) by default", () => {
