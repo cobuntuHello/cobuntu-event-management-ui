@@ -262,7 +262,19 @@ export function OverviewView({ event, communityTag, eventId, isPublished, onUpda
         Rendered only when the event can have these settings — the action that
         opens it is gated identically, so this guards a stale open state.
       */}
-      {!!event?.communityId && <SettingsDrawer
+      {/*
+        * Mounted for EVERY event, community-owned or not.
+        *
+        * This was gated on `!!event?.communityId` while the Settings button
+        * above it had already been ungated — so on a member-owned event the
+        * button rendered and the drawer was not in the tree at all. Clicking
+        * it did nothing, silently.
+        *
+        * The drawer scopes its own rows (see SettingsDrawer.isCommunityOwned),
+        * which is the right place for it: the entry point should not know
+        * which settings exist.
+        */}
+      {<SettingsDrawer
         event={event}
         communityTag={communityTag}
         isOpen={drawerOpen}

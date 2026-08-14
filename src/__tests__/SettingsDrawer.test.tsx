@@ -239,11 +239,20 @@ describe("SettingsDrawer — a personal (user-owned) event", () => {
     const personal = (overrides: Record<string, unknown> = {}) =>
         baseProps({ event: baseEvent({ communityId: null, ...overrides }) });
 
-    it("still opens, with the host's own settings", () => {
+    it("still opens, with the one setting the host actually owns", () => {
+        // Approval, and only Approval. The backend keeps requiresApproval out
+        // of COMMUNITY_SCOPED_EVENT_FIELDS precisely so an owner can decide
+        // who gets into their own event.
         renderWithConfig(<SettingsDrawer {...personal()} />);
         expect(screen.getByText("Settings")).toBeInTheDocument();
         expect(screen.getByText("Approval")).toBeInTheDocument();
-        expect(screen.getByText("Refund policy")).toBeInTheDocument();
+    });
+
+    it("does not offer refund policy to an individual host", () => {
+        // It is the COMMUNITY's commitment to its buyers. A member changing it
+        // would be rewriting terms the community published.
+        renderWithConfig(<SettingsDrawer {...personal()} />);
+        expect(screen.queryByText("Refund policy")).not.toBeInTheDocument();
     });
 
     it("drops the rows the backend would 403", () => {
@@ -304,10 +313,12 @@ describe("the drawer groups by who owns the setting", () => {
     });
 
     it("keeps the host's own group on a personal event", () => {
-        // Approval and Refund policy are the host's, so the group stays.
+        // Approval alone now, so the group survives on one row rather than two.
+        // Refund policy moved to the community's group: it is the community's
+        // commitment to buyers, not an individual seller's to set.
         renderWithConfig(<SettingsDrawer {...baseProps({ event: baseEvent({ communityId: null }) })} />);
         expect(screen.getByText("Your settings")).toBeInTheDocument();
         expect(screen.getByText("Approval")).toBeInTheDocument();
-        expect(screen.getByText("Refund policy")).toBeInTheDocument();
+        expect(screen.queryByText("Refund policy")).not.toBeInTheDocument();
     });
 });
