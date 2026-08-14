@@ -391,17 +391,30 @@ export function SettingsDrawer({
                             </svg>
                         }
                     />
-                    <SettingsRow
-                        label="Refund policy"
-                        summary={refundPolicySummary(event.refundPolicy)}
-                        onClick={() => openModal("refund-policy")}
-                        icon={
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
-                                <path d="M3 12a9 9 0 1 0 3.6-7.2" />
-                                <polyline points="3 4 3 10 9 10" />
-                            </svg>
-                        }
-                    />
+                    {/*
+                      * Community-owned only. Refund policy is the COMMUNITY's
+                      * commitment to its buyers, not an individual seller's to
+                      * set — a member changing it would be rewriting terms the
+                      * community published.
+                      *
+                      * Approval below is the one setting a member DOES own: the
+                      * backend keeps requiresApproval out of
+                      * COMMUNITY_SCOPED_EVENT_FIELDS precisely so an owner can
+                      * decide who gets into their own event.
+                      */}
+                    {isCommunityOwned && (
+                        <SettingsRow
+                            label="Refund policy"
+                            summary={refundPolicySummary(event.refundPolicy)}
+                            onClick={() => openModal("refund-policy")}
+                            icon={
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
+                                    <path d="M3 12a9 9 0 1 0 3.6-7.2" />
+                                    <polyline points="3 4 3 10 9 10" />
+                                </svg>
+                            }
+                        />
+                    )}
                 </div>
             </div>
         </>,
