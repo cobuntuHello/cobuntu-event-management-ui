@@ -7,6 +7,7 @@ import {
 } from "@cobuntu/event-management-ui";
 import { AddAttendeesModal } from "../modals/AddAttendeesModal";
 import { InviteGuestsModal } from "../modals/InviteGuestsModal";
+import { useCanEdit } from "../../lib/manageAccess";
 
 /**
  * Unified Attendees tab — replaces the legacy "Add Attendees" and
@@ -45,7 +46,14 @@ export function AttendeesView({
     onUpdate,
     showToast,
 }: Props) {
-    const [modal, setModal] = useState<"add" | "invite" | null>(null);
+    const [modal, setModalState] = useState<"add" | "invite" | null>(null);
+    // Same reasoning as OverviewView: gate the opener, not each button.
+    // Adding or inviting attendees is a write on someone else's event.
+    const canEdit = useCanEdit();
+    const setModal: typeof setModalState = (v) => {
+        if (!canEdit && v !== null) return;
+        setModalState(v);
+    };
     const [refreshKey, setRefreshKey] = useState(0);
     const [promotePreselected, setPromotePreselected] = useState<any | null>(null);
 
