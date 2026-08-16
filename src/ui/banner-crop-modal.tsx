@@ -8,6 +8,7 @@ import { Slider } from "./slider";
 import { StockPhotoPicker } from "./stock-photo-picker";
 import { Image as ImageIcon, Trash2, Loader2 } from "lucide-react";
 import { cn } from "./utils";
+import { drawFitted, fitWithin, IMAGE_QUALITY } from "@cobuntu/management-ui-shared";
 
 type CroppedAreaPixels = { width: number; height: number; x: number; y: number };
 
@@ -74,10 +75,11 @@ export function BannerCropModal({
     img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      if (ctx) { ctx.drawImage(img, 0, 0); setImageSrc(canvas.toDataURL("image/jpeg", 0.92)); setOptionsOpen(false); }
+      // Capped here as well as on the crop below: a stock photo can be larger
+      // than anything a camera produces, and this is the copy the cropper then
+      // works from, so leaving it full-size would put the pixels back.
+      const ctx = drawFitted(canvas, img);
+      if (ctx) { setImageSrc(canvas.toDataURL("image/jpeg", IMAGE_QUALITY)); setOptionsOpen(false); }
     };
     img.src = imageUrl;
   };
@@ -108,12 +110,26 @@ export function BannerCropModal({
     const cropY = Math.max(0, Math.round(area.y));
     const cropWidth = Math.min(Math.round(area.width), image.naturalWidth - cropX);
     const cropHeight = Math.min(Math.round(area.height), image.naturalHeight - cropY);
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
+    /*
+     * The cropped region, capped on its longest edge.
+     *
+     * This is the image that is actually uploaded -- the product form turns
+     * this data URL straight back into the File it sends, and the event form
+     * posts it as base64 inside the JSON body. It used to be written at the
+     * SOURCE's resolution, so a 4000px photo cropped to a banner was still a
+     * 4000px-wide banner.
+     *
+     * One drawImage does both jobs: the source rectangle is the crop, the
+     * destination rectangle is the capped size, and the browser resamples
+     * between them.
+     */
+    const out = fitWithin({ width: cropWidth, height: cropHeight });
+    canvas.width = out.width;
+    canvas.height = out.height;
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-    return canvas.toDataURL("image/jpeg", 0.92);
+    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, out.width, out.height);
+    return canvas.toDataURL("image/jpeg", IMAGE_QUALITY);
   };
 
   const handleSave = async () => {
