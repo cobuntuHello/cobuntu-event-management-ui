@@ -38,6 +38,19 @@ const READ_ONLY_BY_NATURE: Record<string, string> = {
     "Host add/remove happens in modals that carry their own permission checks; this view only lists.",
 };
 
+/*
+ * Comments are stripped before any of the checks below run.
+ *
+ * The products twin of this guard did NOT strip them, and it passed when the
+ * gate was deleted from a view -- because the explanatory comment left behind
+ * still contained the word "useCanEdit". A guard that matches its own prose is
+ * worse than no guard: it reports success for a file that does nothing. This
+ * one got away with it only because its comments happen not to use the word.
+ */
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}
+
 /** Signals that a file can change server state. */
 function writesToServer(src: string): boolean {
   return (
@@ -62,7 +75,7 @@ describe("read-only coverage across the manage views", () => {
   it.each(
     readdirSync(VIEWS_DIR).filter((f) => f.endsWith(".tsx")),
   )("%s consults the gate if it can write", (file) => {
-    const src = readFileSync(join(VIEWS_DIR, file), "utf8");
+    const src = stripComments(readFileSync(join(VIEWS_DIR, file), "utf8"));
     const canWrite = writesToServer(src) || opensAnEditor(src);
     const exempt = file in READ_ONLY_BY_NATURE;
 
@@ -80,7 +93,7 @@ describe("read-only coverage across the manage views", () => {
     }
 
     expect(
-      src.includes("useCanEdit"),
+      /useCanEdit\s*\(/.test(src),
       `${file} can write but never calls useCanEdit(). A carrying community's leader `
       + `would be able to change a host's event from this view. Gate the opener, or `
       + `add the file to READ_ONLY_BY_NATURE with the reason.`,
