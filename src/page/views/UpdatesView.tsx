@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Megaphone, Mail, MessageCircle, X, Send, ChevronLeft, ChevronRight } from "lucide-react";
 import { getEventManagementConfig, useEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
+import { useCanEdit } from "../../lib/manageAccess";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -73,7 +74,18 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
   const UserAvatar = ConfigAvatar ?? UserAvatarFallback;
   const [broadcasts, setBroadcasts] = useState<BroadcastRow[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeOpen, setComposeOpenState] = useState(false);
+  /*
+   * Broadcasting to an event's attendees is a write, and a loud one: it mails
+   * a member's buyers in their name. Missed by the first read-only pass for
+   * the same reason AgendaView was -- it opens its composer directly rather
+   * than through the shared modal state.
+   */
+  const canEdit = useCanEdit();
+  const setComposeOpen: typeof setComposeOpenState = (v) => {
+    if (!canEdit && v !== false) return;
+    setComposeOpenState(v);
+  };
   const [detail, setDetail] = useState<BroadcastDetail | null>(null);
 
   async function loadBroadcasts() {

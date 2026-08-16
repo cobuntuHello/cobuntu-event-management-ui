@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { getEventManagementConfig } from "../../config";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
+import { useCanEdit } from "../../lib/manageAccess";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -33,7 +34,24 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [editingId, setEditingIdState] = useState<string | "new" | null>(null);
+  /*
+   * Adding or editing an agenda item is a write on someone else's event.
+   *
+   * This view was MISSED by the first pass of the read-only work, which gated
+   * the modal openers in Overview and Attendees and assumed every editing
+   * surface went through one. This one does not -- it edits inline, off its
+   * own `editingId` -- so a carrying community's leader could still rewrite a
+   * host's schedule. Worth recording: "gate the openers" is only sound if you
+   * have actually enumerated them.
+   *
+   * Closing (null) stays allowed, so nobody is trapped in a half-open form.
+   */
+  const canEdit = useCanEdit();
+  const setEditingId: typeof setEditingIdState = (v) => {
+    if (!canEdit && v !== null) return;
+    setEditingIdState(v);
+  };
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState("09:00");
