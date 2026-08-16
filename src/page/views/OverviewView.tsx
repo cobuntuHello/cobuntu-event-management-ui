@@ -27,6 +27,7 @@ import { useEventManagementConfig } from "../../config";
 import { EventCard } from "../sections/EventCard";
 import { OverviewActionCards } from "../sections/OverviewActionCards";
 import { DonationsSummaryCard } from "../../components/DonationsSummaryCard";
+import { useCanEdit } from "../../lib/manageAccess";
 // feat/manage-event-restructure / attendees-unified: the
 // AttendeesAndInvitationsSection moved to the new Attendees tab.
 // Only its paid-event revenue KPIs stay on Overview, via the standalone
@@ -59,9 +60,37 @@ interface Props {
 
 export function OverviewView({ event, communityTag, eventId, isPublished, onUpdate, onDelete, showToast }: Props) {
   const router = useRouter();
-  const [modal, setModal] = useState<EventModal>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [bannerCropOpen, setBannerCropOpen] = useState(false);
+  const [modal, setModalState] = useState<EventModal>(null);
+  const [drawerOpen, setDrawerOpenState] = useState(false);
+  const [bannerCropOpen, setBannerCropOpenState] = useState(false);
+
+  /*
+   * Every editing surface on this view opens through one of these three
+   * setters, so gating them here gates all of them.
+   *
+   * Deliberately at the OPENER and not at each button: a modal that cannot be
+   * opened cannot save, so a control that slips through and still renders
+   * leads nowhere instead of leading to a 403. Guarding forty-odd buttons
+   * individually is how one gets missed, and a missed one is not cosmetic --
+   * it is a control that looks live and is not.
+   *
+   * Closing is always allowed. Read-only is about writing, and trapping
+   * somebody in a dialog they can no longer dismiss would be a worse bug than
+   * the one this fixes.
+   */
+  const canEdit = useCanEdit();
+  const setModal: typeof setModalState = (v) => {
+    if (!canEdit && v !== null) return;
+    setModalState(v);
+  };
+  const setDrawerOpen: typeof setDrawerOpenState = (v) => {
+    if (!canEdit && v !== false) return;
+    setDrawerOpenState(v);
+  };
+  const setBannerCropOpen: typeof setBannerCropOpenState = (v) => {
+    if (!canEdit && v !== false) return;
+    setBannerCropOpenState(v);
+  };
 
   // Event group chat (event<->chat linking). Null until the state is fetched;
   // conversationId null = no chat yet → the action card offers "Create".

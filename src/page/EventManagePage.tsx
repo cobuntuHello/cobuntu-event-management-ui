@@ -12,6 +12,7 @@ import { UpdatesView } from "./views/UpdatesView";
 import { EventActivityTab } from "../components/activity/EventActivityTab";
 import { getEventManagementConfig } from "../config";
 import { EventManageHeader, type EventManageHeaderProps } from "./EventManageHeader";
+import { ManageAccessProvider } from "../lib/manageAccess";
 
 /**
  * THE event manage page. One implementation, both apps.
@@ -94,6 +95,21 @@ export interface EventManagePageProps {
   viewerUserId?: string | null;
   /** True on inherently-moderation surfaces (the admin app). */
   forceModerator?: boolean;
+  /**
+   * May this viewer CHANGE the event, as opposed to merely open this page?
+   *
+   * Send the backend's `viewerCanEdit`. It is resolved by the same predicate
+   * the write endpoints enforce, so the interface and the server agree about
+   * what will be accepted.
+   *
+   * False renders the page read-only: every editing surface stops opening, and
+   * a banner explains why and where to go instead. Used for a leader of a
+   * community that CARRIES someone else's event — they may look at it, and the
+   * terms are changed through the listing conversation, not here.
+   *
+   * DEFAULTS TRUE so existing consumers are unchanged.
+   */
+  canEdit?: boolean;
 }
 
 export function EventManagePage({
@@ -110,6 +126,10 @@ export function EventManagePage({
   hubs,
   viewerUserId,
   forceModerator,
+  // Defaults true: every consumer that has not been taught about this renders
+  // exactly as it did before, and read-only is opt-in by the page that knows
+  // it is showing someone else's event.
+  canEdit = true,
 }: EventManagePageProps) {
   // Touch the config early so a host app that forgot the provider fails here,
   // loudly, rather than three views deep on a fetch.
@@ -175,10 +195,49 @@ export function EventManagePage({
   }
 
   return (
-    <div>
-      {header ?? (headerProps ? <EventManageHeader {...headerProps} /> : null)}
-      <SectionsNav communityTag={communityTag} activeView={active} onViewChange={onViewChange} visibleViews={allowed} />
-      <ViewTransition viewKey={active}>{content}</ViewTransition>
+    /*
+     * The nav sits OUTSIDE the provider's read-only effect on purpose: moving
+     * between tabs is reading, not writing, and a read-only viewer is here
+     * precisely to look around.
+     */
+    <ManageAccessProvider canEdit={canEdit}>
+      <div>
+        {header ?? (headerProps ? <EventManageHeader {...headerProps} /> : null)}
+        {!canEdit && <ReadOnlyNotice event={event} communityTag={communityTag} />}
+        <SectionsNav communityTag={communityTag} activeView={active} onViewChange={onViewChange} visibleViews={allowed} />
+        <ViewTransition viewKey={active}>{content}</ViewTransition>
+      </div>
+    </ManageAccessProvider>
+  );
+}
+
+/**
+ * Says WHOSE event this is and where changes actually happen.
+ *
+ * A page that simply refuses to save reads as broken. Naming the owner and
+ * pointing at the listing conversation makes it a relationship rather than a
+ * malfunction: the community decides whether it carries this and on what
+ * terms, and the host decides what it is.
+ */
+function ReadOnlyNotice({ event, communityTag }: { event: any; communityTag: string }) {
+  const ownerName =
+    event?.hosts?.find((h: any) => h.role === "CREATOR")?.user?.name
+    || event?.hosts?.[0]?.user?.name
+    || null;
+
+  return (
+    <div
+      role="note"
+      className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+    >
+      <p className="font-medium">
+        {ownerName ? `${ownerName} runs this event.` : "This event belongs to its host."}
+      </p>
+      <p className="mt-1 opacity-90">
+        Your community carries it, so you manage the listing — the terms, the commission,
+        and whether it stays on your shelf. Ask the host through the listing conversation
+        to change the event itself.
+      </p>
     </div>
   );
 }
