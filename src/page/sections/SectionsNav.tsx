@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 // keyboard-style event-update broadcasts have low pickup vs members
 // already in WhatsApp groups, so we're betting on integrating with
 // where the conversation already lives.
-export type ViewKey = "overview" | "details" | "hosts" | "listings" | "agenda" | "attendees" | "activity" | "updates";
+export type ViewKey = "overview" | "ledger" | "details" | "hosts" | "listings" | "agenda" | "attendees" | "activity" | "updates";
 
 interface Section {
   label: string;
@@ -43,6 +43,7 @@ interface Props {
 // they're filling, not their co-hosts.
 const SECTIONS: Section[] = [
   { label: "Overview", key: "overview" },
+  { label: "Ledger", key: "ledger" },
   /*
    * Details is where the editing went.
    *

@@ -57,6 +57,13 @@ export function visibleViews(opts: {
   viewerUserId?: string | null;
   /** Host app override — the admin app is a moderation surface by definition. */
   forceModerator?: boolean;
+  /**
+   * Whether the host is passing a Ledger panel.
+   *
+   * A parameter rather than a read of the slot: this function is exported and
+   * tested on its own, away from any rendered tree.
+   */
+  hasLedger?: boolean;
 }): ViewKey[] {
   /*
    * "details" MUST be here, not only in the nav's SECTIONS list. SectionsNav
@@ -66,7 +73,12 @@ export function visibleViews(opts: {
    */
   // "listings" absent: Overview carries them. The key still resolves, so an
   // existing ?view=listings link keeps working rather than falling through.
-  const base: ViewKey[] = ["overview", "details", "attendees", "hosts", "agenda"];
+  const base: ViewKey[] = [
+    "overview",
+    // Money beside the numbers it explains, and only when the host has a panel.
+    ...(opts.hasLedger ? (["ledger"] as ViewKey[]) : []),
+    "details", "attendees", "hosts", "agenda",
+  ];
   const isHost = !!opts.viewerUserId
     && (opts.event?.hosts ?? []).some((h: any) => h?.userId === opts.viewerUserId);
   const isModerator = opts.forceModerator || !isHost;
@@ -81,6 +93,14 @@ export interface EventManagePageProps {
    * the current shared package while this one keeps its own pin.
    */
   overviewSlot?: React.ReactNode;
+  /**
+   * The Ledger tab: every money movement for this event.
+   *
+   * A slot like the Overview, so this package's shared pin stays independent of
+   * the dashboard's. Absent means the tab does not appear -- a host on an older
+   * pin shows one tab fewer, not a tab opening onto nothing.
+   */
+  ledgerSlot?: React.ReactNode;
   communityTag: string;
   /** Slug or id, whichever the host app routes on. */
   eventId: string;
@@ -129,6 +149,7 @@ export interface EventManagePageProps {
 
 export function EventManagePage({
   overviewSlot,
+  ledgerSlot,
   communityTag,
   eventId,
   event,
@@ -152,8 +173,8 @@ export function EventManagePage({
   getEventManagementConfig();
 
   const allowed = React.useMemo(
-    () => visibleViews({ event, viewerUserId, forceModerator }),
-    [event, viewerUserId, forceModerator],
+    () => visibleViews({ event, viewerUserId, forceModerator, hasLedger: !!ledgerSlot }),
+    [event, viewerUserId, forceModerator, ledgerSlot],
   );
 
   // A ?view= the viewer may not use falls back rather than rendering an empty
@@ -211,6 +232,11 @@ export function EventManagePage({
           showToast={showToast}
         />
       );
+      break;
+
+    case "ledger":
+      /* A slot, like the Overview -- the host fetches it. */
+      content = ledgerSlot ?? null;
       break;
 
     case "overview":
