@@ -6,6 +6,7 @@ import { HostChip, type Host } from "./HostChip";
 import { AddMemberAsHostModal } from "./AddMemberAsHostModal";
 import { ConfirmRemoveHostModal } from "./ConfirmRemoveHostModal";
 import { PromoteAttendeeModal } from "../PromoteAttendeeModal";
+import { EmptyState } from "@cobuntu/management-ui-shared";
 
 /**
  * Single shared host-management surface used by admin + community-app.
@@ -239,20 +240,23 @@ export function HostsManagementSection({
                 {loading ? (
                     <p className="px-6 py-12 text-center text-[12px] text-zinc-400">Loading hosts…</p>
                 ) : hosts.length === 0 ? (
-                    <div className="px-6 py-12 text-center">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto text-zinc-200 mb-3">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                        </svg>
-                        <p className="text-sm text-zinc-500">No hosts assigned</p>
-                        <p className="text-xs text-zinc-400 mt-1">
-                            {isUserOwned
-                                ? "This event needs a creator-host."
-                                : "Anyone with the manage-events role can still manage it."}
-                        </p>
-                    </div>
+                    <EmptyState
+                        bordered={false}
+                        icon={
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                        }
+                        title="No hosts assigned"
+                        body={isUserOwned
+                            ? "This event needs a creator-host."
+                            : "Anyone with the manage-events role can still manage it."}
+                    />
+                
                 ) : (
                     <ul className="divide-y divide-zinc-100">
                         {hosts.map((h) => {
