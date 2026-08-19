@@ -71,15 +71,28 @@ export function EventManageHeader({
         </div>
       )}
 
-      <div className="flex items-start gap-3 md:gap-4 flex-wrap md:flex-nowrap">
-        <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl shrink-0 flex items-center justify-center bg-zinc-100 text-zinc-500">
-          <CalendarIcon />
+      {/*
+        * ON A PHONE THE TITLE GETS THE ROW TO ITSELF.
+        *
+        * Back and Preview sat beside it at every width, so an event name of any
+        * real length was truncated to make room for two controls that are not
+        * what you came to read. The actions drop below and go full-width, which
+        * also puts them in thumb reach instead of the top corner. The product
+        * page's twin.
+        */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl shrink-0 flex items-center justify-center bg-zinc-100 text-zinc-500">
+            <CalendarIcon />
+          </div>
+          <div className="flex-1 min-w-0">
+            {/* Wraps on a phone; truncates from md up, where the actions return
+                to this row and the space is genuinely contested. */}
+            <h1 className="text-xl font-semibold text-zinc-900 md:truncate">{title}</h1>
+            {subtitle && <p className="text-sm text-zinc-500">{subtitle}</p>}
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-semibold text-zinc-900 truncate">{title}</h1>
-          {subtitle && <p className="text-sm text-zinc-500">{subtitle}</p>}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 md:shrink-0 md:ml-auto [&>*]:flex-1 md:[&>*]:flex-none">
           <button
             onClick={onBack}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-zinc-600 bg-zinc-100 rounded-lg hover:bg-zinc-200 cursor-pointer"
