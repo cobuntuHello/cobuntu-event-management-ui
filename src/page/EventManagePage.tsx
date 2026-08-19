@@ -58,7 +58,13 @@ export function visibleViews(opts: {
   /** Host app override — the admin app is a moderation surface by definition. */
   forceModerator?: boolean;
 }): ViewKey[] {
-  const base: ViewKey[] = ["overview", "attendees", "hosts", "agenda", "listings"];
+  /*
+   * "details" MUST be here, not only in the nav's SECTIONS list. SectionsNav
+   * renders the intersection of the two, so a tab added in one place and not
+   * the other is silently dropped -- which is what happened on the product side
+   * and made editing unreachable in production.
+   */
+  const base: ViewKey[] = ["overview", "details", "attendees", "hosts", "agenda", "listings"];
   const isHost = !!opts.viewerUserId
     && (opts.event?.hosts ?? []).some((h: any) => h?.userId === opts.viewerUserId);
   const isModerator = opts.forceModerator || !isHost;
