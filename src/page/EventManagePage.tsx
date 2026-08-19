@@ -3,7 +3,7 @@
 import * as React from "react";
 import { SectionsNav, type ViewKey } from "./sections/SectionsNav";
 import { ViewTransition } from "./ViewTransition";
-import { OverviewView } from "./views/OverviewView";
+import { DetailsView } from "./views/DetailsView";
 import { HostsView } from "./views/HostsView";
 import { AgendaView } from "./views/AgendaView";
 import { AttendeesView } from "./views/AttendeesView";
@@ -66,6 +66,13 @@ export function visibleViews(opts: {
 }
 
 export interface EventManagePageProps {
+  /**
+   * What the Overview tab renders: the host app's `<ManageOverview>`.
+   *
+   * A slot rather than something this package builds, so the dashboard can use
+   * the current shared package while this one keeps its own pin.
+   */
+  overviewSlot?: React.ReactNode;
   communityTag: string;
   /** Slug or id, whichever the host app routes on. */
   eventId: string;
@@ -113,6 +120,7 @@ export interface EventManagePageProps {
 }
 
 export function EventManagePage({
+  overviewSlot,
   communityTag,
   eventId,
   event,
@@ -179,10 +187,13 @@ export function EventManagePage({
     case "updates":
       content = <UpdatesView communityTag={communityTag} eventId={eventId} showToast={showToast} />;
       break;
-    case "overview":
-    default:
+    /*
+     * DETAILS keeps every prop the old Overview had. Same view, renamed and
+     * moved second.
+     */
+    case "details":
       content = (
-        <OverviewView
+        <DetailsView
           event={event}
           communityTag={communityTag}
           eventId={eventId}
@@ -192,6 +203,23 @@ export function EventManagePage({
           showToast={showToast}
         />
       );
+      break;
+
+    case "overview":
+    default:
+      /*
+       * A SLOT, not a component this package owns.
+       *
+       * The dashboard is ManageOverview in @cobuntu/management-ui-shared.
+       * Importing it here would tie this package's shared pin to the
+       * dashboard's, as a side effect of adding a tab. Both host apps already
+       * run the current shared package, so they render it and pass it in --
+       * the same shape as the community app keeping its own tab strip.
+       *
+       * Omitted, the tab renders nothing rather than crashing an un-updated
+       * host.
+       */
+      content = overviewSlot ?? null;
   }
 
   return (

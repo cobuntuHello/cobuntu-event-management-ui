@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 // keyboard-style event-update broadcasts have low pickup vs members
 // already in WhatsApp groups, so we're betting on integrating with
 // where the conversation already lives.
-export type ViewKey = "overview" | "hosts" | "listings" | "agenda" | "attendees" | "activity" | "updates";
+export type ViewKey = "overview" | "details" | "hosts" | "listings" | "agenda" | "attendees" | "activity" | "updates";
 
 interface Section {
   label: string;
@@ -43,6 +43,16 @@ interface Props {
 // they're filling, not their co-hosts.
 const SECTIONS: Section[] = [
   { label: "Overview", key: "overview" },
+  /*
+   * Details is where the editing went.
+   *
+   * Overview used to BE this tab -- a column of rows that each opened a modal --
+   * so opening an event answered a question nobody arrived with. Overview is now
+   * a dashboard (how it is doing, whether tickets can be bought at all) and the
+   * form sits second, because changing the event is the second reason to be here
+   * rather than the first.
+   */
+  { label: "Details", key: "details" },
   { label: "Attendees", key: "attendees" },
   { label: "Hosts", key: "hosts" },
   { label: "Listings", key: "listings" },

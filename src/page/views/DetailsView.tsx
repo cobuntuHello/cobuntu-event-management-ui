@@ -1,3 +1,10 @@
+/**
+ * The DETAILS tab: everything about this event you can change.
+ *
+ * This was the Overview tab, which is why opening an event used to greet you
+ * with a form. Same rows, same modals, renamed and moved second. Overview is a
+ * dashboard now.
+ */
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -58,7 +65,7 @@ interface Props {
   showToast: (msg: string) => void;
 }
 
-export function OverviewView({ event, communityTag, eventId, isPublished, onUpdate, onDelete, showToast }: Props) {
+export function DetailsView({ event, communityTag, eventId, isPublished, onUpdate, onDelete, showToast }: Props) {
   const router = useRouter();
   const [modal, setModalState] = useState<EventModal>(null);
   const [drawerOpen, setDrawerOpenState] = useState(false);
