@@ -74,10 +74,10 @@ export function visibleViews(opts: {
   // "listings" absent: Overview carries them. The key still resolves, so an
   // existing ?view=listings link keeps working rather than falling through.
   const base: ViewKey[] = [
-    "overview",
-    // Money beside the numbers it explains, and only when the host has a panel.
+    "overview", "details",
+    // After Details, always. The nav's SECTIONS array is what orders it.
     ...(opts.hasLedger ? (["ledger"] as ViewKey[]) : []),
-    "details", "attendees", "hosts", "agenda",
+    "attendees", "hosts", "agenda",
   ];
   const isHost = !!opts.viewerUserId
     && (opts.event?.hosts ?? []).some((h: any) => h?.userId === opts.viewerUserId);

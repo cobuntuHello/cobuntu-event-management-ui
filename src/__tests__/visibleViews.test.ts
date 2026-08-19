@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { visibleViews } from "../page/EventManagePage";
+import { SECTION_KEYS } from "../page/sections/SectionsNav";
 
 /**
  * Which tabs the event manage page offers.
@@ -39,10 +40,18 @@ describe("the ledger tab", () => {
         expect(visibleViews({ event: host, viewerUserId: "u1" })).not.toContain("ledger");
     });
 
-    it("appears right after overview when it does", () => {
+    it("appears after details when it does", () => {
         const views = visibleViews({ event: host, viewerUserId: "u1", hasLedger: true });
-        // Money beside the numbers it explains, before the forms.
-        expect(views.indexOf("ledger")).toBe(views.indexOf("overview") + 1);
+        expect(views).toEqual(["overview", "details", "ledger", "attendees", "hosts", "agenda"]);
+    });
+
+    /*
+     * What a person SEES is ordered by SECTIONS in the nav, which renders
+     * SECTIONS filtered by visibleViews -- that list decides whether, this one
+     * decides where. Pinning order only in the other list pins nothing.
+     */
+    it("is ordered after details in the nav, which is what decides", () => {
+        expect(SECTION_KEYS.indexOf("ledger")).toBe(SECTION_KEYS.indexOf("details") + 1);
     });
 
     /*

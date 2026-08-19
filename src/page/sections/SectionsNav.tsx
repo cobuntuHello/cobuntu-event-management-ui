@@ -43,7 +43,6 @@ interface Props {
 // they're filling, not their co-hosts.
 const SECTIONS: Section[] = [
   { label: "Overview", key: "overview" },
-  { label: "Ledger", key: "ledger" },
   /*
    * Details is where the editing went.
    *
@@ -54,6 +53,14 @@ const SECTIONS: Section[] = [
    * rather than the first.
    */
   { label: "Details", key: "details" },
+  /*
+   * LEDGER SITS AFTER DETAILS, always.
+   *
+   * THIS array orders the strip -- the nav renders SECTIONS filtered by
+   * visibleViews, so that list decides WHETHER a tab shows and this decides
+   * WHERE. Order pinned only in the other list is pinned in the wrong place.
+   */
+  { label: "Ledger", key: "ledger" },
   { label: "Attendees", key: "attendees" },
   { label: "Hosts", key: "hosts" },
   /*
@@ -142,3 +149,6 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
     </div>
   );
 }
+
+/** The tab order, for tests that assert it without rendering the strip. */
+export const SECTION_KEYS: ViewKey[] = SECTIONS.map((s) => s.key);
