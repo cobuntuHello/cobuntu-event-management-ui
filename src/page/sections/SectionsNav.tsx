@@ -55,7 +55,12 @@ const SECTIONS: Section[] = [
   { label: "Details", key: "details" },
   { label: "Attendees", key: "attendees" },
   { label: "Hosts", key: "hosts" },
-  { label: "Listings", key: "listings" },
+  /*
+   * "listings" is still a valid KEY, but no longer a TAB: Overview carries one
+   * section per community with that listing's own numbers and terms, plus the
+   * way to ask another community to carry this. A tab that repeats the first
+   * screen less well is a second place to look for one answer.
+   */
   { label: "Agenda", key: "agenda" },
   // Activity log — reverse-chrono feed of every host-visible action.
   // Lives near the end so the day-to-day tabs (Attendees/Hosts/etc.)
