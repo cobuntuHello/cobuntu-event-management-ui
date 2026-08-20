@@ -111,7 +111,17 @@ export function HostsManagementSection({
             const headers = config.authHeaders();
             const [hostsRes, attendeesRes] = await Promise.all([
                 fetch(`${config.apiBaseUrl}/api/events/${event.id}/hosts`, { headers }),
-                fetch(`${config.apiBaseUrl}/api/events/${event.id}/attendees`, { headers }).catch(() => null),
+                /*
+                 * COMMUNITY-SCOPED. This called /api/events/:id/attendees,
+                 * which is not a route -- the real one lives under the
+                 * community. It 404'd on every load of this tab, silently:
+                 * the .catch(() => null) and the `attendeesRes?.ok` guard below
+                 * turn a missing list into an empty one, so "promote an
+                 * attendee to host" simply offered nobody and looked like an
+                 * event with no attendees.
+                 */
+                fetch(`${config.apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/attendees`, { headers })
+                    .catch(() => null),
             ]);
             if (!hostsRes.ok) throw new Error("Failed to load hosts");
             const hostsData = await hostsRes.json();
