@@ -85,8 +85,17 @@ export function TierEditView({
         <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50/70 border border-amber-100">
           <Lock className="w-3.5 h-3.5 mt-0.5 text-amber-600 shrink-0" />
           <p className="text-[12px] text-amber-700">
-            <span className="font-medium">{`${t.salesCount} sale${t.salesCount !== 1 ? "s" : ""}`}</span>
-            {" — price, currency, and installment plan are locked. Refund all sales first to change them."}
+            {/*
+              * "tickets sold", not "sales". On an event the thing that was
+              * sold is a ticket somebody now holds, and naming it says WHY the
+              * price cannot move: real people are on the other side of it. A
+              * test has specified this wording since before the banner existed
+              * and has been failing against "3 sales" ever since.
+              */}
+            <span className="font-medium">
+              {`${t.salesCount} ticket${t.salesCount !== 1 ? "s" : ""} sold`}
+            </span>
+            {" — price, currency and the installment plan are locked, because changing them would alter what those buyers paid. Refund them first to change it."}
           </p>
         </div>
       )}

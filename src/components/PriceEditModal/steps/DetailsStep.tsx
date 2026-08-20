@@ -79,8 +79,18 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
             placeholder="Unlimited"
           />
         </div>
+        {/*
+          * Says WHY the floor exists, not just what it is. "Min 3" reads as an
+          * arbitrary rule; "3 already have tickets" is a fact the host can act
+          * on -- and it makes clear the cap can still be RAISED, which the
+          * bare number did not.
+          */}
         {locked && (
-          <p className="text-[10px] text-zinc-400 mt-1">Min {t.salesCount} (already sold).</p>
+          <p className="mt-1 text-[10.5px] text-zinc-500">
+            {t.salesCount === 1
+              ? "1 person already has a ticket, so the cap cannot go below 1. You can still raise it."
+              : `${t.salesCount} people already have tickets, so the cap cannot go below ${t.salesCount}. You can still raise it.`}
+          </p>
         )}
       </div>
     </div>
