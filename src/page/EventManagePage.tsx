@@ -290,7 +290,19 @@ function ReadOnlyNotice({ event, communityTag }: { event: any; communityTag: str
   return (
     <div
       role="note"
-      className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+      /*
+        * NO dark: VARIANTS. Neither host app has a dark mode.
+        *
+        * Tailwind resolves `dark:` from prefers-color-scheme by default, so on
+        * a machine set to dark these fired while every surface around them
+        * stayed light: amber-950 at 30% over white is a muddy tan, and
+        * amber-200 on it is pale yellow. The banner looked broken to anyone
+        * whose OS was dark and correct to everyone else, which is why it
+        * survived.
+        *
+        * This was the only file in the package carrying them.
+        */
+      className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
     >
       <p className="font-medium">
         {ownerName ? `${ownerName} runs this event.` : "This event belongs to its host."}
