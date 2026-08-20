@@ -248,5 +248,17 @@ export { CategoryPickerRow, type CategoryOption } from "./components/CategoryPic
  * in the first place.
  */
 export { EventManagePage, visibleViews, type EventManagePageProps, type ViewKey } from "./page/EventManagePage";
+/*
+ * The tab keys, exported so a host does not keep its OWN list.
+ *
+ * The admin app had one -- a hand-written VIEW_KEYS guarding ?view= -- and it
+ * was missing "details" and "ledger". Both tabs rendered, both wrote the URL on
+ * click, and the page then rejected the value it had just written and fell back
+ * to Overview. From the outside: "I click the tab and nothing happens."
+ *
+ * That was the THIRD copy of this list, after SECTIONS and visibleViews. A key
+ * added to the package now reaches the host without anyone remembering to.
+ */
+export { SECTION_KEYS } from "./page/sections/SectionsNav";
 export { getEventManagementConfig } from "./config";
 export { EventManageHeader, type EventManageHeaderProps } from "./page/EventManageHeader";
