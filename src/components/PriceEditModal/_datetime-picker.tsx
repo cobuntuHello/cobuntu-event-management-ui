@@ -4,6 +4,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
+import { LAYERS } from "@cobuntu/management-ui-shared";
 
 /**
  * Self-contained date + time picker for the tier auto-schedule window.
@@ -157,8 +158,20 @@ export function DateTimePicker({
       {open && coords && typeof document !== "undefined" && createPortal(
         <div
           ref={popRef}
-          style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
-          className="z-[60] rounded-xl border border-zinc-200 bg-white shadow-xl p-3"
+          /*
+            * ABOVE THE MODAL IT OPENS FROM, taken from the shared scale rather
+            * than picked here.
+            *
+            * This was z-[60] and ModalShell is z-[120], so the calendar opened
+            * BEHIND the modal that contains it -- both portal to document.body,
+            * so they are siblings and 60 simply loses. It was correct when
+            * written, against a shell that was then z-50, and stayed at 60 when
+            * the shell moved in August. Nothing connected the two numbers.
+            *
+            * LAYERS is that connection, and a test asserts the ordering.
+            */
+          className="rounded-xl border border-zinc-200 bg-white shadow-xl p-3"
+          style={{ zIndex: LAYERS.popoverInModal, position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
         >
           {/* Month header */}
           <div className="flex items-center justify-between mb-2">
@@ -215,14 +228,15 @@ export function DateTimePicker({
           </div>
 
           {/* Time — custom Select dropdowns (no native <select>). The
-              dropdown content sits at z-[70] so it's above this popover. */}
+              dropdown content takes LAYERS.popoverChild, which is above this
+              popover for the same reason this popover is above the modal. */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-100">
             <span className="text-[11px] text-zinc-400">Time</span>
             <Select value={String(hours)} onValueChange={(v) => setTime(parseInt(v, 10), minutes)}>
               <SelectTrigger className="h-8 w-[60px] px-2 py-1 bg-white text-[12px]" aria-label="Hour">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="z-[70]">
+              <SelectContent style={{ zIndex: LAYERS.popoverChild }}>
                 {Array.from({ length: 24 }).map((_, h) => (
                   <SelectItem key={h} value={String(h)}>{pad(h)}</SelectItem>
                 ))}
@@ -233,7 +247,7 @@ export function DateTimePicker({
               <SelectTrigger className="h-8 w-[60px] px-2 py-1 bg-white text-[12px]" aria-label="Minute">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="z-[70]">
+              <SelectContent style={{ zIndex: LAYERS.popoverChild }}>
                 {minuteOpts.map((m) => (
                   <SelectItem key={m} value={String(m)}>{pad(m)}</SelectItem>
                 ))}

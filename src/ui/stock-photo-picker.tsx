@@ -72,9 +72,22 @@ export function StockPhotoPicker({ open, onOpenChange, onSelect }: StockPhotoPic
             {!hasApiKey ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <ImageIcon className="h-12 w-12 text-zinc-400 mb-4" />
-                <p className="text-sm text-zinc-500 mb-2">Stock photos require API configuration</p>
+                {/*
+                  * WRITTEN FOR THE PERSON LOOKING AT IT.
+                  *
+                  * This said "Stock photos require API configuration" and told
+                  * them to add NEXT_PUBLIC_UNSPLASH_ACCESS_KEY to their .env
+                  * file. The person reading it is a community leader picking a
+                  * picture for an event. They have no .env file, cannot act on
+                  * it, and now know an internal variable name.
+                  *
+                  * It also read as broken rather than unavailable, which sent
+                  * them looking for a fault instead of at the upload button
+                  * two inches away -- the thing that still works.
+                  */}
+                <p className="mb-2 text-sm text-zinc-500">Stock photos aren&apos;t available right now</p>
                 <p className="text-xs text-zinc-400">
-                  Add <code className="px-1 py-0.5 bg-zinc-100 rounded">NEXT_PUBLIC_UNSPLASH_ACCESS_KEY</code> to your .env file.
+                  You can still upload your own image.
                 </p>
               </div>
             ) : error ? (
