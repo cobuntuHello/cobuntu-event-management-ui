@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getEventManagementConfig } from "../config";
+import { apiBase } from "../page/helpers";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface SummaryResponse {
     total: number;        // smallest currency unit
@@ -45,8 +45,8 @@ export function DonationsSummaryCard(props: Props) {
 
     useEffect(() => {
         const url = "eventId" in props && props.eventId
-            ? `${API}/api/communities/${communityTag}/events/${props.eventId}/donations/summary`
-            : `${API}/api/communities/${communityTag}/products/${(props as { productId: string }).productId}/donations/summary`;
+            ? `${apiBase()}/api/communities/${communityTag}/events/${props.eventId}/donations/summary`
+            : `${apiBase()}/api/communities/${communityTag}/products/${(props as { productId: string }).productId}/donations/summary`;
 
         let cancelled = false;
         (async () => {

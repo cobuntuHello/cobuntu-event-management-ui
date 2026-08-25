@@ -84,13 +84,44 @@ export function BannerCropModal({
     img.src = imageUrl;
   };
 
-  const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  /*
+   * One path for a chosen file, whatever chose it. The picker and the drop
+   * target both land here so they cannot drift — the reason the drop target
+   * exists at all is that they are the same act.
+   */
+  const loadImageFile = (file: File | null | undefined) => {
     if (!file) return;
+    // A drop can carry anything: a PDF, a folder, a dragged link. Reading a
+    // non-image would set a data URL the cropper cannot draw, leaving a blank
+    // square with no explanation.
+    if (!file.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = () => { setImageSrc(reader.result as string); setOptionsOpen(false); };
     reader.readAsDataURL(file);
+  };
+
+  const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    loadImageFile(file);
+  };
+
+  /*
+   * Drop straight onto the frame.
+   *
+   * Asked for by a host who designs a cover elsewhere, downloads it, and still
+   * has the Downloads folder open: dragging it over beats finding the filename
+   * again in a file dialog.
+   *
+   * dragOver must preventDefault or the browser navigates away to the dropped
+   * file and the half-finished event goes with it.
+   */
+  const [dragging, setDragging] = React.useState(false);
+
+  const onDropFile = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    loadImageFile(e.dataTransfer?.files?.[0]);
   };
 
   const onCropComplete = React.useCallback((_: any, pixels: CroppedAreaPixels) => { setCroppedAreaPixels(pixels); }, []);
@@ -162,10 +193,26 @@ export function BannerCropModal({
           <DialogHeader className="px-6 py-5 text-center">
             <DialogTitle className="text-base font-semibold text-center">{title}</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-2 px-4 pb-4">
+          {/*
+            * The drop target belongs HERE as much as on the cropper: this is the
+            * screen where a photo gets chosen, and the request came from someone
+            * whose Downloads folder was already open behind it. Dropping goes
+            * straight to the crop step, exactly as picking does.
+            */}
+          <div
+            className="flex flex-col gap-2 px-4 pb-4"
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={(e) => { if (!e.relatedTarget) setDragging(false); }}
+            onDrop={onDropFile}
+          >
             <button type="button" onClick={triggerFilePicker}
-              className="flex min-h-[48px] items-center justify-center rounded-xl bg-zinc-100 px-6 py-3 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-200 cursor-pointer">
-              Upload new image
+              className={cn(
+                "flex min-h-[48px] items-center justify-center rounded-xl px-6 py-3 text-sm font-medium text-zinc-800 transition-colors cursor-pointer",
+                dragging
+                  ? "bg-zinc-50 border border-dashed border-zinc-900"
+                  : "bg-zinc-100 hover:bg-zinc-200",
+              )}>
+              {dragging ? "Drop your image to use it" : "Upload new image"}
             </button>
             {!hideStockPhotos && (
               <button type="button" onClick={() => { setOptionsOpen(false); setStockPhotoOpen(true); }}
@@ -197,11 +244,32 @@ export function BannerCropModal({
         <DialogContent hideClose className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-100 flex-shrink-0">
             <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
-            <p className="text-sm text-zinc-500 mt-1">Adjust the image to fit a square (1:1) format</p>
+            {/* The drop target is invisible until something is dragged over it,
+                so it has to be said once here or nobody discovers it. */}
+            <p className="text-sm text-zinc-500 mt-1">
+              {dragging
+                ? "Drop your image to use it"
+                : "Adjust the image to fit a square (1:1) format, or drop a new one in"}
+            </p>
           </DialogHeader>
 
-          <div className="px-6 py-4 space-y-6 overflow-y-auto flex-1 min-h-0">
-            <div className="relative w-full rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200 aspect-square shadow-inner max-w-full">
+          <div
+            className="px-6 py-4 space-y-6 overflow-y-auto flex-1 min-h-0"
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            /*
+             * relatedTarget null is the pointer leaving the WINDOW. Without
+             * that check, dragging across a child element fires dragLeave on
+             * the parent and the highlight flickers the whole way across.
+             */
+            onDragLeave={(e) => { if (!e.relatedTarget) setDragging(false); }}
+            onDrop={onDropFile}
+          >
+            <div
+              data-dragging={dragging || undefined}
+              className={`relative w-full rounded-xl overflow-hidden bg-zinc-100 border aspect-square shadow-inner max-w-full transition-colors ${
+                dragging ? "border-zinc-900 border-dashed bg-zinc-50" : "border-zinc-200"
+              }`}
+            >
               {imageSrc ? (
                 /*
                  * restrictPosition (the default) keeps the image covering the

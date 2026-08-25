@@ -26,7 +26,7 @@ import {
   CreateGroupChatModal,
   EventChatCapacityNotice,
 } from "@cobuntu/event-management-ui";
-import { getEventStatus, updateEvent, API, authHeaders } from "../helpers";
+import { getEventStatus, updateEvent, apiBase, authHeaders } from "../helpers";
 import { BannerCropModal, type BannerCropResult } from "../../ui/banner-crop-modal";
 import { useEventManagementConfig } from "../../config";
 
@@ -103,7 +103,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
   // conversationId null = no chat yet → the action card offers "Create".
   const [groupChat, setGroupChat] = useState<GroupChatState | null>(null);
   const loadGroupChat = useCallback(() => {
-    fetch(`${API}/api/communities/${communityTag}/events/${event.id}/group-chat`, { headers: authHeaders() })
+    fetch(`${apiBase()}/api/communities/${communityTag}/events/${event.id}/group-chat`, { headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d) setGroupChat(d); })
       .catch(() => {});

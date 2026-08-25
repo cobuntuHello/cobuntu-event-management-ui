@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { getEventManagementConfig } from "../../config";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { useCanEdit } from "../../lib/manageAccess";
+import { apiBase } from "../helpers";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface AgendaItem {
   id: string;
@@ -65,7 +65,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
 
   async function loadAgenda() {
     try {
-      const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/agenda`, { headers: headers() });
+      const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/agenda`, { headers: headers() });
       if (res.ok) {
         const data = await res.json();
         setItems(Array.isArray(data) ? data : data.items || data.agendaItems || []);
@@ -94,7 +94,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
     const body = { title: title.trim(), description: description.trim() || null, startTime: startISO, endTime: endISO };
     try {
       if (editingId === "new") {
-        const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/agenda`, {
+        const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/agenda`, {
           method: "POST", headers: { "Content-Type": "application/json", ...headers() }, body: JSON.stringify(body),
         });
         if (res.ok) {
@@ -107,7 +107,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
           showToast("Added"); resetForm();
         } else showToast("Failed to add");
       } else {
-        const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/agenda/${editingId}`, {
+        const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/agenda/${editingId}`, {
           method: "PUT", headers: { "Content-Type": "application/json", ...headers() }, body: JSON.stringify(body),
         });
         if (res.ok) {
@@ -129,7 +129,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
     setItems(items.filter(i => i.id !== itemId));
     if (editingId === itemId) resetForm();
     try {
-      const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/agenda/${itemId}`, { method: "DELETE", headers: headers() });
+      const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/agenda/${itemId}`, { method: "DELETE", headers: headers() });
       if (!res.ok) {
         setItems(prev);
         showToast("Failed to remove");
@@ -149,7 +149,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
     [newItems[index], newItems[target]] = [newItems[target], newItems[index]];
     setItems(newItems);
     try {
-      await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/agenda/reorder`, {
+      await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/agenda/reorder`, {
         method: "PUT", headers: { "Content-Type": "application/json", ...headers() },
         body: JSON.stringify({ itemIds: newItems.map(i => i.id) }),
       });

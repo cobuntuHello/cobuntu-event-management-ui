@@ -1,7 +1,39 @@
 import { useState, useEffect } from "react";
 import { getEventManagementConfig } from "../config";
 
-export const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+/**
+ * Where the API lives, asked of the HOST at call time.
+ *
+ * This was `process.env.NEXT_PUBLIC_API_URL`, read once at module scope and so
+ * baked into whatever bundle imported it. That is not a detail: the two hosts
+ * authenticate in genuinely different ways, and the base is half of the pair.
+ *
+ *   - Admin sends an absolute `api.cobuntu.com` URL and carries a real
+ *     `Authorization: Bearer`, read from a token JavaScript can see.
+ *   - The community app sends a RELATIVE url, because its session cookie is
+ *     httpOnly and host-scoped: the browser attaches it to a same-origin
+ *     request, and the app's own handler forwards it as a Bearer server-side.
+ *     Its `authHeaders()` therefore returns `{}` — correctly, there is nothing
+ *     for it to read.
+ *
+ * Baking the base pinned the ADMIN's half of that pair into both, so on the
+ * community app every call here went cross-origin to `api.cobuntu.com`, where
+ * the cookie cannot follow and no Bearer was ever added. The result was a
+ * guaranteed 401 "Unauthorized: No token provided" on the event manage surface
+ * — the image save, the invite modal, add-attendees, hosts, price editing —
+ * across three client communities for a month, reported only when a host tried
+ * to change an event photo and saw the toast.
+ *
+ * `apiBaseUrl` is already in the config both hosts pass, alongside the
+ * `authHeaders` this file reads from the same place. Read them from the same
+ * place and the pair can no longer be split.
+ *
+ * A function, not a const: the config is assigned when the provider renders, so
+ * anything captured at import time is captured too early.
+ */
+export function apiBase(): string {
+  return getEventManagementConfig().apiBaseUrl;
+}
 
 export function authHeaders(): Record<string, string> {
   return getEventManagementConfig().authHeaders();
@@ -12,7 +44,7 @@ export function jsonHeaders(): Record<string, string> {
 }
 
 export async function updateEvent(communityTag: string, eventId: string, body: Record<string, unknown>) {
-  const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}`, {
+  const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}`, {
     method: "PUT",
     headers: jsonHeaders(),
     body: JSON.stringify(body),
@@ -139,7 +171,7 @@ export function useStripeStatus(communityTag: string) {
         // /stripe/connected (NOT /stripe/status) — gated on ACCESS_ADMIN_APP
         // so non-financial admins can read the boolean to gate paid-tier
         // edit flows. Hook is consumed by EditEventDrawer + PriceEditModal.
-        const res = await fetch(`${API}/api/communities/${communityTag}/stripe/connected`, { headers: authHeaders() });
+        const res = await fetch(`${apiBase()}/api/communities/${communityTag}/stripe/connected`, { headers: authHeaders() });
         if (res.ok) {
           const data = await res.json();
           const result = { connected: !!data.connected, chargesEnabled: !!data.chargesEnabled };

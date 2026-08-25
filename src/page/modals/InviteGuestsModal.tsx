@@ -17,8 +17,8 @@ import {
     PostSendCelebration,
 } from "@cobuntu/event-management-ui";
 import { InlineEmailPreview } from "./attendees-action/InlineEmailPreview";
+import { apiBase } from "../helpers";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface Props {
     event: any;
@@ -78,8 +78,8 @@ export function InviteGuestsModal({ event, communityTag, eventId, showToast, onC
                 // state badges on autocomplete rows ("Already invited")
                 // depend on the invitations response.
                 const [mRes, iRes] = await Promise.all([
-                    fetch(`${API}/api/communities/${communityTag}/memberships/admin`, { headers: authHeaders() }),
-                    fetch(`${API}/api/communities/${communityTag}/events/${eventId}/invitations?limit=500`, { headers: authHeaders() }),
+                    fetch(`${apiBase()}/api/communities/${communityTag}/memberships/admin`, { headers: authHeaders() }),
+                    fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/invitations?limit=500`, { headers: authHeaders() }),
                 ]);
                 if (cancelled) return;
                 const mData = mRes.ok ? await mRes.json() : { members: [] };
@@ -173,7 +173,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, showToast, onC
             );
         setIsSending(true);
         try {
-            const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/invitations`, {
+            const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/invitations`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...authHeaders() },
                 body: JSON.stringify({
@@ -262,7 +262,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, showToast, onC
                     communityTag={communityTag}
                     eventId={eventId}
                     authHeaders={authHeaders}
-                    apiBaseUrl={API}
+                    apiBaseUrl={apiBase()}
                 />
             </AttendeesActionModalShell>
         );
@@ -311,7 +311,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, showToast, onC
                         eventId={eventId}
                         stagedKeys={stagedKeys}
                         authHeaders={authHeaders}
-                        apiBaseUrl={API}
+                        apiBaseUrl={apiBase()}
                         onAddMember={(m) => addRecipients([{
                             kind: "member",
                             usertag: m.usertag,
@@ -367,7 +367,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, showToast, onC
                         customMessage={sharedMessage}
                         recipientName={previewRecipientName}
                         authHeaders={authHeaders}
-                        apiBaseUrl={API}
+                        apiBaseUrl={apiBase()}
                         canCustomize={true}
                     />
 

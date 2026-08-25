@@ -5,8 +5,8 @@ import { Megaphone, Mail, MessageCircle, X, Send, ChevronLeft, ChevronRight } fr
 import { getEventManagementConfig, useEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { useCanEdit } from "../../lib/manageAccess";
+import { apiBase } from "../helpers";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 function authHeaders(): Record<string, string> {
   return getEventManagementConfig().authHeaders();
@@ -90,7 +90,7 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
 
   async function loadBroadcasts() {
     try {
-      const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/broadcasts`, { headers: authHeaders() });
+      const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/broadcasts`, { headers: authHeaders() });
       if (res.ok) setBroadcasts(await res.json()); else setBroadcasts([]);
     } catch { setBroadcasts([]); }
     setLoading(false);
@@ -100,7 +100,7 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
 
   async function loadDetail(id: string) {
     try {
-      const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/broadcasts/${id}`, { headers: authHeaders() });
+      const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/broadcasts/${id}`, { headers: authHeaders() });
       if (res.ok) setDetail(await res.json());
       else showToast("Failed to load details");
     } catch { showToast("Failed to load details"); }
@@ -186,7 +186,7 @@ function ComposeUpdate({ communityTag, eventId, onClose, onSent, showToast }: {
     if (!subject.trim() || !body.trim()) { showToast("Subject and message are required"); return; }
     setSending(true);
     try {
-      const res = await fetch(`${API}/api/communities/${communityTag}/events/${eventId}/broadcasts`, {
+      const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/broadcasts`, {
         method: "POST", headers: jsonHeaders(),
         body: JSON.stringify({ subject: subject.trim(), body: body.trim() }),
       });

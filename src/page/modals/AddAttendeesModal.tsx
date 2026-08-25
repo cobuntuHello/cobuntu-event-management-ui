@@ -17,8 +17,8 @@ import {
     recipientKey,
     PostSendCelebration,
 } from "@cobuntu/event-management-ui";
+import { apiBase } from "../helpers";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface Props {
     event: any;
@@ -81,7 +81,7 @@ export function AddAttendeesModal({
         (async () => {
             try {
                 const res = await fetch(
-                    `${API}/api/communities/${communityTag}/memberships/admin`,
+                    `${apiBase()}/api/communities/${communityTag}/memberships/admin`,
                     { headers: authHeaders() },
                 );
                 if (!res.ok || cancelled) return;
@@ -134,7 +134,7 @@ export function AddAttendeesModal({
         setIsAdding(true);
         try {
             const res = await fetch(
-                `${API}/api/communities/${communityTag}/events/${eventId}/add-attendees`,
+                `${apiBase()}/api/communities/${communityTag}/events/${eventId}/add-attendees`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -206,7 +206,7 @@ export function AddAttendeesModal({
                     communityTag={communityTag}
                     eventId={eventId}
                     authHeaders={authHeaders}
-                    apiBaseUrl={API}
+                    apiBaseUrl={apiBase()}
                 />
             </AttendeesActionModalShell>
         );
@@ -274,7 +274,7 @@ export function AddAttendeesModal({
                     eventId={eventId}
                     stagedKeys={stagedKeys}
                     authHeaders={authHeaders}
-                    apiBaseUrl={API}
+                    apiBaseUrl={apiBase()}
                     onAddMember={(m) => addRecipients([{
                         kind: "member",
                         usertag: m.usertag,
