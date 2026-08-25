@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { HostsManagementSection } from "@cobuntu/event-management-ui";
 import { getEventManagementConfig } from "../../config";
+import { apiBase } from "../helpers";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface Props {
     event: any;
@@ -40,7 +40,7 @@ export function HostsView({ event, communityTag, eventId }: Props) {
                 // reads a token itself.
                 const headers = getEventManagementConfig().authHeaders();
                 if (!headers.Authorization) return;
-                const res = await fetch(`${API}/api/users/me`, { headers });
+                const res = await fetch(`${apiBase()}/api/users/me`, { headers });
                 if (!res.ok || cancelled) return;
                 const data = await res.json();
                 const userId = data?.user?.id || data?.id;
