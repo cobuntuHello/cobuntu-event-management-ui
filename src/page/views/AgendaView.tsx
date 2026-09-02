@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { theme, muted } from "../../shared/theme";
+import { agendaDurationMinutes, formatDurationShort } from "../../shared/agendaDuration";
 import { getEventManagementConfig } from "../../config";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { useCanEdit } from "../../lib/manageAccess";
@@ -328,7 +329,34 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
                     <p className="text-[11px] tabular-nums" style={muted(0.5)}>{fmtTime(item.endTime)}</p>
                   </div>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEdit(item)}>
-                    <p className="text-sm font-medium" style={{ color: theme.text }}>{item.title}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: theme.text }}>{item.title}</p>
+                      {/*
+                        * How long this runs for.
+                        *
+                        * The row already showed a start over an end and left
+                        * the reader to subtract — which is exactly the sum
+                        * someone is doing when they scan an agenda to see
+                        * whether the shape of the session is right.
+                        *
+                        * Rendered only when there IS an honest answer:
+                        * agendaDurationMinutes returns null for a missing end
+                        * time or a non-positive span, so a bad row shows no
+                        * pill rather than a confident "0 min".
+                        */}
+                      {(() => {
+                        const mins = agendaDurationMinutes(item.startTime, item.endTime);
+                        if (mins === null) return null;
+                        return (
+                          <span
+                            className="shrink-0 text-[11px] px-2 py-0.5 rounded-full tabular-nums"
+                            style={{ background: theme.insetBg, ...muted(0.65) }}
+                          >
+                            {formatDurationShort(mins)}
+                          </span>
+                        );
+                      })()}
+                    </div>
                     {item.description && <p className="text-[12px] mt-0.5 line-clamp-2" style={muted(0.6)}>{item.description}</p>}
                   </div>
                   {/* Row actions. Always visible — the hover-reveal pattern

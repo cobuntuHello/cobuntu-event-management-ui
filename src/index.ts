@@ -262,3 +262,16 @@ export { EventManagePage, visibleViews, type EventManagePageProps, type ViewKey 
 export { SECTION_KEYS } from "./page/sections/SectionsNav";
 export { getEventManagementConfig } from "./config";
 export { EventManageHeader, type EventManageHeaderProps } from "./page/EventManageHeader";
+
+/**
+ * Agenda item duration.
+ *
+ * Exported because the member-facing event page in the community app has to
+ * show the same pill as the manage view here, and "end minus start" computed
+ * twice is how two screens end up disagreeing about the same item.
+ */
+export {
+  agendaDurationMinutes,
+  splitDuration,
+  formatDurationShort,
+} from "./shared/agendaDuration";
