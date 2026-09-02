@@ -20,7 +20,6 @@ import {
   DeleteModal,
   DuplicateModal,
   SettingsDrawer,
-  DescriptionEditModal,
   TagsEditModal,
   EventRevenueKPIs,
   CreateGroupChatModal,
@@ -32,6 +31,7 @@ import { useEventManagementConfig } from "../../config";
 
 // Sections
 import { EventCard } from "../sections/EventCard";
+import { DescriptionSection } from "../sections/DescriptionSection";
 import { OverviewActionCards } from "../sections/OverviewActionCards";
 import { DonationsSummaryCard } from "../../components/DonationsSummaryCard";
 import { useCanEdit } from "../../lib/manageAccess";
@@ -45,7 +45,7 @@ import { useCanEdit } from "../../lib/manageAccess";
 // feat/manage-event-restructure: "distribution" removed from EventModal —
 // it now lives inside the SettingsDrawer (along with viewability, accessibility,
 // and the refund policy), invoked by the Settings quick action card.
-export type EventModal = "name" | "datetime" | "location" | "price" | "slug" | "description" | "tags" | "share" | "publish" | "unpublish" | "delete" | "duplicate" | "groupChat" | null;
+export type EventModal = "name" | "datetime" | "location" | "price" | "slug" | "tags" | "share" | "publish" | "unpublish" | "delete" | "duplicate" | "groupChat" | null;
 
 interface GroupChatState {
   conversationId: string | null;
@@ -203,8 +203,23 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
         onEditPrice={() => setModal("price")}
         onEditSlug={() => setModal("slug")}
         onEditBanner={() => setBannerCropOpen(true)}
-        onEditDescription={() => setModal("description")}
         onEditTags={() => setModal("tags")}
+      />
+
+      {/*
+        * Description, in full, directly below the card.
+        *
+        * It was a truncated row that opened a modal. The other fields are a
+        * date, a price, a slug — things a compact row shows completely — but a
+        * description is paragraphs, so that row displayed almost nothing and
+        * amounted to a permanent instruction to click. Reading the page and
+        * reading the description were two separate acts.
+        */}
+      <DescriptionSection
+        event={event}
+        communityTag={communityTag}
+        onSaved={saved}
+        showToast={showToast}
       />
 
       <DonationsSummaryCard communityTag={communityTag} eventId={eventId} />
@@ -223,7 +238,6 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
       {modal === "name" && <NameEditModal event={event} communityTag={communityTag} onClose={close} onSaved={saved} showToast={showToast} />}
       {modal === "datetime" && <DateTimeEditModal event={event} communityTag={communityTag} onClose={close} onSaved={saved} showToast={showToast} />}
       {modal === "location" && <LocationEditModal event={event} communityTag={communityTag} onClose={close} onSaved={saved} showToast={showToast} />}
-      {modal === "description" && <DescriptionEditModal event={event} communityTag={communityTag} onClose={close} onSaved={saved} showToast={showToast} />}
       {modal === "tags" && <TagsEditModal event={event} communityTag={communityTag} onClose={close} onSaved={saved} showToast={showToast} />}
       {modal === "price" && (
         <PriceEditModal

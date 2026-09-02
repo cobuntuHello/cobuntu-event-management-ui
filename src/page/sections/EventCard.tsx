@@ -24,14 +24,13 @@ interface Props {
   // (OverviewView) no longer passes it.
   // Description + Tags moved IN from the legacy EditEventDrawer and are
   // now quick-edit cards alongside Name / Slug / Location / Date / Price.
-  onEditDescription: () => void;
   onEditTags: () => void;
 }
 
 export function EventCard({
   event, communityTag, isPublished, isPast, isLive, isPaid, attendeeCount, missingRequirements,
   onEditName, onEditDateTime, onEditLocation, onEditPrice, onEditSlug, onEditBanner,
-  onEditDescription, onEditTags,
+  onEditTags,
 }: Props) {
   const [urlCopied, setUrlCopied] = useState(false);
   const [imgSize, setImgSize] = useState(280);
@@ -170,18 +169,6 @@ export function EventCard({
               <p className="text-sm font-medium text-zinc-900">
                 {isPaid ? `${event.currency || "EUR"} ${Number(event.price).toFixed(2)}` : "Free"}
               </p>
-            </InfoRow>
-
-            {/* Description (feat/manage-event-restructure: moved from the
-                legacy EditEventDrawer to a quick-edit row). */}
-            <InfoRow onClick={onEditDescription}
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6 M16 13H8 M16 17H8"/></svg>}>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-zinc-400">Description</p>
-                <p className="text-sm font-medium text-zinc-900 truncate">
-                  {event.description ? htmlStripPreview(event.description) : "Add a description..."}
-                </p>
-              </div>
             </InfoRow>
 
             {/* Tags */}
