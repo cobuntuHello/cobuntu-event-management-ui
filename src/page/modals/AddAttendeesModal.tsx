@@ -3,7 +3,9 @@
 import { useRef, useState } from "react";
 import { getEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
-import { PersonPickerModal, recipientsToApi, type Recipient } from "@cobuntu/management-ui-shared";
+import {
+    PersonPickerModal, recipientsToApi, type Recipient, type PersonPickerTierStep,
+} from "@cobuntu/management-ui-shared";
 import { AttendeesActionModalShell, PostSendCelebration } from "@cobuntu/event-management-ui";
 import { useGuestSuggestions } from "./useGuestSuggestions";
 import { apiBase } from "../helpers";
@@ -74,6 +76,50 @@ export function AddAttendeesModal({
         (t: any) => (t?.tier_forms && t.tier_forms.length > 0) || t?.formId,
     ).length;
 
+    /*
+     * Which ticket the added people get.
+     *
+     * ── Why this is feature-detected ────────────────────────────────────────
+     *
+     * Per-tier occupancy (`soldOut`, `remaining`) only reaches this payload
+     * once the tier-bound-capacity backend is deployed. Rendering the step
+     * without it would mean showing availability we do not actually know —
+     * and presenting an unknown as "unlimited" is precisely the mistake that
+     * made the public API report every tier available forever.
+     *
+     * So the step appears when the numbers do. Until then the modal behaves
+     * exactly as it does today, and the server still assigns the default tier.
+     */
+    const tiers: any[] = event?.tiers || [];
+    const hasOccupancy = tiers.length > 0 && tiers.every((t) => typeof t?.soldOut === "boolean");
+
+    const tierStep: PersonPickerTierStep | undefined = hasOccupancy ? {
+        tiers: tiers.map((t) => ({
+            id: t.id,
+            name: t.name,
+            remaining: typeof t.remaining === "number" ? t.remaining : null,
+            soldOut: t.soldOut === true,
+        })),
+        copy: {
+            stepLabel: "Choose a ticket",
+            subtitle: "Which ticket are they getting? This uses up that ticket's capacity.",
+            remaining: (n) => `${n} left`,
+            unlimited: "No limit",
+            soldOut: "Full",
+            allFull: "Every ticket is full. Raise a capacity to add anyone else.",
+            summary: (n, name) => `${n} ${n === 1 ? "person" : "people"} on ${name}`,
+            overBy: (n, name) => `${n} more than ${name} has room for.`,
+            importPreviewTitle: "Check this import",
+            importReady: (n) => `${n} ${n === 1 ? "row" : "rows"} will be added.`,
+            importProblems: (n) => `${n} ${n === 1 ? "row" : "rows"} cannot be added.`,
+            problemUnknownTier: (name) => `No ticket called "${name}"`,
+            problemNoTier: "No ticket chosen",
+            problemTierFull: "That ticket is full",
+            importConfirm: "Add these",
+            importCancel: "Discard import",
+        },
+    } : undefined;
+
     const suggestions = useGuestSuggestions({
         apiBaseUrl: apiBase(), communityTag, eventId, authHeaders,
         enabled: added === null && !isPast,
@@ -95,6 +141,15 @@ export function AddAttendeesModal({
         if (usertags.length === 0 && emails.length === 0) {
             throw new Error("Choose at least one person.");
         }
+        /*
+         * One entry per person, because an imported list can mix tickets. The
+         * server validates every id belongs to this event and refuses the
+         * whole call if one does not — a stale ticket id quietly seating ten
+         * people in General Admission is not a mistake anybody would trace.
+         */
+        const tierAssignments = recipients
+            .filter((r) => r.tierId)
+            .map((r) => ({ usertag: r.usertag ?? null, email: r.email ?? null, tierId: r.tierId! }));
         const res = await fetch(
             `${apiBase()}/api/communities/${communityTag}/events/${eventId}/add-attendees`,
             {
@@ -104,6 +159,7 @@ export function AddAttendeesModal({
                     usertags: usertags.length > 0 ? usertags : undefined,
                     emails: emails.length > 0 ? emails : undefined,
                     internalNote: note || undefined,
+                    tierAssignments: tierAssignments.length > 0 ? tierAssignments : undefined,
                 }),
             },
         );
@@ -165,6 +221,7 @@ export function AddAttendeesModal({
             excludeUserIds={attendingUserIds}
             UserAvatar={UserAvatar}
             multiple
+            tierStep={tierStep}
             suggestions={suggestions}
             emails={{
                 addRow: (a) => `Add ${a}`,
