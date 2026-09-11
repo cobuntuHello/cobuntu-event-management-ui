@@ -167,6 +167,12 @@ export function BannerCropModal({
     if (!imageSrc || !croppedAreaPixels) return;
     setIsSaving(true);
     try {
+      // Let the "Saving..." spinner paint before the synchronous canvas encode.
+      // getCroppedBase64 ends in canvas.toDataURL, which blocks the main thread
+      // for a moment on a large photo. Without yielding a frame first, React
+      // commits isSaving but the browser never repaints before the block, so the
+      // modal just freezes with no feedback. Two rAFs guarantee a paint.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
       const base64 = await getCroppedBase64(imageSrc, croppedAreaPixels);
       await onSave({ base64 });
       onOpenChange(false);
