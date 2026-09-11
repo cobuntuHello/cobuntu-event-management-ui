@@ -100,26 +100,21 @@ export { EventChatCapacityNotice, type EventChatCapacityNoticeProps } from "./co
 // shouldn't pay (staff/founders/etc.).
 export { PromoteAttendeeModal, type PromoteAttendeeModalProps } from "./components/PromoteAttendeeModal";
 
-// attendees-action/ — shared primitives that build the new generation
-// of event-host action modals (Add / Invite / Promote and any future
-// surfaces). Live in the shared pkg so admin + community-app stay
-// aligned without re-duplicating the same picker / chip / shell code
-// in two repos. See cobuntu-admin's earlier "attendees-action redesign"
-// PR for the original implementation; this module is the canonical
-// home going forward.
+/*
+ * attendees-action/ — what is LEFT of the action modals after the picker moved.
+ *
+ * The chip, the recipient input and the suggestion row are gone: choosing
+ * people is PersonPickerModal in @cobuntu/management-ui-shared now, and
+ * adding an attendee, inviting a guest, adding a host, adding a co-seller and
+ * granting product access are one component rather than five takes on it.
+ * `recipientKey` and the `Recipient` type live there too, keyed on the user id
+ * rather than the address.
+ *
+ * These two stay because neither is about choosing anybody. The shell wraps
+ * the after-the-fact screen, and the celebration streams delivery status from
+ * Resend webhooks for 60 seconds once invitations are away.
+ */
 export { AttendeesActionModalShell } from "./components/attendees-action/AttendeesActionModalShell";
-export {
-    RecipientChip,
-    InlinePersonalizeEditor,
-    recipientKey,
-    isValidEmail,
-    type Recipient,
-} from "./components/attendees-action/RecipientChip";
-export {
-    SmartRecipientInput,
-    type Member as SmartRecipientInputMember,
-} from "./components/attendees-action/SmartRecipientInput";
-export { PrefillSuggestionsRow } from "./components/attendees-action/PrefillSuggestionsRow";
 export { PostSendCelebration } from "./components/attendees-action/PostSendCelebration";
 
 // hosts/ — the v2 host-management surface. Single shared component

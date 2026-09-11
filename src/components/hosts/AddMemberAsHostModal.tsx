@@ -2,7 +2,7 @@
 
 import { useEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
-import { PersonPickerModal, type PersonSearchResult } from "@cobuntu/management-ui-shared";
+import { PersonPickerModal, userIdsOf, type Recipient } from "@cobuntu/management-ui-shared";
 
 /**
  * Add a community member as a host of an event.
@@ -63,14 +63,18 @@ export function AddMemberAsHostModal({
     const config = useEventManagementConfig();
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
 
-    async function addHost(people: PersonSearchResult[]) {
+    async function addHost(recipients: Recipient[]) {
         /* Single-pick, so the list holds exactly one — a host is added one at
-           a time, which is what the picker's `multiple={false}` guarantees. */
-        const person = people[0];
+           a time, which is what the picker's `multiple={false}` guarantees.
+           `userIdsOf` also drops anyone without an account, which this surface
+           never stages: making somebody a host writes a row keyed by user id,
+           so the picker is mounted without `emails`. */
+        const [userId] = userIdsOf(recipients);
+        if (!userId) throw new Error("Choose a member first.");
         const res = await fetch(`${config.apiBaseUrl}/api/events/${eventId}/hosts`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...config.authHeaders() },
-            body: JSON.stringify({ userId: person.id }),
+            body: JSON.stringify({ userId }),
         });
         if (res.ok) return;
 
@@ -115,6 +119,12 @@ export function AddMemberAsHostModal({
                 showingLabel: "Showing",
                 allMembersLabel: "All members",
                 selectedLabel: (n: number) => `${n} selected`,
+                /* Single-pick, so the staged strip never renders. The words
+                   are still required: a surface that later allows several
+                   hosts at once should not have to discover it needs them. */
+                selectedTitle: "Selected",
+                clearAll: "Clear",
+                remove: (name: string) => `Remove ${name}`,
             }}
             stepTwo={{
                 kind: "consequences",
@@ -129,7 +139,16 @@ export function AddMemberAsHostModal({
             /* The prop's own contract is one Member, and it stays that way:
                every caller renders a single host row from it. Unwrapping here
                rather than widening the prop keeps that promise. */
-            onAdded={(people) => onAdded(people[0])}
+            onAdded={(recipients) => {
+                const [r] = recipients;
+                if (!r?.id) return;
+                onAdded({
+                    id: r.id,
+                    name: r.name ?? null,
+                    usertag: r.usertag ?? null,
+                    profileImage: r.profileImage ?? null,
+                });
+            }}
         />
     );
 }
