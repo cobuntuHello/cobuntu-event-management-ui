@@ -281,11 +281,50 @@ export function EventManagePage({
  * malfunction: the community decides whether it carries this and on what
  * terms, and the host decides what it is.
  */
-function ReadOnlyNotice({ event, communityTag }: { event: any; communityTag: string }) {
+/**
+ * What the read-only notice should say, and why it differs.
+ *
+ * TWO reasons a viewer lands here without edit rights, needing different words.
+ *
+ *   1. A MEMBER owns the event and this community merely carries it.
+ *      `events.communityId` is null. Changes are the host's to make and the
+ *      listing conversation is where to ask. This is the case the notice was
+ *      originally written for.
+ *
+ *   2. THIS COMMUNITY owns the event (`events.communityId` is set) and the
+ *      viewer simply lacks the role. `viewerOwnsEvent` returns false for every
+ *      community-owned event by design, so edit rights come solely from
+ *      EVENTS_CREATE in the owning community. Without it a leader was shown
+ *      "<member> runs this event. Your community carries it" about an event
+ *      their own community owns and collects the money for, naming whoever
+ *      happened to create the row. For a community's recurring events that is
+ *      the same member every time. It reads as the platform having lost track
+ *      of who owns what, and it points at a negotiation that does not exist.
+ *
+ * Exported and pure so it can be tested without the page's config providers,
+ * the same shape as `visibleViews`.
+ */
+export function readOnlyNoticeCopy(event: any): { title: string; body: string } {
   const ownerName =
     event?.hosts?.find((h: any) => h.role === "CREATOR")?.user?.name
     || event?.hosts?.[0]?.user?.name
     || null;
+
+  if (event?.communityId) {
+    return {
+      title: "Your community owns this event.",
+      body: "You do not have permission to change it. A community leader with event permissions can edit it, or grant you that permission.",
+    };
+  }
+
+  return {
+    title: ownerName ? `${ownerName} runs this event.` : "This event belongs to its host.",
+    body: "Your community carries it, so you manage the listing: the terms, the commission, and whether it stays on your shelf. Ask the host through the listing conversation to change the event itself.",
+  };
+}
+
+function ReadOnlyNotice({ event, communityTag }: { event: any; communityTag: string }) {
+  const { title, body } = readOnlyNoticeCopy(event);
 
   return (
     <div
@@ -304,14 +343,8 @@ function ReadOnlyNotice({ event, communityTag }: { event: any; communityTag: str
         */
       className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
     >
-      <p className="font-medium">
-        {ownerName ? `${ownerName} runs this event.` : "This event belongs to its host."}
-      </p>
-      <p className="mt-1 opacity-90">
-        Your community carries it, so you manage the listing — the terms, the commission,
-        and whether it stays on your shelf. Ask the host through the listing conversation
-        to change the event itself.
-      </p>
+      <p className="font-medium">{title}</p>
+      <p className="mt-1 opacity-90">{body}</p>
     </div>
   );
 }
