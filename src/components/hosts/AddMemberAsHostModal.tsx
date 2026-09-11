@@ -7,10 +7,15 @@ import { PersonPickerModal, type PersonSearchResult } from "@cobuntu/management-
 /**
  * Add a community member as a host of an event.
  *
- * The search-pick-confirm flow moved to @cobuntu/management-ui-shared's
+ * The browse-pick-confirm flow lives in @cobuntu/management-ui-shared's
  * PersonPickerModal, so this file is now the EVENTS HALF of it: the endpoint,
  * its error vocabulary, and the three sentences describing what being made a
  * host actually does.
+ *
+ * WHAT CHANGED FOR THE OPERATOR: the community's members are on screen when it
+ * opens, grouped by role with leaders first, instead of an empty box saying
+ * "start typing". Typing narrows that list. Adding a host to your own community
+ * no longer requires knowing the person's exact handle before you begin.
  *
  * Nothing visible changed here. The move was for the product package, whose
  * co-seller equivalent was a bare "@usertag" text box posting a field the API
@@ -58,7 +63,10 @@ export function AddMemberAsHostModal({
     const config = useEventManagementConfig();
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
 
-    async function addHost(person: PersonSearchResult) {
+    async function addHost(people: PersonSearchResult[]) {
+        /* Single-pick, so the list holds exactly one — a host is added one at
+           a time, which is what the picker's `multiple={false}` guarantees. */
+        const person = people[0];
         const res = await fetch(`${config.apiBaseUrl}/api/events/${eventId}/hosts`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...config.authHeaders() },
@@ -90,23 +98,38 @@ export function AddMemberAsHostModal({
                 searchSubtitle: "Search members of this community. Guests and non-members are filtered out.",
                 pickedSubtitle: "They'll appear in the hosts list and can manage the event.",
                 searchPlaceholder: "Search by name or @usertag",
-                emptyHint: "Start typing to search this community's members.",
+                /* Not "start typing" any more: the roster is already on screen,
+                   so this only shows for a community with nobody to list. */
+                emptyHint: "No members to show.",
                 searching: "Searching…",
                 noMatches: "No matches.",
                 unknown: "Unknown",
                 consequencesTitle: "What happens next",
+                stepOne: "Choose a person",
+                stepTwo: "Review",
                 back: "Back",
                 cancel: "Cancel",
                 confirm: "Add as host",
                 confirming: "Adding…",
+                membersLabel: "Members",
+                showingLabel: "Showing",
+                allMembersLabel: "All members",
+                selectedLabel: (n: number) => `${n} selected`,
             }}
-            consequences={[
-                "They appear in the hosts list and can manage the event.",
-                "They get an email letting them know they're now a host.",
-                "No payment changes hands. They're not an attendee.",
-            ]}
+            stepTwo={{
+                kind: "consequences",
+                items: [
+                    "They appear in the hosts list and can manage the event.",
+                    "They get an email letting them know they're now a host.",
+                    "No payment changes hands. They're not an attendee.",
+                ],
+            }}
+            multiple={false}
             onConfirm={addHost}
-            onAdded={onAdded}
+            /* The prop's own contract is one Member, and it stays that way:
+               every caller renders a single host row from it. Unwrapping here
+               rather than widening the prop keeps that promise. */
+            onAdded={(people) => onAdded(people[0])}
         />
     );
 }
