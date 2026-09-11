@@ -3,12 +3,13 @@
 import { useRef, useState } from "react";
 import { getEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
-import { PersonPickerModal, type Recipient } from "@cobuntu/management-ui-shared";
+import {
+    PersonPickerModal, recipientsToApi, perRecipientMessages, type Recipient,
+} from "@cobuntu/management-ui-shared";
 import { AttendeesActionModalShell, PostSendCelebration } from "@cobuntu/event-management-ui";
 // InlineEmailPreview stays here rather than in the shared package: it
 // deep-links into the community's email editor, and only admin has that target.
 import { InlineEmailPreview } from "./attendees-action/InlineEmailPreview";
-import { recipientsToApi, perRecipientMessages } from "./recipientsToApi";
 import { useGuestSuggestions } from "./useGuestSuggestions";
 import { apiBase } from "../helpers";
 

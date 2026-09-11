@@ -3,9 +3,8 @@
 import { useRef, useState } from "react";
 import { getEventManagementConfig } from "../../config";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
-import { PersonPickerModal, type Recipient } from "@cobuntu/management-ui-shared";
+import { PersonPickerModal, recipientsToApi, type Recipient } from "@cobuntu/management-ui-shared";
 import { AttendeesActionModalShell, PostSendCelebration } from "@cobuntu/event-management-ui";
-import { recipientsToApi } from "./recipientsToApi";
 import { useGuestSuggestions } from "./useGuestSuggestions";
 import { apiBase } from "../helpers";
 
