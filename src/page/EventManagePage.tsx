@@ -323,28 +323,105 @@ export function readOnlyNoticeCopy(event: any): { title: string; body: string } 
   };
 }
 
+/**
+ * WHO owns it, with their face on it.
+ *
+ * ── Why this is not a warning ───────────────────────────────────────────────
+ *
+ * It used to be an amber banner, and amber means SOMETHING IS WRONG. Nothing is
+ * wrong here: the event simply belongs to someone else, which is a permanent
+ * fact about it rather than a problem to resolve. Rendering a fact in the
+ * colour of an error trains people to ignore the colour.
+ *
+ * ── Why it shows a face ─────────────────────────────────────────────────────
+ *
+ * The old version asserted ownership in prose without ever showing who. On a
+ * page about one event, inside a community the reader belongs to, "your
+ * community owns this" is abstract — the icon they recognise from the sidebar
+ * is not. So the owner is identified the way they are everywhere else: their
+ * image, their name.
+ *
+ * A community icon is SQUARE-ish and a person's photo is round, matching how
+ * each is drawn everywhere else in the product. That is the one visual cue
+ * telling the reader whether they are looking at an organisation or a person,
+ * and it costs nothing to keep.
+ */
+export function readOnlyOwner(event: any): {
+  kind: "community" | "person";
+  name: string;
+  imageUrl: string | null;
+} | null {
+  if (event?.communityId) {
+    // The OWNING community, not merely a carrying one — an event can be listed
+    // in several, and only one of them owns it.
+    const owning = (event?.communities ?? []).find(
+      (c: any) => c?.communityId === event.communityId || c?.community?.id === event.communityId,
+    );
+    const community = owning?.community ?? null;
+    return {
+      kind: "community",
+      name: community?.name || "Your community",
+      imageUrl: community?.iconUrl ?? null,
+    };
+  }
+
+  const creator = event?.hosts?.find((h: any) => h.role === "CREATOR") ?? event?.hosts?.[0];
+  const user = creator?.user ?? null;
+  if (!user) return null;
+  return {
+    kind: "person",
+    name: user.name || user.usertag || "the host",
+    imageUrl: user.profileImage ?? null,
+  };
+}
+
+function OwnerAvatar({ owner }: { owner: NonNullable<ReturnType<typeof readOnlyOwner>> }) {
+  // Square for an organisation, round for a person.
+  const shape = owner.kind === "community" ? "rounded-[10px]" : "rounded-full";
+
+  if (owner.imageUrl) {
+    return (
+      <img
+        src={owner.imageUrl}
+        alt=""
+        className={`h-10 w-10 shrink-0 object-cover ring-1 ring-black/5 ${shape}`}
+      />
+    );
+  }
+  // No image: the initial on a muted plate. Never a broken-image frame, and
+  // never a blank circle, which reads as something that failed to load.
+  return (
+    <span
+      aria-hidden="true"
+      className={`grid h-10 w-10 shrink-0 place-items-center bg-zinc-100 text-[15px] font-medium text-zinc-500 ring-1 ring-black/5 ${shape}`}
+    >
+      {owner.name.trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
 function ReadOnlyNotice({ event, communityTag }: { event: any; communityTag: string }) {
   const { title, body } = readOnlyNoticeCopy(event);
+  const owner = readOnlyOwner(event);
 
   return (
     <div
       role="note"
       /*
-        * NO dark: VARIANTS. Neither host app has a dark mode.
-        *
-        * Tailwind resolves `dark:` from prefers-color-scheme by default, so on
-        * a machine set to dark these fired while every surface around them
-        * stayed light: amber-950 at 30% over white is a muddy tan, and
-        * amber-200 on it is pale yellow. The banner looked broken to anyone
-        * whose OS was dark and correct to everyone else, which is why it
-        * survived.
-        *
-        * This was the only file in the package carrying them.
-        */
-      className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+       * NO dark: VARIANTS. Neither host app has a dark mode.
+       *
+       * Tailwind resolves `dark:` from prefers-color-scheme by default, so on a
+       * machine set to dark these fired while every surface around them stayed
+       * light. The banner looked broken to anyone whose OS was dark and correct
+       * to everyone else, which is why it survived so long.
+       */
+      className="mb-4 flex items-start gap-3.5 rounded-xl border border-zinc-200 bg-white px-4 py-3.5"
     >
-      <p className="font-medium">{title}</p>
-      <p className="mt-1 opacity-90">{body}</p>
+      {owner && <OwnerAvatar owner={owner} />}
+      <div className="min-w-0 flex-1">
+        <p className="text-[13.5px] font-medium text-zinc-900">{title}</p>
+        <p className="mt-0.5 text-[12.5px] leading-relaxed text-zinc-500">{body}</p>
+      </div>
     </div>
   );
 }

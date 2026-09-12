@@ -22,15 +22,44 @@
  */
 
 export interface ActivityEntryForRender {
-    source: 'EVENT_AUDIT' | 'HOST_AUDIT';
+    source: 'EVENT_AUDIT' | 'HOST_AUDIT' | 'SALE';
     action: string;
     actor: { id: string; name: string | null; usertag: string | null; profileImage: string | null } | null;
     payload: Record<string, unknown> | null;
 }
 
-/** Pull the actor's display name, defensively. */
+/**
+ * Pull the actor's display name, defensively.
+ *
+ * A GUEST buyer has no account, so there is no actor to hydrate — and this
+ * used to answer "Someone" about a person whose email was sitting in the
+ * payload. The buyer's address is carried for exactly this case.
+ *
+ * "Someone" survives only as the last resort, for a row whose actor user was
+ * genuinely deleted.
+ */
 function actorName(entry: ActivityEntryForRender): string {
-    return entry.actor?.name?.trim() || entry.actor?.usertag || 'Someone';
+    return entry.actor?.name?.trim()
+        || entry.actor?.usertag
+        || str(entry.payload, 'buyerEmail')
+        || 'Someone';
+}
+
+/**
+ * "EUR 24.00" from the payload's smallest-unit amount.
+ *
+ * The backend sends CENTS and says so — dividing here rather than there keeps
+ * currency rendering in one place, and `grossAmount` arrives as a Number
+ * already, because the Decimal it comes from serialises to a string.
+ */
+function amountLabel(payload: Record<string, unknown> | null): string | null {
+    const amount = num(payload, 'amount');
+    if (amount == null) return null;
+    const currency = str(payload, 'currency') || 'EUR';
+    const symbol: Record<string, string> = { EUR: '\u20ac', USD: '$', GBP: '\u00a3', BRL: 'R$', JPY: '\u00a5' };
+    // JPY has no minor unit; dividing would be wrong.
+    const major = currency === 'JPY' ? amount : amount / 100;
+    return `${symbol[currency] || currency + ' '}${major.toFixed(currency === 'JPY' ? 0 : 2)}`;
 }
 
 function str(payload: Record<string, unknown> | null, key: string): string | null {
@@ -223,6 +252,26 @@ export function renderActivitySentence(entry: ActivityEntryForRender): RenderedS
         case 'INVITATION_RESENT': {
             const email = str(entry.payload, 'invitedEmail');
             return { text: email ? `${actor} resent the invitation to ${email}` : `${actor} resent an invitation` };
+        }
+
+        /*
+         * A ticket changing hands, not an edit to the event.
+         *
+         * These shipped on the backend as a third activity source before this
+         * renderer knew about them, so every purchase fell through to the
+         * default below and read as "Someone updated the event" — wrong about
+         * what happened AND about who did it. A guest's address now names them
+         * (see actorName).
+         */
+        case 'PURCHASED': {
+            const money = amountLabel(entry.payload);
+            const qty = num(entry.payload, 'quantity') ?? 1;
+            const tickets = qty === 1 ? 'a ticket' : `${qty} tickets`;
+            return { text: money ? `${actor} bought ${tickets} for ${money}` : `${actor} bought ${tickets}` };
+        }
+        case 'PURCHASE_REFUNDED': {
+            const money = amountLabel(entry.payload);
+            return { text: money ? `${actor} was refunded ${money}` : `${actor} was refunded` };
         }
 
         default:
