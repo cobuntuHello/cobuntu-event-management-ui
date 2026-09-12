@@ -89,14 +89,52 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
   const containerRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
 
+  /*
+   * Which ends have more strip behind them. Drives the fades below.
+   *
+   * Kept as one object so a scroll sets state once rather than twice, and so
+   * the common case -- a desktop where every tab fits and both are false --
+   * settles after the first pass and stops re-rendering.
+   */
+  const [edges, setEdges] = useState({ left: false, right: false });
+
   function recompute() {
+    const c = containerRef.current;
+    if (!c) return;
+
     const node = tabRefs.current.get(activeView);
-    if (!node || !containerRef.current) return;
-    const containerLeft = containerRef.current.scrollLeft;
-    setIndicator({ left: node.offsetLeft - containerLeft, width: node.offsetWidth });
+    if (node) setIndicator({ left: node.offsetLeft - c.scrollLeft, width: node.offsetWidth });
+
+    /*
+     * The 1px slack is not superstition: scrollLeft is fractional under a
+     * browser zoom or a fractional device pixel ratio, so `scrollLeft < max`
+     * stays true by a quarter-pixel at the end of the strip and the right
+     * fade never goes away.
+     */
+    const max = c.scrollWidth - c.clientWidth;
+    const next = { left: c.scrollLeft > 1, right: c.scrollLeft < max - 1 };
+    setEdges((prev) => (prev.left === next.left && prev.right === next.right ? prev : next));
   }
 
-  useLayoutEffect(() => { recompute(); }, [activeView]);
+  /*
+   * Put the active tab on screen before the fades are measured.
+   *
+   * Landing on Activity from a saved URL used to show the first three tabs and
+   * no underline anywhere, which reads as a broken nav rather than a scrolled
+   * one. Done by setting scrollLeft rather than scrollIntoView: that walks
+   * every scrollable ancestor and would drag the page itself.
+   */
+  useLayoutEffect(() => {
+    const c = containerRef.current;
+    const node = tabRefs.current.get(activeView);
+    if (c && node) {
+      const left = node.offsetLeft;
+      const right = left + node.offsetWidth;
+      if (left < c.scrollLeft) c.scrollLeft = left - 8;
+      else if (right > c.scrollLeft + c.clientWidth) c.scrollLeft = right - c.clientWidth + 8;
+    }
+    recompute();
+  }, [activeView, visibleViews]);
 
   useEffect(() => {
     function onResize() { recompute(); }
@@ -110,10 +148,20 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative flex items-center gap-1 overflow-x-auto -mx-1 px-1 mb-6 border-b border-zinc-200"
-    >
+    /*
+     * THE FADES LIVE OUTSIDE THE SCROLLER, THE BORDER WITH THEM.
+     *
+     * An overlay inside an overflow-x-auto element scrolls away with the
+     * content it is supposed to be masking. So the wrapper holds the fades and
+     * the bottom rule, and only the tabs scroll. The scrollbar itself is
+     * hidden: a visible one on a phone is a desktop widget rendered at the
+     * wrong size, and the fade is the affordance that replaces it.
+     */
+    <div className="relative -mx-1 mb-6 border-b border-zinc-200">
+      <div
+        ref={containerRef}
+        className="relative flex items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
       {SECTIONS.filter((s) => !visibleViews || visibleViews.includes(s.key)).map((s) => {
         const active = s.key === activeView;
         const disabled = !!s.disabled;
@@ -146,6 +194,24 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
           style={{ left: indicator.left, width: indicator.width }}
         />
       )}
+      </div>
+
+      {/*
+        * The fades. Present only while there is something behind that edge,
+        * which is what makes them an indicator rather than decoration -- a
+        * strip that fits shows neither, so a desktop never sees them.
+        *
+        * They sit above the rule (bottom-px) so the border reads as one
+        * unbroken line under them.
+        */}
+      <span
+        aria-hidden
+        className={`pointer-events-none absolute left-0 top-0 bottom-px w-8 bg-gradient-to-r from-white to-transparent transition-opacity duration-200 motion-reduce:transition-none ${edges.left ? "opacity-100" : "opacity-0"}`}
+      />
+      <span
+        aria-hidden
+        className={`pointer-events-none absolute right-0 top-0 bottom-px w-8 bg-gradient-to-l from-white to-transparent transition-opacity duration-200 motion-reduce:transition-none ${edges.right ? "opacity-100" : "opacity-0"}`}
+      />
     </div>
   );
 }
