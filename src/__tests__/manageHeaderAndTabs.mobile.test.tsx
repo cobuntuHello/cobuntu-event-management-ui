@@ -128,6 +128,19 @@ describe("SectionsNav tab strip", () => {
         expect(scroller.className).toContain("[&::-webkit-scrollbar]:hidden");
     });
 
+    it("fades to the PAGE colour, not to white", () => {
+        // The community app themes its background per community. A hardcoded
+        // white fade paints a white smear across a branded page, and there is
+        // no breakpoint or scroll position that reveals it in a test that only
+        // asks whether a gradient exists.
+        const { container } = render(<SectionsNav communityTag="pbn" activeView="overview" onViewChange={() => {}} />);
+        const { left, right } = strip(container);
+        for (const fade of [left, right]) {
+            expect(fade.className).toContain("from-[var(--bg-color,#fff)]");
+            expect(fade.className).not.toMatch(/\bfrom-white\b/);
+        }
+    });
+
     it("shows no fade when every tab fits", () => {
         const { container } = render(<SectionsNav communityTag="pbn" activeView="overview" onViewChange={() => {}} />);
         const { left, right } = strip(container);
