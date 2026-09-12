@@ -203,14 +203,20 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
         *
         * They sit above the rule (bottom-px) so the border reads as one
         * unbroken line under them.
+        *
+        * The colour is the PAGE's, not white. The community app themes its
+        * background per community (lib/theme.ts sets --bg-color from the
+        * community's own bgColor), so a hardcoded white fade paints a white
+        * smear over a branded page. The admin app sets no such variable and
+        * takes the #fff fallback, which is what it was already.
         */}
       <span
         aria-hidden
-        className={`pointer-events-none absolute left-0 top-0 bottom-px w-8 bg-gradient-to-r from-white to-transparent transition-opacity duration-200 motion-reduce:transition-none ${edges.left ? "opacity-100" : "opacity-0"}`}
+        className={`pointer-events-none absolute left-0 top-0 bottom-px w-8 bg-gradient-to-r from-[var(--bg-color,#fff)] to-transparent transition-opacity duration-200 motion-reduce:transition-none ${edges.left ? "opacity-100" : "opacity-0"}`}
       />
       <span
         aria-hidden
-        className={`pointer-events-none absolute right-0 top-0 bottom-px w-8 bg-gradient-to-l from-white to-transparent transition-opacity duration-200 motion-reduce:transition-none ${edges.right ? "opacity-100" : "opacity-0"}`}
+        className={`pointer-events-none absolute right-0 top-0 bottom-px w-8 bg-gradient-to-l from-[var(--bg-color,#fff)] to-transparent transition-opacity duration-200 motion-reduce:transition-none ${edges.right ? "opacity-100" : "opacity-0"}`}
       />
     </div>
   );
