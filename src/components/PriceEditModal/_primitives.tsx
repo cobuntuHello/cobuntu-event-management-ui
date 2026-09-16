@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { Info } from "lucide-react";
+import { Info, Minus, Plus } from "lucide-react";
 
 /**
  * Small UI primitives local to the PriceEditModal layout. Intentionally
@@ -220,6 +220,55 @@ function FadeMount({ children }: { children: React.ReactNode }) {
       }`}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * Stepper — a numeric field flanked by decrease / increase pills. Ported from
+ * the product-management variant editor so Capacity can be edited inline (a
+ * labelled field with `[value] (−)(+)`) instead of drilling into a sub-screen.
+ * Value is a display-string so it slots straight into DraftTier's string
+ * fields (`capacity`); empty renders the placeholder (used for "Unlimited").
+ * Decrement floors at `min` (default 0) — pass the already-sold count for a
+ * locked tier so a cap can never land below what buyers already hold.
+ */
+export function Stepper({
+  value,
+  onChange,
+  placeholder,
+  min = 0,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  placeholder?: string;
+  min?: number;
+  ariaLabel?: string;
+}) {
+  const bump = (dir: number) => {
+    const current = parseInt(value, 10);
+    const base = Number.isFinite(current) ? current : min;
+    onChange(String(Math.max(min, base + dir)));
+  };
+  const pill =
+    "flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-900 active:scale-90 cursor-pointer";
+  return (
+    <div className="inline-flex items-center gap-2">
+      <input
+        value={value}
+        placeholder={placeholder}
+        inputMode="numeric"
+        aria-label={ariaLabel}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+        className="w-24 text-center text-[13px] border border-zinc-200 rounded-lg px-2 py-2 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
+      />
+      <button type="button" className={pill} onClick={() => bump(-1)} aria-label="Decrease">
+        <Minus className="h-4 w-4" />
+      </button>
+      <button type="button" className={pill} onClick={() => bump(1)} aria-label="Increase">
+        <Plus className="h-4 w-4" />
+      </button>
     </div>
   );
 }

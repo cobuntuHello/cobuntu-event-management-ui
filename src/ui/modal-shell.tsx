@@ -44,14 +44,31 @@ export function ModalShell({ children, onClose, width, className }: ModalShellPr
   // the desktop class never gets generated, leaving modals stuck at
   // full viewport width on all screens. Don't reintroduce that hack.
   return (
-    <Shared
-      onClose={onClose}
-      width={width ?? "w-full sm:w-[420px]"}
-      hideCloseButton
-      maxHeight="90vh"
-      className={className}
-    >
-      {children}
-    </Shared>
+    <>
+      {/*
+       * Hide the modal's scrollbars. The tier modal scrolls in two places: the
+       * shared shell's own scroll container AND PriceEditModal's inner body
+       * (tagged `.emui-modal-scroll`). Mirrors pmui's `.pmui-modal-scroll`
+       * approach — Firefox reads `scrollbar-width`, legacy Edge
+       * `-ms-overflow-style`, WebKit the `::-webkit-scrollbar` pseudo-element.
+       *
+       * The shared shell owns its scroll element (it lives in
+       * @cobuntu/management-ui-shared, so we can't put a class on it directly);
+       * that element is a direct child of the shell's panel, which the shared
+       * shell stamps with our `className`. So we tag the panel `emui-modal-panel`
+       * and target its scrolling child. The rule is global but class-scoped, so
+       * only these two containers lose their scrollbar.
+       */}
+      <style>{`.emui-modal-panel>.overflow-y-auto,.emui-modal-scroll{scrollbar-width:none;-ms-overflow-style:none}.emui-modal-panel>.overflow-y-auto::-webkit-scrollbar,.emui-modal-scroll::-webkit-scrollbar{display:none}`}</style>
+      <Shared
+        onClose={onClose}
+        width={width ?? "w-full sm:w-[420px]"}
+        hideCloseButton
+        maxHeight="90vh"
+        className={["emui-modal-panel", className].filter(Boolean).join(" ")}
+      >
+        {children}
+      </Shared>
+    </>
   );
 }

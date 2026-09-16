@@ -843,8 +843,16 @@ export function PriceEditModal({
       </div>
 
       {/* Body — the sole flexible region; scrolls when a level's content
-          is taller than the fixed column. */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+          is taller than the fixed column.
+          · `emui-modal-scroll` hides the scrollbar (rule in ui/modal-shell).
+          · `px-2 -mx-2` insets the content by 8px while pulling the box back
+            out by the same 8px, so the body's content stays aligned with the
+            header/footer above and below it, yet the overflow-x-hidden clip
+            edge now sits 8px OUTSIDE the cards. Without it the Advanced /
+            Availability cards' outset `ring-1` (drawn 1px beyond the box) was
+            clipped flush against the left/right clip boundary. The extra 8px
+            lives inside the shared shell's px-6, so nothing overflows. */}
+      <div className="emui-modal-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 -mx-2">
       {/* Cross-fade between levels/steps. Keyed on the current view so
           each navigation re-mounts and animates in (see StepFade). */}
       <StepFade stepKey={`${activeTier ?? "list"}:${activeStep ?? "hub"}:${loading ? "loading" : "ready"}`}>
