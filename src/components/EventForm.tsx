@@ -884,21 +884,6 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
         </div>
 
-      {/* ─── Donations — event-level sidecar, independent of tiers ───
-          Rendered directly below the Tickets card on the pricing surface, and
-          NOT ownership-gated: donations apply to both community- and
-          user-owned events. Create does not accept a donationConfig inline
-          (unlike products), so the consuming create client PUTs this to
-          /events/:eventId/donations after the event exists. The section owns
-          its own header + description, so no extra section label above it. */}
-      <div className="mt-6">
-        <DonationsSection
-          donation={donation}
-          onUpdate={(patch) => setDonation((d) => ({ ...d, ...patch }))}
-          defaultCurrency={tiers[0]?.currency || "EUR"}
-        />
-      </div>
-
       {/* ─── Approval ───
           A SIBLING of Community access, not a parent of it.
 
