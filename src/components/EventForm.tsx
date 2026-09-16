@@ -20,7 +20,8 @@ import {
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
 import type { MemberPricingUpsert } from "./PriceEditModal/member-pricing";
-import { blankTier } from "./PriceEditModal/helpers";
+import { blankTier, blankDonation } from "./PriceEditModal/helpers";
+import { DonationsSection } from "./PriceEditModal/DonationsSection";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
 import {
   MembershipTierPicker,
@@ -163,6 +164,15 @@ export interface EventFormData {
   viewTierIds: string[];
   buyTierIds: string[];
   tiers: TierItem[];
+  /**
+   * Event-level donation sidecar (independent of tiers). Optional on the type
+   * so consumers written before donations shipped still type-check. The
+   * create flow does NOT accept a donationConfig inline (unlike products); the
+   * consumer sends this to `PUT /communities/:tag/events/:eventId/donations`
+   * after the event is created via `donationDraftToPayload(donation)`, which
+   * returns null when donations are disabled. Mirrors ProductForm.donation.
+   */
+  donation?: DonationDraft;
   tags: Tag[];
 }
 
@@ -316,6 +326,16 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     initialData?.tiers && initialData.tiers.length > 0 ? initialData.tiers : [standardTier()],
   );
   const [tags, setTags] = useState<Tag[]>(initialData?.tags || []);
+  /**
+   * Event-level donation sidecar. Seeded from initialData when present (an
+   * edit / resumed draft), otherwise a blank draft in the seed tier's
+   * currency. Mirrors ProductForm's `donation` state. The create flow sends it
+   * via a post-create PUT /donations (create does not accept it inline), so
+   * this is emitted on every onChange for the consumer to forward.
+   */
+  const [donation, setDonation] = useState<DonationDraft>(
+    initialData?.donation || blankDonation(initialData?.tiers?.[0]?.currency || "EUR"),
+  );
   const [categoryId, setCategoryId] = useState<string | null>(initialData?.categoryId ?? null);
   const [subCategoryId, setSubCategoryId] = useState<string | null>(initialData?.subCategoryId ?? null);
 
@@ -585,11 +605,18 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       buyTierIds: buyResolved.tierIds,
       requiresApproval, tiers: submittableTiers, tags,
       categoryId, subCategoryId,
+      /*
+       * Donation sidecar — emitted so the create clients can PUT it to
+       * /donations after the event is created (create takes no inline
+       * donationConfig). Always present; disabled donations collapse to null
+       * via donationDraftToPayload on the consumer side. Mirrors ProductForm.
+       */
+      donation,
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
       viewAccess, buyAccess, requiresApproval, submittableTiers, tags,
-      categoryId, subCategoryId]); // eslint-disable-line react-hooks/exhaustive-deps
+      categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
 
@@ -840,8 +867,37 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             </button>
           </div>
 
+          {/* Donations — event-level, independent of tiers (applies to BOTH
+              community- and user-owned events). Sits as its own row in Event
+              Options, below the ticket tiers, because a donation is an optional
+              add-on for the whole event, not a per-tier setting. The create
+              flow has no inline donationConfig, so the consumer PUTs this to
+              /communities/:tag/events/:id/donations after the event is created
+              (see EventFormData.donation + donationDraftToPayload). */}
+          <div className="px-5 py-4 last:rounded-b-2xl">
+            <DonationsSection
+              donation={donation}
+              onUpdate={(patch) => setDonation((d) => ({ ...d, ...patch }))}
+              defaultCurrency={tiers[0]?.currency || "EUR"}
+            />
+          </div>
 
         </div>
+
+      {/* ─── Donations — event-level sidecar, independent of tiers ───
+          Rendered directly below the Tickets card on the pricing surface, and
+          NOT ownership-gated: donations apply to both community- and
+          user-owned events. Create does not accept a donationConfig inline
+          (unlike products), so the consuming create client PUTs this to
+          /events/:eventId/donations after the event exists. The section owns
+          its own header + description, so no extra section label above it. */}
+      <div className="mt-6">
+        <DonationsSection
+          donation={donation}
+          onUpdate={(patch) => setDonation((d) => ({ ...d, ...patch }))}
+          defaultCurrency={tiers[0]?.currency || "EUR"}
+        />
+      </div>
 
       {/* ─── Approval ───
           A SIBLING of Community access, not a parent of it.
