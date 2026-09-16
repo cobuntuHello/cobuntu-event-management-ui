@@ -190,11 +190,29 @@ interface EventFormProps {
    * width instead of narrowing further on top of it.
    */
   maxWidthClassName?: string;
+  /**
+   * Which half of the form to render, so a wizard can put pricing + approval on
+   * their own step. Mirrors ProductForm's `page`:
+   *   - "listing"  → the event's own details: name, banner, schedule, location,
+   *                  description, tags, category, CTA.
+   *   - "commerce" → ticket tiers (pricing) and the host's Require-approval gate.
+   *   - "all" (default) → everything on one page, so the manage/edit drawer and
+   *                  any single-page consumer are byte-identical to before.
+   * The state is shared regardless of page, so a wizard can mount ONE form and
+   * flip `page` between steps without losing what was typed. Community access
+   * (visibility) is unaffected — it stays gated by `hideVisibility` and, in the
+   * wizard, lives on its own access step.
+   */
+  page?: "listing" | "commerce" | "all";
 }
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl" }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all" }: EventFormProps) {
+  // Which half of the form this render shows. Default "all" → both true, so the
+  // one-page consumers (manage/edit drawer, admin single-page) are unchanged.
+  const showListing = page !== "commerce";
+  const showCommerce = page !== "listing";
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -531,8 +549,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
   return (
     <div>
-      {/* ─── Single column: title → banner hero → schedule → detail rows.
-            Mirrors the product form's polish (media hero + done-states). ─── */}
+      {/* ─── LISTING — the event's own details (title, banner, schedule,
+            location, description, tags, category). Hidden on the wizard's
+            pricing step (page="commerce"); shown alone on page="listing". ─── */}
+      {showListing && (
       <div className={`space-y-5 ${maxWidthClassName}`}>
           {/* Ownership selector */}
           {ownership && onOwnershipChange && (
@@ -686,6 +706,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             </button>
           </div>
       </div>
+      )}
 
       {/* Banner Crop Modal */}
       <BannerCropModal
@@ -697,9 +718,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         hideStockPhotos
       />
 
-      {/* ─── Options ─── */}
+      {/* ─── Options — pricing (ticket tiers) + the host's approval gate, plus
+            community access. On the wizard these are the pricing/approval step
+            (page="commerce"), hidden on page="listing". Community access stays
+            gated by hideVisibility within and, in the wizard, lives on its own
+            access step. ─── */}
       {/* On md+ aligned with the form column (264px = image width 240 + gap 24).
           On mobile no left padding — section uses full container width. */}
+      {showCommerce && (
       <div className={`${maxWidthClassName} mt-8`}>
         <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Event Options</p>
         <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
@@ -874,6 +900,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         </div>
       )}
       </div>
+      )}
 
       {/* ─── Description Editor Dialog ─── */}
       <Dialog open={isDescriptionOpen} onOpenChange={setIsDescriptionOpen}>
