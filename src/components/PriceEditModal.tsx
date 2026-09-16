@@ -941,6 +941,17 @@ export function PriceEditModal({
             <Plus className="w-3.5 h-3.5" /> Add tier
           </button>
 
+          {/* Whole-listing divider — separates the per-tier rows above from
+              the event-level Donations below. Without this label the donations
+              card reads as "just another tier" and hosts drilling into a tier
+              conclude the feature is gone (it isn't — donations is event-wide,
+              so it only lives here on the list, never inside a tier editor). */}
+          <div className="flex items-center gap-2 pt-2">
+            <div className="h-px flex-1 bg-zinc-100" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Whole listing</span>
+            <div className="h-px flex-1 bg-zinc-100" />
+          </div>
+
           {/* Donations sidecar — independent of tiers. Saved via PUT /donations
               alongside tier writes when changed. */}
           <DonationsSection
