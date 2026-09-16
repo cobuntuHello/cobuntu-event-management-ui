@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PriceEditModal } from "../components/PriceEditModal";
 import { renderWithConfig, mockFetch } from "./test-utils";
@@ -34,6 +34,67 @@ describe("PriceEditModal — draftMode", () => {
 
     // No backend call fired during mount.
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("DOES fetch community segments in draftMode when member pricing is on (segments predate the event), but still not /tiers or /stripe", async () => {
+    // Member pricing rides the create payload now, so the create wizard needs
+    // the community's segments to render editable overrides on a tier that has
+    // no id yet. Segments are community-wide and exist before the event, so
+    // this one GET is expected — /tiers and /stripe still must not fire.
+    const fetchFn = mockFetch([
+      { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: [] },
+    ]);
+    renderWithConfig(<PriceEditModal {...baseProps()} showMemberPricing />);
+
+    await screen.findByRole("button", { name: /Standard/ });
+    await waitFor(() => expect(fetchFn).toHaveBeenCalled());
+
+    const urls = fetchFn.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => /\/segments$/.test(u))).toBe(true);
+    expect(urls.some((u) => /\/tiers$/.test(u))).toBe(false);
+    expect(urls.some((u) => /\/stripe\/connected$/.test(u))).toBe(false);
+  });
+
+  it("folds enabled member-pricing rows into the committed draft (rides the create payload)", async () => {
+    // The core create-wizard behavior: member pricing configured on a tier with
+    // NO id is folded into that draft's draftMemberPricing on Save, keyed by
+    // localId while unsaved, so it ships inline on the create-event payload
+    // (helpers.draftTiersToCreatePayload emits body.memberPricing). Mirrors how
+    // the registration form rides create.
+    const user = userEvent.setup();
+    const onDraftCommit = vi.fn();
+    mockFetch([
+      { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: [{ id: "seg-1", name: "VIPs" }] },
+    ]);
+    renderWithConfig(
+      <PriceEditModal
+        {...baseProps({
+          onDraftCommit,
+          showMemberPricing: true,
+          initialDraftTiers: [{ ...blankTier(), name: "GA", price: "10" }],
+        })}
+      />,
+    );
+
+    // L1 → open the GA tier → the L2 tier editor renders member pricing inline.
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+
+    // Enable the VIPs override + set 15% off.
+    await user.click(await screen.findByLabelText(/Offer member pricing for VIPs/));
+    const valueInput = screen
+      .getAllByPlaceholderText(/20|10|—/)
+      .find((el) => (el as HTMLInputElement).type === "number") as HTMLInputElement;
+    fireEvent.change(valueInput, { target: { value: "15" } });
+
+    // Save (L2 footer) → draftMode fold → onDraftCommit.
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(onDraftCommit).toHaveBeenCalled());
+    const committed = onDraftCommit.mock.calls[0][0].tiers;
+    const ga = committed.find((t: any) => t.name === "GA");
+    expect(ga.draftMemberPricing).toEqual([
+      { segmentId: "seg-1", mode: "PERCENT_OFF", value: 15, priority: 0 },
+    ]);
   });
 
   it("seeds drafts from initialDraftTiers when provided", async () => {

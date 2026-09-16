@@ -58,6 +58,7 @@ export function StepView({
           memberPricingState={memberPricingState}
           onMemberPricingRowChange={onMemberPricingRowChange}
           showToast={showToast}
+          draftMode={draftMode}
         />
       )}
       {/* key: local limited/unlimited state must reset when the modal moves

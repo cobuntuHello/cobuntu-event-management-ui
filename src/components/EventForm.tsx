@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
+import type { MemberPricingUpsert } from "./PriceEditModal/member-pricing";
 import { blankTier } from "./PriceEditModal/helpers";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
 import {
@@ -74,6 +75,15 @@ export interface TierItem {
    * backend writes it with the tier. Undefined for a tier with no form.
    */
   draftForm?: { fields: any[]; stepLabels?: string[] } | null;
+  /**
+   * Community member (tier) pricing staged in the tier modal before the event
+   * exists. Same reason as draftForm: this interface is a field allowlist in
+   * BOTH directions, so a field not named here is dropped on every modal close.
+   * Carried here so the per-segment overrides survive the DraftTier ->
+   * TierItem round-trip and reach the create payload (draftTiersToCreatePayload
+   * emits body.memberPricing). Undefined for a tier with no overrides.
+   */
+  draftMemberPricing?: MemberPricingUpsert[] | null;
   /**
    * Publish state, staged before the event exists. Same reason as draftForm:
    * this interface is a field allowlist, so a field not named here is dropped
@@ -204,11 +214,21 @@ interface EventFormProps {
    * wizard, lives on its own access step.
    */
   page?: "listing" | "commerce" | "all";
+  /**
+   * Surfaces community member (tier) pricing inside the draftMode tier wizard
+   * so per-segment discount overrides can be configured at CREATE time (they
+   * ride the create payload, created atomically with each tier). Community-
+   * owned events only — the consumer passes its own ownership signal
+   * (e.g. `ownership === "community"`). Off → the section is not rendered,
+   * matching a member creating their own event. Default false. Mirrors
+   * ProductForm's `showMemberPricing`.
+   */
+  showMemberPricing?: boolean;
 }
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all" }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false }: EventFormProps) {
   // Which half of the form this render shows. Default "all" → both true, so the
   // one-page consumers (manage/edit drawer, admin single-page) are unchanged.
   const showListing = page !== "commerce";
@@ -332,6 +352,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       // already added, rather than an empty builder that silently replaces
       // them on the next commit.
       draftForm: t.draftForm ?? null,
+      // Same for member pricing — reopening the modal must show the overrides
+      // the host already configured (the seeding effect builds rows from this).
+      draftMemberPricing: t.draftMemberPricing ?? null,
       // Carried explicitly (allowlist — see TierItem.publishedAt). Only
       // overrides when the consumer actually set it: blankTier above defaults
       // publishedAt to "now", and defaulting undefined to null here would
@@ -416,6 +439,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         // Carried explicitly: this mapping is a field allowlist, so anything
         // not named here is dropped silently on every modal close.
         draftForm: d.draftForm ?? null,
+        // The folded member pricing (Save writes it onto the draft) — carried
+        // so it reaches EventFormData.tiers and the create payload.
+        draftMemberPricing: d.draftMemberPricing ?? null,
         publishedAt: d.publishedAt ?? null,
         // Carried explicitly — see TierItem. Omitting any of these silently
         // reverted the host's pricing model, plan or sales window on close.
@@ -946,6 +972,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
            */
           showToast={(msg) => console.warn("[EventForm tier modal]", msg)}
           draftMode
+          // Community-owned events surface member (tier) pricing in the create
+          // wizard; the overrides ride the create-event payload. Off for member
+          // submissions (they can't set community pricing).
+          showMemberPricing={showMemberPricing}
           initialDraftTiers={tiersToDrafts(pendingNewTier ? [...tiers, pendingNewTier] : tiers)}
           openTierLocalId={editTierLocalId}
           onDraftCommit={handleTiersCommit}
