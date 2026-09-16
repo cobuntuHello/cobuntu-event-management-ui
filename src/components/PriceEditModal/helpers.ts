@@ -361,6 +361,13 @@ export function draftTiersToCreatePayload(drafts: DraftTier[]): Record<string, u
       // empty form would gate registration behind a form with no questions.
       if (t.draftForm && t.draftForm.fields?.length) body.form = t.draftForm;
 
+      // Member (tier) pricing staged before the event exists — same rationale
+      // as the form above: only the create payload can carry per-segment
+      // overrides for a tier that has no id yet. The backend creates each
+      // atomically with the tier. On a SAVED event these go through the
+      // per-tier member-pricing endpoint instead, so this key never appears there.
+      if (t.draftMemberPricing?.length) body.memberPricing = t.draftMemberPricing;
+
       return body;
     });
 }

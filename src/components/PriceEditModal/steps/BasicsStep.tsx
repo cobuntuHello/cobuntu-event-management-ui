@@ -20,6 +20,9 @@ export interface BasicsStepProps {
   memberPricingState?: MemberPricingTierState;
   onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
   showToast?: (msg: string) => void;
+  /** Create flow — lets the member-pricing rows stay editable for a tier that
+   *  has no server id yet (folded into the create payload on Save). */
+  draftMode?: boolean;
 }
 
 /**
@@ -43,6 +46,7 @@ export function BasicsStep({
   memberPricingState,
   onMemberPricingRowChange,
   showToast,
+  draftMode,
 }: BasicsStepProps) {
   const sym = getSymbol(t.currency);
   const locked = isTierLocked(t);
@@ -242,6 +246,7 @@ export function BasicsStep({
             memberPricingState={memberPricingState}
             onMemberPricingRowChange={onMemberPricingRowChange}
             showToast={showToast ?? (() => {})}
+            draftMode={draftMode}
           />
         </div>
       )}

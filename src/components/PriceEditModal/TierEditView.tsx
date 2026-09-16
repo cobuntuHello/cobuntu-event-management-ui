@@ -137,6 +137,7 @@ export function TierEditView({
             memberPricingState={memberPricingState}
             onMemberPricingRowChange={onMemberPricingRowChange}
             showToast={showToast}
+            draftMode={draftMode}
           />
         </div>
       </div>

@@ -79,6 +79,19 @@ describe("draftTiersToCreatePayload (events)", () => {
     expect(empty[0]).not.toHaveProperty("form");
   });
 
+  it("carries staged member (tier) pricing, and omits an empty/null set", () => {
+    // Member pricing rides the create payload the same way the form does — a
+    // per-segment override for a tier that has no id yet, created atomically
+    // with the tier. Money is already in smallest units on the payload object.
+    const mp = [{ segmentId: "seg-1", mode: "PERCENT_OFF" as const, value: 15, priority: 0 }];
+    const withMp = draftTiersToCreatePayload([draft({ draftMemberPricing: mp })]);
+    expect(withMp[0]!.memberPricing).toEqual(mp);
+
+    // Absent, not empty: an empty (or null) set is nothing to create.
+    expect(draftTiersToCreatePayload([draft({ draftMemberPricing: [] })])[0]).not.toHaveProperty("memberPricing");
+    expect(draftTiersToCreatePayload([draft({ draftMemberPricing: null })])[0]).not.toHaveProperty("memberPricing");
+  });
+
   it("passes publish state through, including an explicit draft", () => {
     const when = new Date().toISOString();
     expect(draftTiersToCreatePayload([draft({ publishedAt: when })])[0]!.publishedAt).toBe(when);
