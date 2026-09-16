@@ -128,6 +128,23 @@ export interface EventFormData {
   timezone: string;
   physicalLocation: string;
   onlineUrl: string;
+  /**
+   * The map pin for `physicalLocation`, when the host picked the address from
+   * the Google suggestion list rather than typing it.
+   *
+   * Optional on the type so consumers written before this shipped still
+   * type-check (same reason as `viewability` below). null means "no pin":
+   * either nothing was picked, or the host hand-edited the address afterwards,
+   * in which case the old pin is deliberately dropped rather than left to
+   * disagree with the text.
+   *
+   * These were silently discarded on create until 2026-09-16 — the form
+   * rendered EventLocationSelector without `onCoordinatesChange`, and the
+   * selector calls it optionally, so every resolved pin went on the floor and
+   * the detail page fell back to "Location to be announced".
+   */
+  physicalLatitude?: number | null;
+  physicalLongitude?: number | null;
   // Action gate — who can RSVP (existing field, "Attendance" toggle below).
   accessibility: "PUBLIC" | "MEMBERS_ONLY";
   // View gate — who can SEE the event detail page (new, PR 8 of
@@ -248,6 +265,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [endTime, setEndTime] = useState(initialData?.endTime || "16:00");
   const [timezone, setTimezone] = useState(initialData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [physicalLocation, setPhysicalLocation] = useState(initialData?.physicalLocation || "");
+  const [physicalLatitude, setPhysicalLatitude] = useState<number | null>(initialData?.physicalLatitude ?? null);
+  const [physicalLongitude, setPhysicalLongitude] = useState<number | null>(initialData?.physicalLongitude ?? null);
   const [onlineUrl, setOnlineUrl] = useState(initialData?.onlineUrl || "");
   // Capacity is now per-tier (set inside the tier modal). Legacy event-level
   // capacity field was removed in the tier-only capacity refactor (PR C).
@@ -545,7 +564,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   useLayoutEffect(() => {
     onChangeRef.current?.({
       name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
-      physicalLocation, onlineUrl,
+      physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
       /*
        * `submittableTiers` (main #111/#112), not raw `tiers`: the raw list
        * includes rows the host has not configured, and emitting those dropped
@@ -568,7 +587,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       categoryId, subCategoryId,
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
-      physicalLocation, onlineUrl, viewAccess, buyAccess, requiresApproval, submittableTiers, tags,
+      physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
+      viewAccess, buyAccess, requiresApproval, submittableTiers, tags,
       categoryId, subCategoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
@@ -997,6 +1017,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             onlineUrl={onlineUrl}
             onPhysicalLocationChange={setPhysicalLocation}
             onOnlineUrlChange={setOnlineUrl}
+            /* Without this the selector's `onCoordinatesChange?.()` is a no-op
+               and every pin the picker resolves is dropped. LocationEditModal
+               (the EDIT path) always had it; the create form did not, which is
+               why events created here saved an address with no map. */
+            onCoordinatesChange={(nextLat, nextLng) => {
+              setPhysicalLatitude(nextLat);
+              setPhysicalLongitude(nextLng);
+            }}
             hideHeader
           />
           <DialogFooter>
