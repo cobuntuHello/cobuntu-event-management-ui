@@ -125,29 +125,16 @@ export function TierEditView({
         </div>
       </div>
 
-      {/* Pricing — the full pricing surface, inline (model, price, billing,
-          installment schedule, and member pricing when enabled). */}
-      <div>
-        <Eyebrow>Pricing</Eyebrow>
-        <div className="mt-2">
-          <BasicsStep
-            t={t}
-            onUpdate={onUpdate}
-            showMemberPricing={showMemberPricing}
-            memberPricingState={memberPricingState}
-            onMemberPricingRowChange={onMemberPricingRowChange}
-            showToast={showToast}
-            draftMode={draftMode}
-          />
-        </div>
-      </div>
-
       {/* Capacity — an inline stepper, edited in place like name/description.
-          Was a drill-in Advanced row (onEnterStep("capacity")); the drill-in
-          CapacityStep still exists in StepView but is no longer routed to. The
-          stored shape is unchanged: `t.capacity` is a string, "" = unlimited
-          (rendered as the "Unlimited" placeholder). On a locked tier the floor
-          is the already-sold count so a cap can't drop below tickets held. */}
+          Moved ABOVE the pricing surface (2026-09-16): capacity is a property
+          of the tier itself ("how many seats"), so it reads more naturally
+          right under the description than buried below the price/billing/
+          member-override surface. Was a drill-in Advanced row
+          (onEnterStep("capacity")); the drill-in CapacityStep still exists in
+          StepView but is no longer routed to. The stored shape is unchanged:
+          `t.capacity` is a string, "" = unlimited (rendered as the "Unlimited"
+          placeholder). On a locked tier the floor is the already-sold count so
+          a cap can't drop below tickets held. */}
       <div>
         <Eyebrow help="Unlimited means there is no cap on how many can be sold.">
           Capacity
@@ -164,6 +151,23 @@ export function TierEditView({
         <p className="text-[12px] text-zinc-500 mt-1.5 leading-relaxed">
           How many tickets can be sold before this tier is sold out. Leave empty for unlimited.
         </p>
+      </div>
+
+      {/* Pricing — the full pricing surface, inline (model, price, billing,
+          installment schedule, and member pricing when enabled). */}
+      <div>
+        <Eyebrow>Pricing</Eyebrow>
+        <div className="mt-2">
+          <BasicsStep
+            t={t}
+            onUpdate={onUpdate}
+            showMemberPricing={showMemberPricing}
+            memberPricingState={memberPricingState}
+            onMemberPricingRowChange={onMemberPricingRowChange}
+            showToast={showToast}
+            draftMode={draftMode}
+          />
+        </div>
       </div>
 
       {/* Advanced — one hairline-divided card of rows that drill into a

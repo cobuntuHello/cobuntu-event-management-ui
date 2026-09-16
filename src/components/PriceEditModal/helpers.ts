@@ -289,6 +289,21 @@ export function buildDonationBody(
   return base;
 }
 
+/**
+ * Single-arg convenience over buildDonationBody, for consumers that build the
+ * /donations PUT body straight from a DonationDraft — the create-event clients
+ * call this exactly like the products flow calls
+ * `donationDraftToPayload(data.donation)`. Returns the sidecar object, or null
+ * when donations are disabled (the caller then skips the PUT, or PUTs null to
+ * clear). Uses the draft's own currency (EventForm seeds it from the tier
+ * currency), falling back to EUR. Named to mirror
+ * @cobuntu/product-management-ui's donationDraftToPayload so both create flows
+ * read identically.
+ */
+export function donationDraftToPayload(d: DonationDraft): Record<string, unknown> | null {
+  return buildDonationBody(d, d.currency || "EUR");
+}
+
 /** Detect tiers whose name or price changed materially vs the
  *  original snapshot. Drives the notify-attendees prompt. */
 export function findTiersWithMaterialChanges(

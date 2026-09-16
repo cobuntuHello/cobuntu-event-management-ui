@@ -70,6 +70,7 @@ export {
   buildTierBody,
   draftTiersToCreatePayload,
   buildDonationBody,
+  donationDraftToPayload,
 } from "./components/PriceEditModal/helpers";
 export { EditEventDrawer } from "./components/EditEventDrawer";
 export { NameEditModal } from "./components/NameEditModal";
