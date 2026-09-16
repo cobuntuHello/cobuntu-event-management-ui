@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronRight, Package, Calendar, ClipboardList, Lock, Eye, EyeOff, Info } from "lucide-react";
-import { Eyebrow, StepInput, StepTextarea, Switch } from "./_primitives";
+import { ChevronRight, Calendar, ClipboardList, Lock, Eye, EyeOff, Info } from "lucide-react";
+import { Eyebrow, StepInput, StepTextarea, Stepper, Switch } from "./_primitives";
 import { TIER_NAME_MAX, TIER_DESCRIPTION_MAX, type DraftTier } from "./types";
 import { isTierLocked } from "./helpers";
 import { BasicsStep } from "./steps/BasicsStep";
@@ -141,17 +141,35 @@ export function TierEditView({
         </div>
       </div>
 
+      {/* Capacity — an inline stepper, edited in place like name/description.
+          Was a drill-in Advanced row (onEnterStep("capacity")); the drill-in
+          CapacityStep still exists in StepView but is no longer routed to. The
+          stored shape is unchanged: `t.capacity` is a string, "" = unlimited
+          (rendered as the "Unlimited" placeholder). On a locked tier the floor
+          is the already-sold count so a cap can't drop below tickets held. */}
+      <div>
+        <Eyebrow help="Unlimited means there is no cap on how many can be sold.">
+          Capacity
+        </Eyebrow>
+        <div className="mt-1.5">
+          <Stepper
+            value={t.capacity}
+            onChange={(next) => onUpdate({ capacity: next })}
+            placeholder="Unlimited"
+            min={locked ? t.salesCount : 0}
+            ariaLabel="Capacity"
+          />
+        </div>
+        <p className="text-[12px] text-zinc-500 mt-1.5 leading-relaxed">
+          How many tickets can be sold before this tier is sold out. Leave empty for unlimited.
+        </p>
+      </div>
+
       {/* Advanced — one hairline-divided card of rows that drill into a
           sub-screen. Matches the approved mockup. */}
       <div>
         <Eyebrow>Advanced</Eyebrow>
         <div className="mt-1.5 rounded-2xl ring-1 ring-zinc-100 divide-y divide-zinc-100 overflow-hidden">
-          <AdvancedRow
-            icon={<Package className="h-[17px] w-[17px]" />}
-            label="Capacity"
-            value={t.capacity ? `${t.capacity} spots` : "Unlimited"}
-            onClick={() => onEnterStep("capacity")}
-          />
           <AdvancedRow
             icon={<Calendar className="h-[17px] w-[17px]" />}
             label="Sales window"
