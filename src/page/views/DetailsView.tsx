@@ -251,11 +251,14 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
           // legacy onOpenTierForm prop is gone from the package
           // surface (Phase C of the redesign rollout).
           //
-          // Admin only edits community-owned events — enable the
-          // per-segment member-pricing override editor on each tier
-          // card. The shared pkg hides the section per-tier for
-          // unsaved drafts (no tier id yet).
-          showMemberPricing
+          // Member pricing is a COMMUNITY-owned-only feature (segments
+          // are community-scoped; MemberPricingService rejects overrides
+          // on a personal event). Gate on the event's ownership rather
+          // than hardcoding true — this view is shared, so a user-owned
+          // event rendered here must NOT surface the per-segment editor.
+          // The shared pkg also hides the section per-tier for unsaved
+          // drafts (no tier id yet).
+          showMemberPricing={!!event?.communityId}
         />
       )}
       {modal === "slug" && (
