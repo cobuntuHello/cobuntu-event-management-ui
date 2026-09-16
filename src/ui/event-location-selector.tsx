@@ -156,7 +156,12 @@ export function EventLocationSelector({
             </div>
             <div className="relative">
               <Input ref={locationInputRef} type="text" value={physicalLocation}
-                onChange={e => { onPhysicalLocationChange(e.target.value); if (!e.target.value) onCoordinatesChange?.(null, null); setSelectedSuggestionIndex(-1); }}
+                /* Any hand-edit drops the pin, not just clearing the field.
+                   A pin is only ever valid for the address that was PICKED, so
+                   typing "Porto" over a chosen "Lisboa" previously left the map
+                   on Lisboa and the label reading Porto, with nothing to tell
+                   them apart once saved. Pick again to get a pin back. */
+                onChange={e => { onPhysicalLocationChange(e.target.value); onCoordinatesChange?.(null, null); setSelectedSuggestionIndex(-1); }}
                 onKeyDown={handleKeyDown}
                 placeholder="Search for a location or enter address..." className="w-full pr-8" disabled={disabled} />
               {/* The clear control used to be a bare 16px X sharing `right-3`
