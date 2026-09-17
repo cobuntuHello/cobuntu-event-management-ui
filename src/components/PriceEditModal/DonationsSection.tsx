@@ -9,6 +9,19 @@ export interface DonationsSectionProps {
   donation: DonationDraft;
   onUpdate: (patch: Partial<DonationDraft>) => void;
   defaultCurrency: string;
+  /**
+   * Drop the built-in header row (icon + title + explainer + enable switch)
+   * and render the settings alone, always expanded.
+   *
+   * For the create wizard, where DonationsField already carries the switch on
+   * its row and the modal writes its own heading. Without this the dialog
+   * opened with a duplicate of the row that opened it, and offered a second
+   * switch for the same value.
+   *
+   * Defaults false, so the manage-page PriceEditModal keeps the header and the
+   * inline Collapse it has always had.
+   */
+  hideHeader?: boolean;
 }
 
 /**
@@ -27,7 +40,7 @@ export interface DonationsSectionProps {
  * Pure controlled component — no fetch/save; the parent persists via the
  * product/event donations endpoint. Currency follows the tier currency.
  */
-export function DonationsSection({ donation, onUpdate, defaultCurrency }: DonationsSectionProps) {
+export function DonationsSection({ donation, onUpdate, defaultCurrency, hideHeader = false }: DonationsSectionProps) {
   const sym = getSymbol(donation.currency || defaultCurrency);
 
   const addAmount = () => onUpdate({ amounts: [...donation.amounts, ""] });
@@ -41,7 +54,9 @@ export function DonationsSection({ donation, onUpdate, defaultCurrency }: Donati
 
   return (
     <div>
-      {/* Enable + intro */}
+      {/* Enable + intro. Suppressed when the caller owns the header — see
+          `hideHeader`. */}
+      {!hideHeader && (
       <div className="flex items-start gap-3">
         <div className="mt-0.5 h-9 w-9 shrink-0 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500">
           <HandCoins className="h-[18px] w-[18px]" />
@@ -49,16 +64,22 @@ export function DonationsSection({ donation, onUpdate, defaultCurrency }: Donati
         <div className="flex-1 min-w-0">
           <p className="text-[14px] font-semibold text-zinc-900">Donations</p>
           <p className="text-[12px] text-zinc-500 mt-0.5 leading-snug">
-            Let buyers add an optional contribution at checkout, on top of any price. The same prompt shows no matter which variant they pick.
+            Let buyers add an optional contribution at checkout, on top of any price. The same prompt shows no matter which ticket tier they pick.
           </p>
         </div>
         <div className="pt-0.5">
           <Switch checked={donation.enabled} onChange={(v) => onUpdate({ enabled: v })} label="Enable donations" />
         </div>
       </div>
+      )}
 
-      <Collapse open={donation.enabled}>
-        <div className="mt-5 space-y-5">
+      {/* With the header hidden the caller only mounts this when donations are
+          already on, so the reveal has nothing left to animate — forcing it
+          open avoids a collapsed-to-zero body on first paint. */}
+      <Collapse open={hideHeader || donation.enabled}>
+        {/* The top margin separates the body from the header; with no header
+            the caller owns that spacing, so don't add it twice. */}
+        <div className={`${hideHeader ? "" : "mt-5"} space-y-5`}>
           {/* Mode — segmented control */}
           <div>
             <Eyebrow>How buyers give</Eyebrow>
