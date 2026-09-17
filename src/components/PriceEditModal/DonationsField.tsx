@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { HandCoins, ChevronRight } from "lucide-react";
+import { HandCoins, ChevronRight, X } from "lucide-react";
 import type { DonationDraft } from "./types";
 import { getSymbol } from "./helpers";
 import { DonationsSection } from "./DonationsSection";
@@ -57,14 +57,29 @@ export function DonationsField({ donation, onUpdate, defaultCurrency }: Donation
 
       {open && (
         <ModalShell onClose={() => setOpen(false)} width="w-[520px]">
+          {/* Top-right close — circular muted, house modal treatment. */}
+          <div className="flex justify-end -mt-1 -mr-1 mb-1">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 hover:bg-zinc-200 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
           <DonationsSection donation={donation} onUpdate={onUpdate} defaultCurrency={defaultCurrency} />
+
+          {/* Footer close — muted. The form auto-saves through onUpdate, so this
+              just dismisses; both this and the top-right X close the modal. */}
           <div className="mt-6 flex justify-end">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="px-5 py-2 text-[13px] font-medium rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="px-5 py-2 text-[13px] font-medium rounded-xl bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer"
             >
-              Done
+              Close
             </button>
           </div>
         </ModalShell>
