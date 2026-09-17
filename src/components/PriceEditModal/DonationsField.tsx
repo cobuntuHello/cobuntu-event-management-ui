@@ -37,22 +37,23 @@ export function DonationsField({ donation, onUpdate, defaultCurrency }: Donation
 
   return (
     <>
+      {/* Styled to match the wizard's other drill-in rows (e.g. the variant
+          row): zinc-50 card, w-8 rounded-lg icon tile, 13px/11px text, chevron
+          with a group-hover nudge. State reads from the summary line rather than
+          a separate On/Off chip, so it resembles those rows. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-50 transition-colors text-left cursor-pointer"
+        className="group w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 hover:bg-zinc-100/60 transition-colors text-left cursor-pointer"
       >
-        <div className="h-9 w-9 shrink-0 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500">
-          <HandCoins className="h-[18px] w-[18px]" />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200 text-zinc-600">
+          <HandCoins className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[13.5px] font-medium text-zinc-800">Donations</p>
-          <p className="text-[12px] text-zinc-400 mt-0.5 truncate">{summarize(donation, sym)}</p>
+          <p className="text-[13px] font-medium text-zinc-800">Donations</p>
+          <p className="text-[11px] text-zinc-400 truncate">{summarize(donation, sym)}</p>
         </div>
-        <span className={`text-[12px] font-medium shrink-0 ${donation.enabled ? "text-zinc-600" : "text-zinc-300"}`}>
-          {donation.enabled ? "On" : "Off"}
-        </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
       </button>
 
       {open && (
