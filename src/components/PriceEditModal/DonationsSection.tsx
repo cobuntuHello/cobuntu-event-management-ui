@@ -1,9 +1,9 @@
 "use client";
 
-import { Trash2, Plus } from "lucide-react";
+import { HandCoins, Plus, X } from "lucide-react";
 import type { DonationDraft } from "./types";
 import { getSymbol } from "./helpers";
-import { Collapse, Eyebrow } from "./_primitives";
+import { Collapse, Eyebrow, Switch } from "./_primitives";
 
 export interface DonationsSectionProps {
   donation: DonationDraft;
@@ -12,98 +12,96 @@ export interface DonationsSectionProps {
 }
 
 /**
- * Sidecar donation config (saved separately from tiers via PUT /donations).
- * Two modes:
- *   - Suggested amounts: chip list. Buyer picks one at checkout.
- *   - Any amount: buyer enters any amount; optional minimum. (This is the
- *     donation-amount presentation — NOT the tier-level pay-what-you-want
- *     price mode, which sets the price of the ticket itself. A donation is an
- *     optional contribution ON TOP of whatever the buyer already pays.)
+ * Donation settings form — the BODY of the donations editor. It is bare
+ * (no outer card) so it drops cleanly into two chrome contexts:
+ *   - the create wizard's DonationsField modal / mobile drawer, and
+ *   - the manage-page PriceEditModal tier list (wrapped in a card there).
  *
- * Currency follows the tier currency by default — if it diverges, hosts
- * can override. (Currency override is intentionally simple here; deeper
- * cross-currency donation logic can come later.)
+ * A donation is an optional contribution a buyer can add at checkout, ON TOP
+ * of whatever they already pay — product/event-level, identical no matter
+ * which tier they pick. This is NOT the tier-level pay-what-you-want price
+ * mode (that sets the price of the item itself). Two presentations:
+ *   - Suggested amounts: a chip list; the buyer taps one or types their own.
+ *   - Any amount: the buyer enters any amount, above an optional minimum.
+ *
+ * Pure controlled component — no fetch/save; the parent persists via the
+ * product/event donations endpoint. Currency follows the tier currency.
  */
 export function DonationsSection({ donation, onUpdate, defaultCurrency }: DonationsSectionProps) {
   const sym = getSymbol(donation.currency || defaultCurrency);
 
-  function addAmount() {
-    onUpdate({ amounts: [...donation.amounts, ""] });
-  }
-  function updateAmount(idx: number, value: string) {
-    const next = [...donation.amounts];
-    next[idx] = value;
-    onUpdate({ amounts: next });
-  }
-  function removeAmount(idx: number) {
+  const addAmount = () => onUpdate({ amounts: [...donation.amounts, ""] });
+  const updateAmount = (idx: number, value: string) =>
+    onUpdate({ amounts: donation.amounts.map((a, i) => (i === idx ? value : a)) });
+  const removeAmount = (idx: number) =>
     onUpdate({ amounts: donation.amounts.filter((_, i) => i !== idx) });
-  }
+
+  const amountInputCls =
+    "pl-7 pr-8 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-      <div className="px-4 py-3 flex items-center gap-3 border-b border-zinc-100">
+    <div>
+      {/* Enable + intro */}
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 h-9 w-9 shrink-0 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500">
+          <HandCoins className="h-[18px] w-[18px]" />
+        </div>
         <div className="flex-1 min-w-0">
           <p className="text-[14px] font-semibold text-zinc-900">Donations</p>
-          <p className="text-[11px] text-zinc-500 mt-0.5">
-            Optional add-on at checkout. Independent of tiers — same prompt regardless of which tier the buyer picks.
+          <p className="text-[12px] text-zinc-500 mt-0.5 leading-snug">
+            Let buyers add an optional contribution at checkout, on top of any price. The same prompt shows no matter which variant they pick.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => onUpdate({ enabled: !donation.enabled })}
-          className={`relative shrink-0 rounded-full cursor-pointer transition-colors duration-200 ease-out ${donation.enabled ? "bg-zinc-900" : "bg-zinc-200"}`}
-          style={{ width: 38, height: 22 }}
-          aria-pressed={donation.enabled}
-          aria-label="Toggle donations"
-        >
-          <span
-            className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200 ease-out"
-            style={{ transform: donation.enabled ? "translateX(18px)" : "translateX(2px)" }}
-          />
-        </button>
+        <div className="pt-0.5">
+          <Switch checked={donation.enabled} onChange={(v) => onUpdate({ enabled: v })} label="Enable donations" />
+        </div>
       </div>
 
       <Collapse open={donation.enabled}>
-        <div className="px-4 py-3 space-y-3">
-          {/* Mode */}
+        <div className="mt-5 space-y-5">
+          {/* Mode — segmented control */}
           <div>
-            <Eyebrow>Mode</Eyebrow>
-            <div className="grid grid-cols-2 gap-2 mt-1.5">
-              <button
-                type="button"
-                onClick={() => onUpdate({ mode: "fixed" })}
-                className={`px-3 py-2 text-[13px] rounded-lg border cursor-pointer transition-colors ${donation.mode === "fixed" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
-              >Suggested amounts</button>
-              <button
-                type="button"
-                onClick={() => onUpdate({ mode: "pwyw" })}
-                className={`px-3 py-2 text-[13px] rounded-lg border cursor-pointer transition-colors ${donation.mode === "pwyw" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
-              >Any amount</button>
+            <Eyebrow>How buyers give</Eyebrow>
+            <div className="mt-1.5 grid grid-cols-2 gap-1 p-1 rounded-xl bg-zinc-100">
+              {([["fixed", "Suggested amounts"], ["pwyw", "Any amount"]] as const).map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => onUpdate({ mode: m })}
+                  className={`px-3 py-1.5 text-[13px] rounded-lg transition-colors cursor-pointer ${
+                    donation.mode === m
+                      ? "bg-white text-zinc-900 font-medium shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Fixed: chip list */}
+          {/* Suggested amounts — chips */}
           <Collapse open={donation.mode === "fixed"}>
             <div>
-              <Eyebrow>Suggested amounts</Eyebrow>
-              <div className="flex flex-wrap gap-2 mt-1.5">
+              <Eyebrow help="Buyers tap one of these, or type their own amount.">Suggested amounts</Eyebrow>
+              <div className="mt-1.5 flex flex-wrap gap-2">
                 {donation.amounts.map((a, i) => (
                   <div key={i} className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[12px] text-zinc-400 pointer-events-none">{sym}</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-zinc-400 pointer-events-none">{sym}</span>
                     <input
                       type="number" min="0" step="0.01" value={a}
-                      onChange={e => updateAmount(i, e.target.value)}
+                      onChange={(e) => updateAmount(i, e.target.value)}
                       placeholder="10"
-                      className="w-[88px] pl-6 pr-7 py-1.5 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className={`w-[108px] ${amountInputCls}`}
                     />
                     {donation.amounts.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeAmount(i)}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-zinc-300 hover:text-red-500 cursor-pointer"
                         aria-label="Remove amount"
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <X className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
@@ -112,45 +110,41 @@ export function DonationsSection({ donation, onUpdate, defaultCurrency }: Donati
                   <button
                     type="button"
                     onClick={addAmount}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 border border-dashed border-zinc-300 rounded-lg hover:border-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-3 py-2 text-[12px] font-medium text-zinc-500 border border-dashed border-zinc-300 rounded-xl hover:border-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer"
                   >
-                    <Plus className="w-3 h-3" /> Add
+                    <Plus className="h-3.5 w-3.5" /> Add
                   </button>
                 )}
               </div>
             </div>
           </Collapse>
 
-          {/* Any amount: optional minimum */}
+          {/* Any amount — optional minimum */}
           <Collapse open={donation.mode === "pwyw"}>
             <div>
-              <Eyebrow>Minimum (optional)</Eyebrow>
-              <div className="relative max-w-[220px] mt-1.5">
+              <Eyebrow help="The smallest a buyer can give. Leave empty for no floor.">Minimum (optional)</Eyebrow>
+              <div className="relative mt-1.5 max-w-[220px]">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-zinc-400 pointer-events-none">{sym}</span>
                 <input
                   type="number" min="0" step="0.01" value={donation.minAmount}
-                  onChange={e => onUpdate({ minAmount: e.target.value })}
+                  onChange={(e) => onUpdate({ minAmount: e.target.value })}
                   placeholder="No minimum"
-                  className="w-full pl-7 pr-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className={`w-full ${amountInputCls}`}
                 />
               </div>
             </div>
           </Collapse>
 
-          {/* Optional label — the prompt buyers see at checkout. Field
-              has been defined on DonationDraft and accepted by
-              buildDonationBody since the Phase 4c uber-tip work, but the
-              event admin UI never surfaced an input — products already
-              had it. Closes that parity gap (Phase 4.1 of donations.md). */}
+          {/* Checkout label */}
           <div>
-            <Eyebrow>Label (optional)</Eyebrow>
+            <Eyebrow help="The text on the button buyers tap at checkout.">Checkout label (optional)</Eyebrow>
             <input
               type="text"
               value={donation.label}
-              onChange={e => onUpdate({ label: e.target.value })}
-              placeholder='Defaults to "Add a donation"'
+              onChange={(e) => onUpdate({ label: e.target.value })}
+              placeholder={'Defaults to "Add a donation"'}
               maxLength={100}
-              className="w-full mt-1.5 px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
+              className="w-full mt-1.5 px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5"
             />
           </div>
         </div>

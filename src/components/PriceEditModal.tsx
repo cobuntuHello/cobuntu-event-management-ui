@@ -1018,11 +1018,16 @@ export function PriceEditModal({
 
           {/* Donations sidecar — independent of tiers. Saved via PUT /donations
               alongside tier writes when changed. */}
-          <DonationsSection
-            donation={donation}
-            onUpdate={updateDonation}
-            defaultCurrency={drafts[0]?.currency || "EUR"}
-          />
+          {/* DonationsSection is bare (the create wizard renders it inside a
+              modal via DonationsField), so wrap it in a card for this inline
+              manage list. */}
+          <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4">
+            <DonationsSection
+              donation={donation}
+              onUpdate={updateDonation}
+              defaultCurrency={drafts[0]?.currency || "EUR"}
+            />
+          </div>
         </div>
       )}
       </StepFade>
