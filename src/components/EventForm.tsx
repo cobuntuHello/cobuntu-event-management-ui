@@ -21,7 +21,7 @@ import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
 import type { MemberPricingUpsert } from "./PriceEditModal/member-pricing";
 import { blankTier, blankDonation } from "./PriceEditModal/helpers";
-import { DonationsSection } from "./PriceEditModal/DonationsSection";
+import { DonationsField } from "./PriceEditModal/DonationsField";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
 import {
   MembershipTierPicker,
@@ -867,22 +867,20 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             </button>
           </div>
 
-          {/* Donations — event-level, independent of tiers (applies to BOTH
-              community- and user-owned events). Sits as its own row in Event
-              Options, below the ticket tiers, because a donation is an optional
-              add-on for the whole event, not a per-tier setting. The create
-              flow has no inline donationConfig, so the consumer PUTs this to
-              /communities/:tag/events/:id/donations after the event is created
-              (see EventFormData.donation + donationDraftToPayload). */}
-          <div className="px-5 py-4 last:rounded-b-2xl">
-            <DonationsSection
-              donation={donation}
-              onUpdate={(patch) => setDonation((d) => ({ ...d, ...patch }))}
-              defaultCurrency={tiers[0]?.currency || "EUR"}
-            />
-          </div>
-
         </div>
+
+      {/* ─── Donations ─── listing-level; its own row that opens a modal
+          (desktop) / drawer (mobile). Outside the Event Options card because a
+          donation applies to the whole event, not a single tier. Create takes
+          no inline donationConfig, so the consumer PUTs `donation` to
+          /communities/:tag/events/:id/donations after create. */}
+      <div className="mt-6">
+        <DonationsField
+          donation={donation}
+          onUpdate={(patch) => setDonation((d) => ({ ...d, ...patch }))}
+          defaultCurrency={tiers[0]?.currency || "EUR"}
+        />
+      </div>
 
       {/* ─── Approval ───
           A SIBLING of Community access, not a parent of it.
