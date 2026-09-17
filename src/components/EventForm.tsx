@@ -816,44 +816,47 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 {tiers.map((t) => {
                   const published = t.publishedAt !== null && t.publishedAt !== undefined;
                   return (
-                  <div
+                  /*
+                   * The WHOLE row opens the tier editor, matching the product
+                   * variant row.
+                   *
+                   * It used to be a div holding a button and a publish Switch
+                   * side by side, because the two could not be nested. That
+                   * split was the tell: the row could not be a drill-in while
+                   * it also carried a control, so half of it was clickable and
+                   * the chevron every other row in this wizard has was missing.
+                   *
+                   * The switch is gone rather than moved — TierEditView already
+                   * renders publish state in its own section (Eye/EyeOff +
+                   * "Published"/"Draft" + the switch), and PriceEditModal passes
+                   * `onTogglePublish` unconditionally, so it is there in the
+                   * create wizard too, not just on the manage page. Keeping a
+                   * copy out here was one control writing another's value.
+                   *
+                   * Draft state stays VISIBLE in the summary line. It is
+                   * information, not a control: an unpublished tier is one
+                   * buyers cannot see, which should not require opening the
+                   * editor to discover.
+                   */
+                  <button
                     key={t.localId}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-all duration-150"
+                    type="button"
+                    onClick={() => openTierEditor(t.localId)}
+                    className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-all duration-150 text-left cursor-pointer"
                   >
-                    {/* Only this part opens the tier. The row itself cannot be
-                        the button — the publish switch is interactive, and
-                        nesting the two is invalid HTML that fires both
-                        handlers on a single click. */}
-                    <button
-                      type="button"
-                      onClick={() => openTierEditor(t.localId)}
-                      className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left"
-                    >
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200 text-zinc-600">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-zinc-800 truncate">{t.name || "Unnamed tier"}</p>
-                        <p className="text-[11px] text-zinc-400">
-                          {t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : "Free"}
-                          {t.capacity ? ` · ${t.capacity} spots` : ""}
-                        </p>
-                      </div>
-                    </button>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[10.5px] ${published ? "text-zinc-500" : "text-zinc-400"}`}>
-                        {published ? "Published" : "Draft"}
-                      </span>
-                      <Switch
-                        checked={published}
-                        aria-label={`Publish ${t.name || "tier"}`}
-                        onCheckedChange={(next: boolean) => setTiers(prev => prev.map(x =>
-                          x.localId === t.localId
-                            ? { ...x, publishedAt: next ? new Date().toISOString() : null }
-                            : x))}
-                      />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200 text-zinc-600">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                     </div>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-zinc-800 truncate">{t.name || "Unnamed tier"}</p>
+                      <p className="text-[11px] text-zinc-400">
+                        {t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : "Free"}
+                        {t.capacity ? ` · ${t.capacity} spots` : ""}
+                        {published ? "" : " · Draft"}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+                  </button>
                   );
                 })}
               </div>
