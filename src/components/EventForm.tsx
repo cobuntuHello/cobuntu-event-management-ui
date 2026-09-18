@@ -3,7 +3,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "../ui/dialog";
@@ -327,6 +326,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [requiresApproval, setRequiresApproval] = useState(initialData?.requiresApproval || false);
   // PUBLIC unless told otherwise — the server column defaults the same way, so
   // a form that never touches this reproduces today's behaviour exactly.
+  const [attendeeVisibilityOpen, setAttendeeVisibilityOpen] = useState(false);
   const [attendeeVisibility, setAttendeeVisibility] = useState<AttendeeVisibility>(
     initialData?.attendeeVisibility || "PUBLIC",
   );
@@ -653,6 +653,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       viewAccess, buyAccess, requiresApproval, attendeeVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const selectedAttendeeOption = ATTENDEE_VISIBILITY_OPTIONS.find(o => o.value === attendeeVisibility);
   const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
 
   return (
@@ -962,9 +963,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           fully public event with a private guest list is the case hosts asked
           for.
 
-          A Select, not a segmented control or chips: four mutually exclusive
-          options where each needs a sentence to be understood, and the house
-          style is flat.
+          A row that opens a picker, not a dropdown: four mutually exclusive
+          options where each needs a sentence to be understood, and a dropdown
+          can only show the sentence for the one already chosen.
 
           The choice only affects the customer-facing portal. Hosts and
           community leaders reach the roster through the event's manage page,
@@ -974,36 +975,83 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           owns this decision about their own guest list. */}
       <div className="mt-6">
         <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Attendees</p>
-        <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-5 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <Users className="h-[18px] w-[18px] text-zinc-400 shrink-0" />
-              <div className="min-w-0">
-                <span className="text-sm font-medium text-zinc-800">Who can see the guest list</span>
-                <p className="text-[11px] text-zinc-400 mt-0.5">
-                  {ATTENDEE_VISIBILITY_OPTIONS.find(o => o.value === attendeeVisibility)?.hint}
-                </p>
-              </div>
-            </div>
-            <Select
-              value={attendeeVisibility}
-              onValueChange={(v) => setAttendeeVisibility(v as AttendeeVisibility)}
-            >
-              {/* Named explicitly: the visible label sits in a sibling column,
-                  so without this the trigger is a combobox a screen reader
-                  announces with no indication of what it controls. */}
-              <SelectTrigger aria-label="Who can see the guest list" className="w-[170px] shrink-0 bg-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ATTENDEE_VISIBILITY_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        {/* A ROW that opens a picker, not a dropdown.
+
+            Four options where each needs a sentence to be understood, and a
+            <select> can only show the sentence for the one already chosen — so
+            the consequence of the other three is invisible at the moment you
+            are choosing between them. The sheet lists all four with their
+            explanation and ticks the current one, which is the same shape the
+            location, description and category rows on this form already use. */}
+        <button
+          type="button"
+          onClick={() => setAttendeeVisibilityOpen(true)}
+          className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer"
+        >
+          <Users className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-medium text-zinc-800">Who can see the guest list</span>
+            <span className="block text-[12.5px] text-zinc-500 truncate">
+              {selectedAttendeeOption?.label} · {selectedAttendeeOption?.hint}
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+        </button>
       </div>
+
+      <Dialog open={attendeeVisibilityOpen} onOpenChange={setAttendeeVisibilityOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Who can see the guest list</DialogTitle>
+            <DialogDescription>
+              This applies to the event page and anywhere else the community
+              shows who is going. You and the community&rsquo;s team always see
+              the full list on the event&rsquo;s manage page.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Radio semantics, not a list of buttons: these are four mutually
+              exclusive answers to one question, and a screen reader should say
+              so. Picking closes the sheet — there is nothing to confirm when a
+              single choice IS the whole decision. */}
+          <div role="radiogroup" aria-label="Who can see the guest list" className="py-1">
+            {ATTENDEE_VISIBILITY_OPTIONS.map((o) => {
+              const selected = o.value === attendeeVisibility;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    setAttendeeVisibility(o.value);
+                    setAttendeeVisibilityOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-xl transition-colors hover:bg-zinc-50 cursor-pointer"
+                >
+                  <span className="flex-1 min-w-0">
+                    <span className={`block text-sm ${selected ? "font-semibold text-zinc-900" : "font-medium text-zinc-800"}`}>
+                      {o.label}
+                    </span>
+                    <span className="block text-[12.5px] text-zinc-500">{o.hint}</span>
+                  </span>
+                  {/* The tick sits at the END of the row, and only on the
+                      chosen one. A control on every row would read as four
+                      independent toggles. */}
+                  {selected && (
+                    <span
+                      className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0"
+                      style={{ background: "var(--brand-color, #18181b)" }}
+                    >
+                      <Check className="h-3 w-3" strokeWidth={3.5} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
 
         {/* ─── Community access ───
             Visibility and Purchase exist ONLY because a community owns this
