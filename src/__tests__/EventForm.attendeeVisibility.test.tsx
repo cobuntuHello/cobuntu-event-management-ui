@@ -50,12 +50,45 @@ describe("EventForm carries the attendee-visibility choice", () => {
     const user = userEvent.setup();
     renderWithConfig(<EventForm communityTag="c-1" onChange={onChange} />);
 
-    await user.click(screen.getByRole("combobox", { name: /who can see the guest list/i }));
-    await user.click(await screen.findByRole("option", { name: /just the number/i }));
+    await user.click(screen.getByRole("button", { name: /who can see the guest list/i }));
+    await user.click(await screen.findByRole("radio", { name: /just the number/i }));
 
     await waitFor(() => {
       expect(lastEmit(onChange)?.attendeeVisibility).toBe("COUNT_ONLY");
     });
+  });
+
+  it("shows every option with its explanation, and ticks the current one", async () => {
+    /*
+     * The reason this is a sheet and not a dropdown: a <select> can only show
+     * the sentence for the option already chosen, so the consequence of the
+     * other three is invisible at the moment you are choosing between them.
+     */
+    const user = userEvent.setup();
+    renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /who can see the guest list/i }));
+
+    const radios = await screen.findAllByRole("radio");
+    expect(radios).toHaveLength(ATTENDEE_VISIBILITY_OPTIONS.length);
+    for (const o of ATTENDEE_VISIBILITY_OPTIONS) {
+      expect(screen.getByText(o.hint)).toBeInTheDocument();
+    }
+    // Exactly one tick, on the default — asserted on BOTH the aria state and
+    // the VISIBLE mark. Checking only aria-checked let a sabotage that drew a
+    // tick on every row pass: the rows would read as four independent toggles
+    // to anyone looking at the screen, while the accessibility tree stayed
+    // correct.
+    expect(radios.filter(r => r.getAttribute("aria-checked") === "true")).toHaveLength(1);
+    expect(screen.getByRole("radio", { name: /everyone/i })).toHaveAttribute("aria-checked", "true");
+    expect(document.querySelectorAll(".lucide-check")).toHaveLength(1);
+  });
+
+  it("closes the sheet on pick, since one choice IS the decision", async () => {
+    const user = userEvent.setup();
+    renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /who can see the guest list/i }));
+    await user.click(await screen.findByRole("radio", { name: /nobody/i }));
+    await waitFor(() => expect(screen.queryByRole("radio")).not.toBeInTheDocument());
   });
 
   it("offers exactly the four backend modes", () => {
