@@ -83,6 +83,40 @@ describe("EventForm carries the attendee-visibility choice", () => {
     expect(document.querySelectorAll(".lucide-check")).toHaveLength(1);
   });
 
+  it("gives every row a control, filled only on the chosen one", async () => {
+    /*
+     * Drawing the tick solely on the selection left the other three looking
+     * like plain text, so nothing said they could be picked — the affordance
+     * appeared only once you had already found it. Every row now carries one;
+     * exactly one is filled.
+     */
+    const user = userEvent.setup();
+    const { container } = renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /who can see the guest list/i }));
+    await screen.findAllByRole("radio");
+
+    expect(document.querySelectorAll(".lucide-check")).toHaveLength(1);
+    // The unselected three carry an empty ring apiece.
+    expect(document.querySelectorAll('[aria-hidden="true"].rounded-full.border-2'))
+      .toHaveLength(ATTENDEE_VISIBILITY_OPTIONS.length - 1);
+  });
+
+  it("offers both ways out: a top-right X and a footer Close", async () => {
+    // The sheet can be dismissed without choosing. Picking is the action; both
+    // of these are escapes, which is why the footer button is muted.
+    const user = userEvent.setup();
+    renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /who can see the guest list/i }));
+
+    // TWO controls share the name, deliberately: the top-right X and the
+    // footer button do the same thing, so naming them differently would invent
+    // a distinction that does not exist.
+    const closers = await screen.findAllByRole("button", { name: /^close$/i });
+    expect(closers).toHaveLength(2);
+    await user.click(closers[closers.length - 1]); // the footer one
+    await waitFor(() => expect(screen.queryByRole("radio")).not.toBeInTheDocument());
+  });
+
   it("closes the sheet on pick, since one choice IS the decision", async () => {
     const user = userEvent.setup();
     renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} />);

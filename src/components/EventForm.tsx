@@ -1000,7 +1000,18 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       </div>
 
       <Dialog open={attendeeVisibilityOpen} onOpenChange={setAttendeeVisibilityOpen}>
-        <DialogContent>
+        {/* hideClose, then our own: the built-in X is a bare 16px glyph at 70%
+            opacity with no hit area to speak of, which on a white sheet reads
+            as a smudge rather than a control. */}
+        <DialogContent hideClose>
+          <button
+            type="button"
+            onClick={() => setAttendeeVisibilityOpen(false)}
+            aria-label="Close"
+            className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
           <DialogHeader>
             <DialogTitle>Who can see the guest list</DialogTitle>
             <DialogDescription>
@@ -1027,7 +1038,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                     setAttendeeVisibility(o.value);
                     setAttendeeVisibilityOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-xl transition-colors hover:bg-zinc-50 cursor-pointer"
+                  className={`group w-full flex items-center gap-3 px-3 py-3 text-left rounded-xl transition-colors cursor-pointer ring-1 ${
+                    selected
+                      ? "bg-zinc-50 ring-zinc-200"
+                      : "ring-transparent hover:bg-zinc-100 hover:ring-zinc-200"
+                  }`}
                 >
                   <span className="flex-1 min-w-0">
                     <span className={`block text-sm ${selected ? "font-semibold text-zinc-900" : "font-medium text-zinc-800"}`}>
@@ -1035,20 +1050,44 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                     </span>
                     <span className="block text-[12.5px] text-zinc-500">{o.hint}</span>
                   </span>
-                  {/* The tick sits at the END of the row, and only on the
-                      chosen one. A control on every row would read as four
-                      independent toggles. */}
-                  {selected && (
+                  {/* EVERY row carries the control, filled only on the chosen
+                      one. Drawing it solely on the selection left the other
+                      three looking like plain text, so there was nothing to
+                      tell you they could be picked — the affordance appeared
+                      only after you had already found it. Empty ring vs filled
+                      tick is the same vocabulary AccessibilityEditModal's
+                      RadioRow uses. */}
+                  {selected ? (
                     <span
                       className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0"
                       style={{ background: "var(--brand-color, #18181b)" }}
                     >
                       <Check className="h-3 w-3" strokeWidth={3.5} />
                     </span>
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="w-[22px] h-[22px] rounded-full border-2 border-zinc-300 shrink-0 transition-colors group-hover:border-zinc-400"
+                    />
                   )}
                 </button>
               );
             })}
+          </div>
+
+          {/* A Close button INSIDE a footer, not acting AS the footer. The
+              negative margins undo DialogContent's own p-6 so the hairline runs
+              edge to edge, while the button stays inset and keeps the sheet's
+              corner radius. Muted, because closing is not the action here —
+              picking an option is, and it already closes the sheet. */}
+          <div className="-mx-6 -mb-6 mt-2 border-t border-zinc-100 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setAttendeeVisibilityOpen(false)}
+              className="w-full rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer"
+            >
+              Close
+            </button>
           </div>
         </DialogContent>
       </Dialog>
