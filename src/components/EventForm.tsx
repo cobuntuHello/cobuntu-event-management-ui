@@ -3,6 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "../ui/dialog";
@@ -14,7 +15,7 @@ import { RichTextEditor } from "../ui/rich-text-editor";
 import { htmlToPlainText } from "../lib/htmlToPlainText";
 import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
-  Ticket, Lock, UserCheck, Image as ImageIcon, X,
+  Ticket, Lock, UserCheck, Users, Image as ImageIcon, X,
   Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
@@ -115,6 +116,22 @@ export interface TierItem {
   salesEndAt?: string;
 }
 
+/**
+ * Who may see an event's attendee roster. Mirrors the backend enum
+ * `AttendeeVisibility`; the gate is enforced there, not here.
+ */
+export type AttendeeVisibility = "PUBLIC" | "ATTENDEES_ONLY" | "COUNT_ONLY" | "HIDDEN";
+
+/** The four choices, in the order the picker offers them: most open first. */
+export const ATTENDEE_VISIBILITY_OPTIONS: {
+  value: AttendeeVisibility; label: string; hint: string;
+}[] = [
+  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees who is going" },
+  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The list appears once someone has a ticket" },
+  { value: "COUNT_ONLY", label: "Just the number", hint: "How many are going, but no names or faces" },
+  { value: "HIDDEN", label: "Nobody", hint: "No list and no number" },
+];
+
 export interface EventFormData {
   name: string;
   description: string;
@@ -154,6 +171,19 @@ export interface EventFormData {
   // "PUBLIC" if not provided.
   viewability?: "PUBLIC" | "MEMBERS_ONLY";
   requiresApproval: boolean;
+  /**
+   * Who may see the attendee roster on the customer-facing portal.
+   *
+   * Optional on the type so consumers written before this shipped still
+   * type-check (same reason as `viewability`). Omitted means the server's
+   * column default, PUBLIC, which is what every event did before this existed.
+   *
+   * The gate itself is SERVER-side (transformEvent + the v1 public API); this
+   * field only carries the host's choice to the create/update payload. It has
+   * no effect in the admin app or on /manage, which always ask for the roster
+   * as management. See docs/features/attendee-visibility.md in the backend.
+   */
+  attendeeVisibility?: AttendeeVisibility;
   /**
    * Membership tiers granted view / register access.
    *
@@ -295,6 +325,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     toTierAccessValue(initialData?.accessibility ?? "PUBLIC", initialBuyTierIds),
   );
   const [requiresApproval, setRequiresApproval] = useState(initialData?.requiresApproval || false);
+  // PUBLIC unless told otherwise — the server column defaults the same way, so
+  // a form that never touches this reproduces today's behaviour exactly.
+  const [attendeeVisibility, setAttendeeVisibility] = useState<AttendeeVisibility>(
+    initialData?.attendeeVisibility || "PUBLIC",
+  );
   /**
    * The default "Standard" ticket tier.
    *
@@ -603,7 +638,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       viewability: viewResolved.visibility,
       viewTierIds: viewResolved.tierIds,
       buyTierIds: buyResolved.tierIds,
-      requiresApproval, tiers: submittableTiers, tags,
+      requiresApproval, attendeeVisibility, tiers: submittableTiers, tags,
       categoryId, subCategoryId,
       /*
        * Donation sidecar — emitted so the create clients can PUT it to
@@ -615,7 +650,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
-      viewAccess, buyAccess, requiresApproval, submittableTiers, tags,
+      viewAccess, buyAccess, requiresApproval, attendeeVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
@@ -916,6 +951,57 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           onCheckedChange={setRequiresApproval}
           onClick={e => e.stopPropagation()} />
         </div>
+        </div>
+      </div>
+
+      {/* ─── Attendees ───
+          Who can see WHO ELSE is coming. A third visibility axis, and its own
+          card rather than a row under Approval, because it is not about
+          approval: `viewability` gates the event, `accessibility` gates
+          registering, this gates the roster. They do not move together — a
+          fully public event with a private guest list is the case hosts asked
+          for.
+
+          A Select, not a segmented control or chips: four mutually exclusive
+          options where each needs a sentence to be understood, and the house
+          style is flat.
+
+          The choice only affects the customer-facing portal. Hosts and
+          community leaders reach the roster through the event's manage page,
+          which always asks for it as management, so nothing here can lock a
+          host out of their own attendee list. Same reason as requiresApproval
+          above, it is NOT community-scoped: a member hosting their own event
+          owns this decision about their own guest list. */}
+      <div className="mt-6">
+        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Attendees</p>
+        <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-5 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <Users className="h-[18px] w-[18px] text-zinc-400 shrink-0" />
+              <div className="min-w-0">
+                <span className="text-sm font-medium text-zinc-800">Who can see the guest list</span>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  {ATTENDEE_VISIBILITY_OPTIONS.find(o => o.value === attendeeVisibility)?.hint}
+                </p>
+              </div>
+            </div>
+            <Select
+              value={attendeeVisibility}
+              onValueChange={(v) => setAttendeeVisibility(v as AttendeeVisibility)}
+            >
+              {/* Named explicitly: the visible label sits in a sibling column,
+                  so without this the trigger is a combobox a screen reader
+                  announces with no indication of what it controls. */}
+              <SelectTrigger aria-label="Who can see the guest list" className="w-[170px] shrink-0 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ATTENDEE_VISIBILITY_OPTIONS.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
