@@ -113,6 +113,19 @@ export function EventTimestamps({
     return format(date, "EEE, d MMM", { locale: enUS });
   };
 
+  /**
+   * Weekday is dropped below `sm` so the date trigger fits beside the time
+   * trigger and the timezone box in a single row instead of the whole
+   * Start/End block wrapping onto its own line under the date picker (the
+   * layout used to switch to `flex-col` below `sm` for exactly this reason —
+   * see the row wrapper below). "22 Sep" instead of "Tue, 22 Sep" is enough
+   * to disambiguate on a form you're actively editing.
+   */
+  const formatDateDisplayCompact = (date: Date | null) => {
+    if (!date) return "Select";
+    return format(date, "d MMM", { locale: enUS });
+  };
+
   const getAvailableTimeOptions = (selectedDate: Date | null, isEnd: boolean = false) => {
     let minTime = 0;
     if (isEnd && startDate && startTime && selectedDate && selectedDate.getTime() === startDate.getTime()) {
@@ -142,20 +155,26 @@ export function EventTimestamps({
     : TIMEZONES;
 
   return (
-    <div className={cn("bg-zinc-50/30 rounded-lg px-4 py-3", className)}>
-      <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-3">
+    <div className={cn("bg-zinc-50/30 rounded-lg px-2 py-2 sm:px-4 sm:py-3", className)}>
+      {/* Always a row — Start/End + timezone used to stack below `sm`
+          (flex-col), which is what dropped the timezone box onto its own
+          line under the date/time inputs. Desktop's single-row layout is
+          the target on every width now; the trigger widths/gaps below
+          shrink responsively instead so the row actually fits a phone. */}
+      <div className="flex flex-row items-start gap-1.5 sm:gap-3">
         {/* Date/Time Inputs */}
-        <div className="flex flex-col gap-2 flex-grow w-full sm:w-auto">
+        <div className="flex flex-col gap-1.5 sm:gap-2 flex-grow min-w-0 sm:w-auto">
           {/* Start */}
           <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-zinc-700 w-12">Start</span>
+            <div className="flex items-center gap-1 sm:gap-3">
+              <span className="text-xs sm:text-sm font-medium text-zinc-700 w-7 sm:w-12 shrink-0">Start</span>
               <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={disabled}
-                    className={cn("group w-[160px] h-10 justify-start text-left font-normal", flatTrigger, errors?.startDate && "border-red-300")}>
-                    <CalendarIcon className={cn("h-[18px] w-[18px] mr-2", flatIcon)} />
-                    {formatDateDisplay(startDate)}
+                    className={cn("group w-[92px] sm:w-[160px] h-9 sm:h-10 justify-start text-left font-normal px-2 sm:px-3 text-xs sm:text-sm", flatTrigger, errors?.startDate && "border-red-300")}>
+                    <CalendarIcon className={cn("h-3.5 w-3.5 mr-1 sm:h-[18px] sm:w-[18px] sm:mr-2", flatIcon)} />
+                    <span className="sm:hidden">{formatDateDisplayCompact(startDate)}</span>
+                    <span className="hidden sm:inline">{formatDateDisplay(startDate)}</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -166,8 +185,8 @@ export function EventTimestamps({
               </Popover>
               <Popover open={isStartTimeOpen} onOpenChange={setIsStartTimeOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" disabled={disabled} className={cn("group w-[110px] h-10 justify-start text-left font-normal", flatTrigger)}>
-                    <Clock className={cn("h-[18px] w-[18px] mr-2", flatIcon)} />
+                  <Button variant="outline" disabled={disabled} className={cn("group w-[68px] sm:w-[110px] h-9 sm:h-10 justify-start text-left font-normal px-2 sm:px-3 text-xs sm:text-sm", flatTrigger)}>
+                    <Clock className={cn("h-3.5 w-3.5 mr-1 sm:h-[18px] sm:w-[18px] sm:mr-2", flatIcon)} />
                     {startTime || "15:00"}
                   </Button>
                 </PopoverTrigger>
@@ -184,20 +203,21 @@ export function EventTimestamps({
               </Popover>
             </div>
             {(errors?.startDate || errors?.startTime) && (
-              <p className="text-xs text-red-500 ml-[60px]">{errors.startDate || errors.startTime}</p>
+              <p className="text-xs text-red-500 ml-9 sm:ml-[60px]">{errors.startDate || errors.startTime}</p>
             )}
           </div>
 
           {/* End */}
           <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-zinc-700 w-12">End</span>
+            <div className="flex items-center gap-1 sm:gap-3">
+              <span className="text-xs sm:text-sm font-medium text-zinc-700 w-7 sm:w-12 shrink-0">End</span>
               <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={disabled}
-                    className={cn("group w-[160px] h-10 justify-start text-left font-normal", flatTrigger, errors?.endDate && "border-red-300")}>
-                    <CalendarIcon className={cn("h-[18px] w-[18px] mr-2", flatIcon)} />
-                    {formatDateDisplay(endDate)}
+                    className={cn("group w-[92px] sm:w-[160px] h-9 sm:h-10 justify-start text-left font-normal px-2 sm:px-3 text-xs sm:text-sm", flatTrigger, errors?.endDate && "border-red-300")}>
+                    <CalendarIcon className={cn("h-3.5 w-3.5 mr-1 sm:h-[18px] sm:w-[18px] sm:mr-2", flatIcon)} />
+                    <span className="sm:hidden">{formatDateDisplayCompact(endDate)}</span>
+                    <span className="hidden sm:inline">{formatDateDisplay(endDate)}</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -208,8 +228,8 @@ export function EventTimestamps({
               </Popover>
               <Popover open={isEndTimeOpen} onOpenChange={setIsEndTimeOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" disabled={disabled} className={cn("group w-[110px] h-10 justify-start text-left font-normal", flatTrigger)}>
-                    <Clock className={cn("h-[18px] w-[18px] mr-2", flatIcon)} />
+                  <Button variant="outline" disabled={disabled} className={cn("group w-[68px] sm:w-[110px] h-9 sm:h-10 justify-start text-left font-normal px-2 sm:px-3 text-xs sm:text-sm", flatTrigger)}>
+                    <Clock className={cn("h-3.5 w-3.5 mr-1 sm:h-[18px] sm:w-[18px] sm:mr-2", flatIcon)} />
                     {endTime || "16:00"}
                   </Button>
                 </PopoverTrigger>
@@ -229,7 +249,7 @@ export function EventTimestamps({
               </Popover>
             </div>
             {(errors?.endDate || errors?.endTime) && (
-              <p className="text-xs text-red-500 ml-[60px]">{errors.endDate || errors.endTime}</p>
+              <p className="text-xs text-red-500 ml-9 sm:ml-[60px]">{errors.endDate || errors.endTime}</p>
             )}
           </div>
         </div>
@@ -238,15 +258,15 @@ export function EventTimestamps({
         <Popover open={isTimezoneOpen} onOpenChange={(open) => { setIsTimezoneOpen(open); if (!open) setTimezoneSearch(""); }}>
           <PopoverTrigger asChild>
             <div className={cn(
-              "group w-[80px] self-stretch cursor-pointer flex flex-col items-center justify-center",
+              "group w-[52px] sm:w-[80px] shrink-0 self-stretch cursor-pointer flex flex-col items-center justify-center",
               flat
                 ? "border-0 bg-zinc-50 ring-1 ring-zinc-100/0 rounded-xl transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0"
                 : "border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50",
               disabled && "opacity-50 cursor-not-allowed pointer-events-none"
             )}>
-              <Globe className={cn("h-3.5 w-3.5 mb-0.5", flatIcon)} />
-              <div className="text-[11px] text-zinc-800 font-medium leading-tight">{selectedTz.offset}</div>
-              <div className="text-[10px] text-zinc-400 leading-tight">{selectedTz.label}</div>
+              <Globe className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5 mb-0.5", flatIcon)} />
+              <div className="text-[9px] sm:text-[11px] text-zinc-800 font-medium leading-tight">{selectedTz.offset}</div>
+              <div className="text-[8px] sm:text-[10px] text-zinc-400 leading-tight truncate max-w-full px-0.5">{selectedTz.label}</div>
             </div>
           </PopoverTrigger>
           <PopoverContent className="w-80 p-0" align="start">
