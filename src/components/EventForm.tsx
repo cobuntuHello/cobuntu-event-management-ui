@@ -131,6 +131,22 @@ export const ATTENDEE_VISIBILITY_OPTIONS: {
   { value: "HIDDEN", label: "Nobody", hint: "No list and no number" },
 ];
 
+/**
+ * Who may see an event's PHYSICAL location. Mirrors the backend enum
+ * `LocationVisibility`; the gate is enforced there, not here. The online
+ * meeting link is a separate, always-attendee-only rule and is NOT covered by
+ * this control.
+ */
+export type LocationVisibility = "PUBLIC" | "ATTENDEES_ONLY";
+
+/** The two choices, most open first. */
+export const LOCATION_VISIBILITY_OPTIONS: {
+  value: LocationVisibility; label: string; hint: string;
+}[] = [
+  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees the address" },
+  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The address appears once someone has a ticket" },
+];
+
 export interface EventFormData {
   name: string;
   description: string;
@@ -183,6 +199,18 @@ export interface EventFormData {
    * as management. See docs/features/attendee-visibility.md in the backend.
    */
   attendeeVisibility?: AttendeeVisibility;
+  /**
+   * Who may see the PHYSICAL location on the customer-facing portal.
+   *
+   * Optional on the type (same back-compat reason as `viewability` /
+   * `attendeeVisibility`). Omitted means the server's column default, PUBLIC —
+   * the address stays public, as every event did before this existed.
+   *
+   * Gate is SERVER-side (transformEvent + the v1 public API); this only
+   * carries the host's choice. The online link is always attendee-only and is
+   * not affected by this. See docs/features/event-locations-p1.md in the backend.
+   */
+  locationVisibility?: LocationVisibility;
   /**
    * Membership tiers granted view / register access.
    *
@@ -329,6 +357,12 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [attendeeVisibilityOpen, setAttendeeVisibilityOpen] = useState(false);
   const [attendeeVisibility, setAttendeeVisibility] = useState<AttendeeVisibility>(
     initialData?.attendeeVisibility || "PUBLIC",
+  );
+  // Who can see the physical address. PUBLIC unless told otherwise — matches
+  // the server column default, so an untouched form reproduces today's behaviour.
+  const [locationVisibilityOpen, setLocationVisibilityOpen] = useState(false);
+  const [locationVisibility, setLocationVisibility] = useState<LocationVisibility>(
+    initialData?.locationVisibility || "PUBLIC",
   );
   /**
    * The default "Standard" ticket tier.
@@ -638,7 +672,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       viewability: viewResolved.visibility,
       viewTierIds: viewResolved.tierIds,
       buyTierIds: buyResolved.tierIds,
-      requiresApproval, attendeeVisibility, tiers: submittableTiers, tags,
+      requiresApproval, attendeeVisibility, locationVisibility, tiers: submittableTiers, tags,
       categoryId, subCategoryId,
       /*
        * Donation sidecar — emitted so the create clients can PUT it to
@@ -650,10 +684,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
-      viewAccess, buyAccess, requiresApproval, attendeeVisibility, submittableTiers, tags,
+      viewAccess, buyAccess, requiresApproval, attendeeVisibility, locationVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedAttendeeOption = ATTENDEE_VISIBILITY_OPTIONS.find(o => o.value === attendeeVisibility);
+  const selectedLocationOption = LOCATION_VISIBILITY_OPTIONS.find(o => o.value === locationVisibility);
   const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
 
   return (
@@ -1084,6 +1119,105 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             <button
               type="button"
               onClick={() => setAttendeeVisibilityOpen(false)}
+              className="w-full rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Who can see the location ───
+          A FOURTH visibility axis, sibling to the guest-list one above. It
+          governs the PHYSICAL address only: some hosts keep a venue back until
+          you hold a ticket. The online meeting link is a separate rule the host
+          does not control here — it is always attendee-only — so this row is
+          only meaningful for an event with a physical location. Same server-side
+          enforcement and same manage-page exemption as the guest list. */}
+      <div className="mt-6">
+        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Location</p>
+        <button
+          type="button"
+          onClick={() => setLocationVisibilityOpen(true)}
+          className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer"
+        >
+          <MapPin className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-medium text-zinc-800">Who can see the location</span>
+            <span className="block text-[12.5px] text-zinc-500 truncate">
+              {selectedLocationOption?.label} · {selectedLocationOption?.hint}
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+        </button>
+      </div>
+
+      <Dialog open={locationVisibilityOpen} onOpenChange={setLocationVisibilityOpen}>
+        <DialogContent hideClose>
+          <button
+            type="button"
+            onClick={() => setLocationVisibilityOpen(false)}
+            aria-label="Close"
+            className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <DialogHeader>
+            <DialogTitle>Who can see the location</DialogTitle>
+            <DialogDescription>
+              This controls the physical address on the event page. An online
+              meeting link is always shown only to people with a ticket. You and
+              the community&rsquo;s team always see the address on the manage page.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div role="radiogroup" aria-label="Who can see the location" className="py-1">
+            {LOCATION_VISIBILITY_OPTIONS.map((o) => {
+              const selected = o.value === locationVisibility;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    setLocationVisibility(o.value);
+                    setLocationVisibilityOpen(false);
+                  }}
+                  className={`group w-full flex items-center gap-3 px-3 py-3 text-left rounded-xl transition-colors cursor-pointer ring-1 ${
+                    selected
+                      ? "bg-zinc-50 ring-zinc-200"
+                      : "ring-transparent hover:bg-zinc-100 hover:ring-zinc-200"
+                  }`}
+                >
+                  <span className="flex-1 min-w-0">
+                    <span className={`block text-sm ${selected ? "font-semibold text-zinc-900" : "font-medium text-zinc-800"}`}>
+                      {o.label}
+                    </span>
+                    <span className="block text-[12.5px] text-zinc-500">{o.hint}</span>
+                  </span>
+                  {selected ? (
+                    <span
+                      className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0"
+                      style={{ background: "var(--brand-color, #18181b)" }}
+                    >
+                      <Check className="h-3 w-3" strokeWidth={3.5} />
+                    </span>
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="w-[22px] h-[22px] rounded-full border-2 border-zinc-300 shrink-0 transition-colors group-hover:border-zinc-400"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="-mx-6 -mb-6 mt-2 border-t border-zinc-100 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setLocationVisibilityOpen(false)}
               className="w-full rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer"
             >
               Close
