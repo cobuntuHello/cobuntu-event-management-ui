@@ -29,7 +29,7 @@ describe("LocationEditModal", () => {
     expect(screen.getByDisplayValue("https://meet.example.com/room")).toBeInTheDocument();
   });
 
-  it("on Save: PUTs trimmed physicalLocation + onlineUrl, toasts, calls onSaved", async () => {
+  it("on Save: PUTs the full locations[] set (Phase 2), toasts, calls onSaved", async () => {
     const fetchMock = mockFetch([
       { method: "PUT", url: "/events/evt-1", body: { ok: true } },
     ]);
@@ -42,13 +42,14 @@ describe("LocationEditModal", () => {
     await waitFor(() => expect(props.onSaved).toHaveBeenCalled());
     expect(props.showToast).toHaveBeenCalledWith("Location updated");
 
+    // Phase 2: the modal sends locations[] (the source of truth), not the flat
+    // fields — so editing never drops the event's other locations.
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body).toEqual({
-      physicalLocation: "123 Main St",
-      onlineUrl: "https://meet.example.com/room",
-      physicalLatitude: null,
-      physicalLongitude: null,
-    });
+    expect(Object.keys(body)).toEqual(["locations"]);
+    expect(body.locations).toEqual([
+      { kind: "PHYSICAL", address: "123 Main St", latitude: null, longitude: null, url: null, isPrimary: true, sortOrder: 0 },
+      { kind: "ONLINE", address: null, latitude: null, longitude: null, url: "https://meet.example.com/room", isPrimary: false, sortOrder: 1 },
+    ]);
   });
 
   it("on backend error: surfaces the error via showToast, does NOT call onSaved", async () => {
@@ -65,7 +66,7 @@ describe("LocationEditModal", () => {
     expect(props.onSaved).not.toHaveBeenCalled();
   });
 
-  it("blank physical + online fields PUT null for both", async () => {
+  it("an event with no location saves an empty locations[]", async () => {
     const fetchMock = mockFetch([
       { method: "PUT", url: "/events/evt-1", body: { ok: true } },
     ]);
@@ -76,12 +77,7 @@ describe("LocationEditModal", () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body).toEqual({
-      physicalLocation: null,
-      onlineUrl: null,
-      physicalLatitude: null,
-      physicalLongitude: null,
-    });
+    expect(body).toEqual({ locations: [] });
   });
 
   it("preloaded physicalLatitude/Longitude are forwarded to the backend on save", async () => {
@@ -111,8 +107,10 @@ describe("LocationEditModal", () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body.physicalLatitude).toBe(38.7223);
-    expect(body.physicalLongitude).toBe(-9.1393);
+    // Coordinates now ride on the physical location row.
+    const physical = body.locations.find((l: any) => l.kind === "PHYSICAL");
+    expect(physical.latitude).toBe(38.7223);
+    expect(physical.longitude).toBe(-9.1393);
   });
 });
 

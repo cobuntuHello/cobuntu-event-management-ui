@@ -7,7 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "../ui/dialog";
 import { EventTimestamps } from "../ui/event-timestamps";
-import { EventLocationSelector } from "../ui/event-location-selector";
+import { EventLocationsField, makeLocation, type EventLocationValue } from "../ui/event-locations-field";
 import { EventTags } from "../ui/event-tags";
 import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
 import { RichTextEditor } from "../ui/rich-text-editor";
@@ -147,6 +147,17 @@ export const LOCATION_VISIBILITY_OPTIONS: {
   { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The address appears once someone has a ticket" },
 ];
 
+/** One location as sent to the server (Phase 2). Mirrors backend EventLocationInput. */
+export interface EventLocationPayload {
+  kind: "PHYSICAL" | "ONLINE";
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  url?: string | null;
+  isPrimary?: boolean;
+  sortOrder?: number;
+}
+
 export interface EventFormData {
   name: string;
   description: string;
@@ -178,6 +189,13 @@ export interface EventFormData {
    */
   physicalLatitude?: number | null;
   physicalLongitude?: number | null;
+  /**
+   * Phase 2 event-locations: the full set of locations. When present it is the
+   * source of truth on the server; the flat fields above mirror its PRIMARY
+   * row for back-compat. Optional so consumers from before Phase 2 type-check
+   * (they keep sending just the flat fields, which the server still accepts).
+   */
+  locations?: EventLocationPayload[];
   // Action gate — who can RSVP (existing field, "Attendance" toggle below).
   accessibility: "PUBLIC" | "MEMBERS_ONLY";
   // View gate — who can SEE the event detail page (new, PR 8 of
@@ -335,6 +353,62 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [physicalLatitude, setPhysicalLatitude] = useState<number | null>(initialData?.physicalLatitude ?? null);
   const [physicalLongitude, setPhysicalLongitude] = useState<number | null>(initialData?.physicalLongitude ?? null);
   const [onlineUrl, setOnlineUrl] = useState(initialData?.onlineUrl || "");
+  // Phase 2: the repeatable location set. Seeded from initialData.locations when
+  // present, else synthesized from the legacy flat fields so an event created
+  // before Phase 2 opens with its single location already in the list.
+  const [locations, setLocations] = useState<EventLocationValue[]>(() => {
+    const seed = initialData?.locations;
+    if (seed && seed.length) {
+      return seed.map((l, i) => ({
+        key: `seed-${i}`,
+        kind: l.kind,
+        address: l.address || "",
+        latitude: l.latitude ?? null,
+        longitude: l.longitude ?? null,
+        url: l.url || "",
+        isPrimary: !!l.isPrimary,
+      }));
+    }
+    const rows: EventLocationValue[] = [];
+    if ((initialData?.physicalLocation || "").trim() || (initialData?.physicalLatitude != null && initialData?.physicalLongitude != null)) {
+      const p = makeLocation("PHYSICAL", true);
+      rows.push({ ...p, address: initialData?.physicalLocation || "", latitude: initialData?.physicalLatitude ?? null, longitude: initialData?.physicalLongitude ?? null });
+    }
+    if ((initialData?.onlineUrl || "").trim()) {
+      const o = makeLocation("ONLINE", rows.length === 0);
+      rows.push({ ...o, url: initialData?.onlineUrl || "" });
+    }
+    return rows;
+  });
+
+  // The wire shape of `locations`: drop empty rows, stamp sortOrder, and only
+  // carry the field each kind actually uses. This is what the server persists.
+  const locationsPayload = useMemo<EventLocationPayload[]>(() => locations
+    .map((l, i): EventLocationPayload => ({
+      kind: l.kind,
+      address: l.kind === "PHYSICAL" ? (l.address.trim() || null) : null,
+      latitude: l.kind === "PHYSICAL" ? l.latitude : null,
+      longitude: l.kind === "PHYSICAL" ? l.longitude : null,
+      url: l.kind === "ONLINE" ? (l.url.trim() || null) : null,
+      isPrimary: l.isPrimary,
+      sortOrder: i,
+    }))
+    .filter((l) => l.kind === "PHYSICAL" ? (!!l.address || (l.latitude != null && l.longitude != null)) : !!l.url),
+    [locations]);
+
+  // Keep the legacy flat fields (physicalLocation/…/onlineUrl) mirroring the
+  // primary — the first physical + first online — so every existing consumer of
+  // this form (summary, back-compat payload) keeps working unchanged while
+  // `locations` is the real source of truth.
+  const primaryPhysical = locationsPayload.find((l) => l.kind === "PHYSICAL");
+  const primaryOnline = locationsPayload.find((l) => l.kind === "ONLINE");
+  useEffect(() => {
+    setPhysicalLocation(primaryPhysical?.address || "");
+    setPhysicalLatitude(primaryPhysical?.latitude ?? null);
+    setPhysicalLongitude(primaryPhysical?.longitude ?? null);
+    setOnlineUrl(primaryOnline?.url || "");
+  }, [primaryPhysical?.address, primaryPhysical?.latitude, primaryPhysical?.longitude, primaryOnline?.url]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Capacity is now per-tier (set inside the tier modal). Legacy event-level
   // capacity field was removed in the tier-only capacity refactor (PR C).
   const [accessibility, setAccessibility] = useState<"PUBLIC" | "MEMBERS_ONLY">(initialData?.accessibility || "PUBLIC");
@@ -654,6 +728,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     onChangeRef.current?.({
       name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
+      // Phase 2: the full set. The flat fields above stay as the primary mirror.
+      locations: locationsPayload,
       /*
        * `submittableTiers` (main #111/#112), not raw `tiers`: the raw list
        * includes rows the host has not configured, and emitting those dropped
@@ -683,13 +759,22 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       donation,
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
-      physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
+      physicalLocation, physicalLatitude, physicalLongitude, onlineUrl, locationsPayload,
       viewAccess, buyAccess, requiresApproval, attendeeVisibility, locationVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedAttendeeOption = ATTENDEE_VISIBILITY_OPTIONS.find(o => o.value === attendeeVisibility);
   const selectedLocationOption = LOCATION_VISIBILITY_OPTIONS.find(o => o.value === locationVisibility);
-  const hasLocation = !!(physicalLocation.trim() || onlineUrl.trim());
+  const hasLocation = locationsPayload.length > 0;
+  // Summary line under the "Location" row: the primary, plus a "+N more" when
+  // the event carries several locations.
+  const locationSummary = (() => {
+    if (locationsPayload.length === 0) return "";
+    const primary = locationsPayload.find((l) => l.isPrimary) || locationsPayload[0];
+    const primaryLabel = primary.kind === "PHYSICAL" ? (primary.address || "In person") : "Online";
+    const extra = locationsPayload.length - 1;
+    return extra > 0 ? `${primaryLabel} · +${extra} more` : primaryLabel;
+  })();
 
   return (
     <div>
@@ -809,7 +894,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               ) : <MapPin className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
               <span className="flex-1 min-w-0">
                 <span className={`block text-sm truncate ${hasLocation ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{hasLocation ? "Location" : "Add location"}</span>
-                {hasLocation && <span className="block text-[12.5px] text-zinc-500 truncate">{[physicalLocation.trim(), onlineUrl.trim()].filter(Boolean).join(" · ")}</span>}
+                {hasLocation && <span className="block text-[12.5px] text-zinc-500 truncate">{locationSummary}</span>}
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
             </button>
@@ -1361,21 +1446,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             <DialogTitle>Event Location</DialogTitle>
             <DialogDescription>Add a physical location and/or online event link.</DialogDescription>
           </DialogHeader>
-          <EventLocationSelector
-            physicalLocation={physicalLocation}
-            onlineUrl={onlineUrl}
-            onPhysicalLocationChange={setPhysicalLocation}
-            onOnlineUrlChange={setOnlineUrl}
-            /* Without this the selector's `onCoordinatesChange?.()` is a no-op
-               and every pin the picker resolves is dropped. LocationEditModal
-               (the EDIT path) always had it; the create form did not, which is
-               why events created here saved an address with no map. */
-            onCoordinatesChange={(nextLat, nextLng) => {
-              setPhysicalLatitude(nextLat);
-              setPhysicalLongitude(nextLng);
-            }}
-            hideHeader
-          />
+          {/* Phase 2: the repeatable field replaces the single physical+online
+              selector. `locations` is the source of truth; the legacy flat
+              fields mirror its primary via the effect above. */}
+          <EventLocationsField value={locations} onChange={setLocations} />
           <DialogFooter>
             {/* secondary, not outline: an outline button reads as equal weight
                 to Done and competes with it. */}

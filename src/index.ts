@@ -183,6 +183,7 @@ export { EventTimestamps } from "./ui/event-timestamps";
 export { EventTags } from "./ui/event-tags";
 export { RichTextEditor } from "./ui/rich-text-editor";
 export { EventLocationSelector } from "./ui/event-location-selector";
+export { EventLocationsField, makeLocation, type EventLocationValue } from "./ui/event-locations-field";
 
 // Create-event form — the full "new event" form (image, name, schedule,
 // location/description/tags, ticket tiers, visibility/attendance/approval).

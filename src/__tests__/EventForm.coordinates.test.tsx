@@ -34,10 +34,12 @@ vi.mock("../lib/google-maps", () => ({
   isVideoConferencingUrl: () => false,
 }));
 
-/** Walk the form to the location dialog and pick the first suggestion. */
+/** Walk the form to the location dialog, add a place, and pick a suggestion. */
 async function pickSuggestion(user: ReturnType<typeof userEvent.setup>, typed = "Casa Capitao") {
   await user.click(screen.getByRole("button", { name: /add location/i }));
-  const input = await screen.findByPlaceholderText(/search for a location/i);
+  // Phase 2: the repeatable field starts empty — create a physical row first.
+  await user.click(await screen.findByRole("button", { name: /add place/i }));
+  const input = await screen.findByPlaceholderText(/search for a place/i);
   await user.type(input, typed);
   /*
    * By ROLE, not by text: the typed value also renders in the "picked
