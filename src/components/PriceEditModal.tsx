@@ -19,7 +19,8 @@ import {
 } from "@dnd-kit/sortable";
 import { ModalShell } from "../ui/modal-shell";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
-import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
+// `useStripeStatus` / `StripeRequiredWarning` deliberately not imported —
+// see the gate-removal comment further down. stripe-status.tsx itself stays.
 import {
   type DonationDraft,
   type DraftTier,
@@ -32,7 +33,6 @@ import {
   buildTierBody,
   findTiersWithMaterialChanges,
   fromSmallestUnit,
-  hasPaidTier,
   isTierLocked,
   loadDonationFromEvent,
   toDisplay,
@@ -164,7 +164,6 @@ export function PriceEditModal({
 }: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
-  const stripe = useStripeStatus(communityTag, { enabled: !draftMode });
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<DraftTier[]>([]);
   const [originalTiers, setOriginalTiers] = useState<Map<string, OriginalTierSnapshot>>(new Map());
@@ -563,7 +562,6 @@ export function PriceEditModal({
   }
 
   const visible = drafts.map((t, idx) => ({ ...t, _idx: idx })).filter(t => !t.deleted);
-  const hasPaid = hasPaidTier(drafts);
 
   // Member-pricing fetches are async per saved tier. If the host clicks
   // Save before any of them resolve, the save loop iterates an
@@ -589,11 +587,29 @@ export function PriceEditModal({
     return !state || state.loading;
   });
 
-  // Stripe gate doesn't apply in draftMode — the parent's create-event
-  // submit re-runs the check at the point the event actually goes live.
-  if (!draftMode && !loading && stripe.loading === false && !stripe.chargesEnabled && hasPaid) {
-    return <StripeRequiredWarning communityTag={communityTag} onClose={onClose} />;
-  }
+  // NO STRIPE GATE HERE — deliberately, and symmetrically with the products
+  // package (cobuntu-product-management-ui) and EventForm.
+  //
+  // This used to replace the whole tier editor with a "Connect Stripe" warning
+  // when the community had no connected account and any tier was paid. Wrong
+  // on three counts:
+  //
+  //   1. Editing a price is not when money moves. The gate belongs where the
+  //      event becomes BUYABLE — at listing — which is where the backend
+  //      already put it (see EventListingService and the core repo's
+  //      stripe-gate-moves-to-listing test). Blocking here stranded work a
+  //      host had already done.
+  //   2. It tested the COMMUNITY's account while the warning links to the
+  //      current USER's payouts onboarding, so the offered fix could not
+  //      resolve the block that raised it.
+  //   3. The status endpoint is gated on ACCESS_ADMIN_APP and the hook maps
+  //      ANY error to chargesEnabled:false, so a non-admin host's 403 read as
+  //      "this community has no payment account" regardless of the truth.
+  //
+  // The community's account is not in the checkout path at all — the buyer
+  // pays the platform and payouts are separate transfers — so it is needed
+  // only to receive COMMISSION, which the server checks at listing time where
+  // it can see the rate.
 
   async function onSaveClicked() {
     // In draftMode there's no notify-attendees prompt (no enrolled
