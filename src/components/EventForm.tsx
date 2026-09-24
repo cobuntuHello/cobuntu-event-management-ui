@@ -22,7 +22,9 @@ import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
 import type { MemberPricingUpsert } from "./PriceEditModal/member-pricing";
 import { blankTier, blankDonation } from "./PriceEditModal/helpers";
 import { DonationsField } from "./PriceEditModal/DonationsField";
-import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
+// `useStripeStatus` / `StripeRequiredWarning` deliberately not imported — see
+// openTierModal for why configuring a price is the wrong moment to check a
+// payment account. stripe-status.tsx itself stays: other surfaces use it.
 import {
   MembershipTierPicker,
   toTierAccessValue,
@@ -506,14 +508,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   // Which tier the modal opens on. The tier LIST lives inline in this form now,
   // so the modal jumps straight to the per-tier edit screen.
   const [editTierLocalId, setEditTierLocalId] = useState<string | undefined>(undefined);
-  const [showStripeWarning, setShowStripeWarning] = useState(false);
-
-  // Stripe status — read via the shared hook, which pulls apiBaseUrl +
-  // authHeaders from EventManagementConfigProvider (the consumer wraps
-  // this form in the provider). Gates paid-tier creation for communities
-  // that haven't connected Stripe yet.
-  const stripe = useStripeStatus(communityTag);
-  const stripeReady = stripe.connected && stripe.chargesEnabled;
+  // NO Stripe gate on opening the tier editor — deliberately. See the long
+  // comment on openTierModal below.
 
   // Convert the parent's flat TierItem shape into the PriceEditModal's
   // DraftTier shape on modal open. The events PriceEditModal doesn't
@@ -556,18 +552,31 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     }));
   }
 
+  /**
+   * Opens the tier editor UNCONDITIONALLY. There used to be a Stripe gate
+   * here, and it was the most obstructive version of a mistake this codebase
+   * has now removed in three places:
+   *
+   *   - It blocked OPENING the editor at all, so a host could not so much as
+   *     LOOK at tiers they had already configured, let alone fix a price.
+   *   - It tested the COMMUNITY's account, while the warning it raised offers
+   *     a link to the USER's payouts onboarding — following it could never
+   *     clear the block.
+   *   - The status endpoint behind it is gated on ACCESS_ADMIN_APP and the
+   *     hook maps ANY failure to not-ready, so for a non-admin host a 403 was
+   *     indistinguishable from a genuinely unconnected community.
+   *
+   * Configuring a price is not when money moves. The account is needed only
+   * when the event becomes BUYABLE, and the server enforces that at listing
+   * time, where the applicable commission rate is actually known.
+   */
   function openTierModal() {
-    // Only block once we've confirmed Stripe is NOT ready. While the
-    // status is still loading we optimistically allow the modal to open
-    // (matches the admin's legacy `stripeConnected === false` gate).
-    if (!stripe.loading && !stripeReady) { setShowStripeWarning(true); return; }
     setShowTierModal(true);
   }
 
-  // Open the per-tier edit screen for an existing tier (edit) or a freshly
-  // appended blank tier (add). Same Stripe gate as openTierModal.
+  /** Open the per-tier edit screen for an existing tier (edit) or a freshly
+   *  appended blank tier (add). Ungated, per openTierModal above. */
   function openTierEditor(localId: string) {
-    if (!stripe.loading && !stripeReady) { setShowStripeWarning(true); return; }
     setEditTierLocalId(localId);
     setShowTierModal(true);
   }
@@ -1473,11 +1482,6 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         </DialogContent>
       </Dialog>
 
-      {/* Stripe Required Warning — shared modal; connect-link target comes
-          from the consumer's EventManagementConfig (`stripeConnectUrl`). */}
-      {showStripeWarning && (
-        <StripeRequiredWarning communityTag={communityTag} onClose={() => setShowStripeWarning(false)} />
-      )}
     </div>
   );
 }
