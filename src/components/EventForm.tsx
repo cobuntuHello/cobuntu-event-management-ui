@@ -7,6 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "../ui/dialog";
 import { EventTimestamps } from "../ui/event-timestamps";
+import { LISTING_NAME_MAX, NAME_COUNTER_FROM, listingNameTooLong } from "../lib/listingNameLimit";
 import { EventLocationsField, makeLocation, type EventLocationValue } from "../ui/event-locations-field";
 import { EventTags } from "../ui/event-tags";
 import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
@@ -837,11 +838,25 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           <div>
             <input value={name} onChange={e => setName(e.target.value)}
               placeholder="Event Name"
+              aria-invalid={listingNameTooLong(name) || undefined}
               className="w-full text-[28px] font-bold text-zinc-900 placeholder:text-zinc-300 bg-transparent border-none outline-none p-0 leading-tight" />
             {showErrors && !name.trim() && (
               <p className="text-[13px] text-amber-600 mt-2 flex items-center gap-1.5">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z" /></svg>
                 Give your event a name
+              </p>
+            )}
+            {/*
+              * Silent until it is nearly relevant, then a countdown, then a
+              * plain statement of how much has to go. The rename modal and the
+              * edit drawer have capped this at 100 all along; creation is only
+              * now honouring it. See lib/listingNameLimit.
+              */}
+            {LISTING_NAME_MAX - name.trim().length <= NAME_COUNTER_FROM && (
+              <p className={`mt-2 text-[13px] tabular-nums ${listingNameTooLong(name) ? "text-red-600 font-medium" : "text-zinc-400"}`}>
+                {listingNameTooLong(name)
+                  ? `${name.trim().length - LISTING_NAME_MAX} too many. A name this long is a description, not a title.`
+                  : `${LISTING_NAME_MAX - name.trim().length} left`}
               </p>
             )}
           </div>

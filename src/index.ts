@@ -194,6 +194,9 @@ export { EventLocationsField, makeLocation, type EventLocationValue } from "./ui
 // apiBaseUrl/authHeaders/stripeConnectUrl from it) and owns the submit —
 // see each app's create-event page for the payload builder.
 export { EventForm, type EventFormData, type TierItem } from "./components/EventForm";
+// The name cap, exported so a consumer's own submit gate reads the same number
+// the form's counter does rather than hard-coding a second copy of it.
+export { LISTING_NAME_MAX, listingNameTooLong } from "./lib/listingNameLimit";
 
 // UI primitives the EventForm composes. Exported so consumers — especially
 // the community-app, which has no shadcn primitives of its own — can reuse
