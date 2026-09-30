@@ -153,7 +153,10 @@ describe("the modal has a ceiling, and the way out never scrolls away", () => {
     // refuses to shrink below its content, so the body would push the footer
     // out of the panel instead of scrolling.
     expect(dialog).toContain("flex flex-none flex-col-reverse");     // footer
-    expect(dialog).toContain("border-t border-zinc-100");            // the edge it scrolls under
+    // NO top rule on the footer: the rows are already bordered cards, so a
+    // hairline a few pixels under the last card read as a second, weaker
+    // border rather than as chrome. The gap does the separating.
+    expect(dialog).not.toContain("border-t border-zinc-100");
   });
 
   it("wires the location modal up to all of it", () => {
@@ -196,5 +199,37 @@ describe("addLocation", () => {
     const snapshot = [...before];
     addLocation(before, "ONLINE");
     expect(before).toEqual(snapshot);
+  });
+});
+
+describe("a location row is one frame, not two", () => {
+  const field = code("ui/event-locations-field.tsx");
+
+  it("puts the border on the CARD and takes it off the input", () => {
+    // It was a bordered card wrapping a bordered input: a box inside a box,
+    // both the same grey, for a single text field. Nothing had a hierarchy, so
+    // the list read as a wireframe of itself.
+    expect(field).toContain("rounded-xl border bg-white");
+    // Both inputs go bare — leaving one of them framed is the half-fix that
+    // makes the two kinds of row look like different components.
+    const bare = field.split("border-0 bg-transparent px-0").length - 1;
+    expect(bare).toBe(2);
+  });
+
+  it("gives the whole row a focus state", () => {
+    // With two identical frames per row and eight rows, which field you were
+    // typing in was genuinely hard to see. The card answers it now.
+    expect(field).toContain("focus-within:border-zinc-400");
+  });
+
+  it("gives the kind a plate instead of a bare glyph", () => {
+    // At 14px with no fill, the two icons were the only thing separating an
+    // address row from a link row, and they read as decoration.
+    expect(field).toContain("h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100");
+  });
+
+  it("weights the primary row above the rest", () => {
+    // It is the one the cards and the emails feature.
+    expect(field).toContain('row.isPrimary && showPrimary ? "border-zinc-300" : "border-zinc-200"');
   });
 });

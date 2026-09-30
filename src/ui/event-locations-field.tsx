@@ -186,34 +186,70 @@ function LocationRow({
 }) {
   const isPhysical = row.kind === "PHYSICAL";
   return (
-    <div className="rounded-xl ring-1 ring-zinc-200 p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-500">
+    /*
+      ONE frame per row, not two.
+      
+      This was a bordered card wrapping a bordered input: a box inside a box,
+      both the same grey, for a single text field. Nothing had a hierarchy, so
+      the list read as a wireframe of itself.
+      
+      Now the CARD is the frame and the input is borderless inside it. The
+      whole row responds to focus, which is also what tells you which one you
+      are typing in -- with two identical frames per row and eight rows, that
+      was genuinely hard to see.
+    */
+    <div
+      className={cn(
+        "group rounded-xl border bg-white p-3 transition-all",
+        "focus-within:border-zinc-400 focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_0_0_3px_rgba(24,24,27,0.05)]",
+        // The primary row is the one the card and the emails feature, so it
+        // carries a little more weight than the rest of the list.
+        row.isPrimary && showPrimary ? "border-zinc-300" : "border-zinc-200"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        {/*
+          The kind, as a plate rather than a bare outline glyph. At 14px with
+          no fill, the two icons were the only thing distinguishing an address
+          row from a link row, and they read as decoration.
+        */}
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
           {isPhysical ? <MapPin className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />}
+        </span>
+        <span className="text-[13px] font-semibold text-zinc-900">
           {isPhysical ? "In person" : "Online"}
         </span>
-        <div className="flex items-center gap-2">
+
+        <div className="ml-auto flex items-center gap-1.5">
           {showPrimary && (
             <button type="button" onClick={onMakePrimary} disabled={disabled}
-              className={cn("text-[12px] font-medium rounded-full px-2 py-0.5 transition-colors cursor-pointer",
-                row.isPrimary ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200")}>
+              className={cn("text-[11.5px] font-semibold rounded-full px-2.5 py-1 transition-colors cursor-pointer",
+                row.isPrimary
+                  ? "bg-zinc-900 text-white"
+                  : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700")}>
               {row.isPrimary ? "Primary" : "Make primary"}
             </button>
           )}
           {canRemove && (
             <button type="button" aria-label="Remove location" onClick={onRemove} disabled={disabled}
-              className="h-7 w-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-red-600 hover:bg-zinc-100 transition-colors cursor-pointer">
+              className="h-7 w-7 rounded-full flex items-center justify-center text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer">
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
       </div>
 
-      {isPhysical ? (
-        <PhysicalInput row={row} disabled={disabled} onPatch={onPatch} />
-      ) : (
-        <OnlineInput row={row} disabled={disabled} onPatch={onPatch} />
-      )}
+      {/*
+        The field sits in the card's frame, indented to the label's text so the
+        row reads as one column rather than two stacked boxes.
+      */}
+      <div className="mt-1.5 pl-9">
+        {isPhysical ? (
+          <PhysicalInput row={row} disabled={disabled} onPatch={onPatch} />
+        ) : (
+          <OnlineInput row={row} disabled={disabled} onPatch={onPatch} />
+        )}
+      </div>
     </div>
   );
 }
@@ -261,7 +297,7 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
         placeholder="Search for a place or enter an address..."
         // Any hand-edit drops the pin — it's only valid for the picked address.
         onChange={(e) => onPatch({ address: e.target.value, latitude: null, longitude: null })}
-        className="w-full pr-8" />
+        className="w-full pr-8 h-8 rounded-none border-0 bg-transparent px-0 text-[14px] focus:border-0 focus:ring-0" />
       {loading && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-zinc-400" /></div>}
       {row.latitude != null && row.longitude != null && (
         <span className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-zinc-400"><MapPin className="h-3 w-3" /> Pinned on the map</span>
@@ -292,7 +328,7 @@ function OnlineInput({ row, disabled, onPatch }: { row: EventLocationValue; disa
     <div>
       <Input type="url" value={row.url} disabled={disabled}
         placeholder="https://zoom.us/j/... or https://meet.google.com/..."
-        onChange={(e) => onPatch({ url: e.target.value })} className="w-full" />
+        onChange={(e) => onPatch({ url: e.target.value })} className="w-full h-8 rounded-none border-0 bg-transparent px-0 text-[14px] focus:border-0 focus:ring-0" />
       {row.url && !valid && <p className="mt-1 text-[12px] text-red-600">Invalid URL format</p>}
     </div>
   );

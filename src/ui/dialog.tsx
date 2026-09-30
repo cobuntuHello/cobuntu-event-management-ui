@@ -136,12 +136,18 @@ const DialogBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement
 DialogHeader.displayName = "DialogHeader";
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  // `flex-none` + a hairline: in a `scrollBody` panel this is the edge the
-  // content scrolls under, and without the rule the last row looks cut off
-  // rather than continuing.
+  /*
+    `flex-none` so the footer holds its ground in a `scrollBody` panel.
+
+    NO top rule. It had one, on the theory that a scrolling body needs a
+    visible edge to disappear under. In practice the rows are already bordered
+    cards, so the hairline landed a few pixels under the last card's edge and
+    read as a second, weaker border rather than as chrome. The gap separates
+    them.
+  */
   <div
     className={cn(
-      "flex flex-none flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2",
+      "flex flex-none flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2",
       className
     )}
     {...props}
