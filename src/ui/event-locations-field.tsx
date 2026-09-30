@@ -57,10 +57,60 @@ function withOnePrimary(rows: EventLocationValue[]): EventLocationValue[] {
   return rows.map((r, i) => ({ ...r, isPrimary: i === idx }));
 }
 
+/**
+ * Append a row of `kind`, keeping exactly one primary.
+ *
+ * Pure and exported so the add CONTROLS can live somewhere other than the
+ * field — the location modal hosts them in its fixed header, above the
+ * scrolling list — without either copy of the logic drifting from the other.
+ */
+export function addLocation(
+  rows: EventLocationValue[],
+  kind: "PHYSICAL" | "ONLINE",
+): EventLocationValue[] {
+  return withOnePrimary([...rows, makeLocation(kind, rows.length === 0)]);
+}
+
+/**
+ * The two add buttons.
+ *
+ * Rendered by the field itself by default, and separately by a caller that
+ * wants them pinned. They sat UNDER the list, which is fine at two rows and
+ * useless at eight: the control that adds row nine was the one thing you had
+ * to scroll past nine rows to reach.
+ */
+export function LocationAddButtons({
+  onAdd,
+  disabled = false,
+  className,
+}: {
+  onAdd: (kind: "PHYSICAL" | "ONLINE") => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const base =
+    "inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-3 py-2 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer disabled:opacity-50";
+  return (
+    <div className={cn("flex flex-wrap gap-2", className)}>
+      <button type="button" disabled={disabled} onClick={() => onAdd("PHYSICAL")} className={base}>
+        <Plus className="h-3.5 w-3.5" /> Add place
+      </button>
+      <button type="button" disabled={disabled} onClick={() => onAdd("ONLINE")} className={base}>
+        <Plus className="h-3.5 w-3.5" /> Add online link
+      </button>
+    </div>
+  );
+}
+
 interface Props {
   value: EventLocationValue[];
   onChange: (next: EventLocationValue[]) => void;
   disabled?: boolean;
+  /**
+   * Don't render the add buttons — the caller is rendering `LocationAddButtons`
+   * itself, somewhere that stays put while this list scrolls.
+   */
+  hideAddButtons?: boolean;
 }
 
 /**
@@ -68,7 +118,7 @@ interface Props {
  * with one marked primary (the one cards/emails feature). Physical rows get
  * Google Places autocomplete; online rows a validated URL field.
  */
-export function EventLocationsField({ value, onChange, disabled = false }: Props) {
+export function EventLocationsField({ value, onChange, disabled = false, hideAddButtons = false }: Props) {
   const rows = value;
 
   /*
@@ -82,8 +132,7 @@ export function EventLocationsField({ value, onChange, disabled = false }: Props
   const update = (key: string, patch: Partial<EventLocationValue>) =>
     onChange(withOnePrimary(rows.map((r) => (r.key === key ? { ...r, ...patch } : r))));
 
-  const add = (kind: "PHYSICAL" | "ONLINE") =>
-    onChange(withOnePrimary([...rows, makeLocation(kind, rows.length === 0)]));
+  const add = (kind: "PHYSICAL" | "ONLINE") => onChange(addLocation(rows, kind));
 
   const remove = (key: string) =>
     onChange(withOnePrimary(rows.filter((r) => r.key !== key)));
@@ -112,16 +161,7 @@ export function EventLocationsField({ value, onChange, disabled = false }: Props
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={disabled} onClick={() => add("PHYSICAL")}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-3 py-2 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer disabled:opacity-50">
-          <Plus className="h-3.5 w-3.5" /> Add place
-        </button>
-        <button type="button" disabled={disabled} onClick={() => add("ONLINE")}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-3 py-2 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer disabled:opacity-50">
-          <Plus className="h-3.5 w-3.5" /> Add online link
-        </button>
-      </div>
+      {!hideAddButtons && <LocationAddButtons onAdd={add} disabled={disabled} />}
 
       {!isGoogleMapsConfigured() && (
         <div className="text-xs text-zinc-500 flex items-center gap-1">

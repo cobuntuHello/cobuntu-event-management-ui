@@ -28,7 +28,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { locationHasContent, makeLocation } from "../ui/event-locations-field";
+import { addLocation, locationHasContent, makeLocation } from "../ui/event-locations-field";
 
 const src = (p: string) => readFileSync(join(__dirname, "..", p), "utf8");
 /** Comments discuss every one of these classes at length. */
@@ -121,5 +121,80 @@ describe("locationHasContent", () => {
     expect(field).toContain("showPrimary={filledCount > 1}");
     expect(field).toContain("rows.filter(locationHasContent).length");
     expect(field).not.toContain("showPrimary={rows.length > 1}");
+  });
+});
+
+describe("the modal has a ceiling, and the way out never scrolls away", () => {
+  const dialog = code("ui/dialog.tsx");
+  const form = code("components/EventForm.tsx");
+
+  it("stops the PANEL scrolling, so exactly one container does", () => {
+    // The bug: the panel itself was the scroll container, so Cancel and Done
+    // travelled with the rows. Add eight locations and the way out of the
+    // dialog was something you had to go looking for.
+    expect(dialog).toContain('scrollBody ? "flex flex-col overflow-hidden" : "grid gap-4"');
+    // The drawer branch must stop claiming overflow when the body owns it,
+    // or the panel and the body both scroll and the footer still moves.
+    expect(dialog).toContain('scrollBody ? "" : "overflow-y-auto"');
+  });
+
+  it("caps the height on BOTH layouts", () => {
+    // A centred modal grows unbounded too; capping only the drawer fixes the
+    // phone and leaves the desktop case exactly as reported.
+    expect(dialog).toContain("max-h-[88svh]");   // docked
+    expect(dialog).toContain("sm:max-h-[85vh]"); // docked, at sm+
+    expect(dialog).toContain('scrollBody ? "max-h-[85vh]" : ""'); // plain centred
+  });
+
+  it("pins the header and footer and gives the body the scroll", () => {
+    expect(dialog).toContain("flex flex-none flex-col space-y-1.5"); // header
+    expect(dialog).toContain("min-h-0 flex-1 overflow-y-auto");      // body
+    // min-h-0 is load-bearing: a flex child defaults to min-height:auto and
+    // refuses to shrink below its content, so the body would push the footer
+    // out of the panel instead of scrolling.
+    expect(dialog).toContain("flex flex-none flex-col-reverse");     // footer
+    expect(dialog).toContain("border-t border-zinc-100");            // the edge it scrolls under
+  });
+
+  it("wires the location modal up to all of it", () => {
+    const at = form.indexOf("open={isLocationOpen}");
+    const modal = form.slice(at, at + 1400);
+    expect(modal).toContain("scrollBody");
+    expect(modal).toContain("<DialogBody>");
+    // The list must be INSIDE the body, and the add buttons OUTSIDE it.
+    expect(modal.indexOf("<DialogBody>")).toBeLessThan(modal.indexOf("<EventLocationsField"));
+    expect(modal.indexOf("<LocationAddButtons")).toBeLessThan(modal.indexOf("<DialogBody>"));
+    expect(modal).toContain("hideAddButtons");
+  });
+});
+
+describe("addLocation", () => {
+  it("appends, and the first row added is the primary", () => {
+    const one = addLocation([], "PHYSICAL");
+    expect(one).toHaveLength(1);
+    expect(one[0].isPrimary).toBe(true);
+    expect(one[0].kind).toBe("PHYSICAL");
+  });
+
+  it("does not steal primary from an existing row", () => {
+    const two = addLocation(addLocation([], "PHYSICAL"), "ONLINE");
+    expect(two.map((r) => r.isPrimary)).toEqual([true, false]);
+  });
+
+  it("keeps exactly one primary however many rows there are", () => {
+    let rows = [] as ReturnType<typeof makeLocation>[];
+    for (let i = 0; i < 6; i++) rows = addLocation(rows, i % 2 ? "ONLINE" : "PHYSICAL");
+    expect(rows).toHaveLength(6);
+    expect(rows.filter((r) => r.isPrimary)).toHaveLength(1);
+  });
+
+  it("is pure — the caller's array is untouched", () => {
+    // The modal's header calls this from a setState updater; mutating the
+    // previous array there is how you get a list that updates on every other
+    // click.
+    const before = addLocation([], "PHYSICAL");
+    const snapshot = [...before];
+    addLocation(before, "ONLINE");
+    expect(before).toEqual(snapshot);
   });
 });

@@ -4,11 +4,11 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter,
 } from "../ui/dialog";
 import { EventTimestamps } from "../ui/event-timestamps";
 import { LISTING_NAME_MAX, NAME_COUNTER_FROM, listingNameTooLong } from "../lib/listingNameLimit";
-import { EventLocationsField, makeLocation, type EventLocationValue } from "../ui/event-locations-field";
+import { EventLocationsField, LocationAddButtons, addLocation, makeLocation, type EventLocationValue } from "../ui/event-locations-field";
 import { EventTags } from "../ui/event-tags";
 import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
 import { RichTextEditor } from "../ui/rich-text-editor";
@@ -1474,15 +1474,27 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         reading to the end of it.
       */}
       <Dialog open={isLocationOpen} onOpenChange={setIsLocationOpen}>
-        <DialogContent className="sm:max-w-xl" mobileDrawer>
+        <DialogContent className="sm:max-w-xl" mobileDrawer scrollBody>
+          {/*
+            HEADER holds still: the title, and the two controls that ADD to the
+            list below. They used to sit UNDER the list, which is fine at two
+            rows and useless at eight — the control that adds row nine was the
+            one thing you had to scroll past nine rows to reach.
+          */}
           <DialogHeader>
             <DialogTitle>Event Location</DialogTitle>
             <DialogDescription>Add a physical location and/or online event link.</DialogDescription>
+            <LocationAddButtons
+              className="pt-2"
+              onAdd={(kind) => setLocations((prev) => addLocation(prev, kind))}
+            />
           </DialogHeader>
           {/* Phase 2: the repeatable field replaces the single physical+online
               selector. `locations` is the source of truth; the legacy flat
               fields mirror its primary via the effect above. */}
-          <EventLocationsField value={locations} onChange={setLocations} />
+          <DialogBody>
+            <EventLocationsField value={locations} onChange={setLocations} hideAddButtons />
+          </DialogBody>
           <DialogFooter>
             {/* secondary, not outline: an outline button reads as equal weight
                 to Done and competes with it. */}
