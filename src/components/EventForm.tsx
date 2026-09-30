@@ -1461,11 +1461,20 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       )}
 
       {/* ─── Location Modal ─── */}
-      {/* hideClose: house style is no top-right X on a modal that carries its
-          own bottom actions — two ways to dismiss, one of them unlabelled,
-          and the X sits where a form's first field wants to be. */}
+      {/*
+        DRAWER ON A PHONE, MODAL ON A DESKTOP. This one earns it: the address
+        autocomplete opens a list under the field, and a centred box on a phone
+        put that list against the bottom of the viewport with the keyboard over
+        it. Docked to the bottom edge the panel has a fixed top to grow from.
+
+        The top-right X is BACK here, by request, and the `hideClose` note that
+        used to sit in this spot went with it. The house rule it cited (bottom
+        actions, no top-right X) still holds for short confirm dialogs; this is
+        a form you can open, change your mind about, and want out of without
+        reading to the end of it.
+      */}
       <Dialog open={isLocationOpen} onOpenChange={setIsLocationOpen}>
-        <DialogContent className="sm:max-w-xl" hideClose>
+        <DialogContent className="sm:max-w-xl" mobileDrawer>
           <DialogHeader>
             <DialogTitle>Event Location</DialogTitle>
             <DialogDescription>Add a physical location and/or online event link.</DialogDescription>

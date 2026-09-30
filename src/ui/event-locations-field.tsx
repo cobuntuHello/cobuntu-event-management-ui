@@ -35,6 +35,20 @@ export function makeLocation(kind: "PHYSICAL" | "ONLINE", isPrimary = false): Ev
   return { key: nextKey(), kind, address: "", latitude: null, longitude: null, url: "", isPrimary };
 }
 
+/**
+ * Does this row actually say anything yet?
+ *
+ * Used to decide whether the primary toggle is worth showing. An empty row is a
+ * placeholder the host is about to fill, not a candidate to feature on the card
+ * and in the emails, and offering "Make primary" between two blank fields asks
+ * a question neither answer to means anything yet.
+ */
+export function locationHasContent(row: EventLocationValue): boolean {
+  return row.kind === "PHYSICAL"
+    ? !!row.address.trim() || (row.latitude != null && row.longitude != null)
+    : !!row.url.trim();
+}
+
 /** Ensure exactly one primary — the current one, else the first row. */
 function withOnePrimary(rows: EventLocationValue[]): EventLocationValue[] {
   if (rows.length === 0) return rows;
@@ -56,6 +70,14 @@ interface Props {
  */
 export function EventLocationsField({ value, onChange, disabled = false }: Props) {
   const rows = value;
+
+  /*
+   * The primary toggle appears once there is a real choice to make: TWO rows
+   * with something in them. It used to key off `rows.length`, so adding a
+   * second empty row put "Primary" / "Make primary" between two blank fields,
+   * before either could be the thing a card features.
+   */
+  const filledCount = rows.filter(locationHasContent).length;
 
   const update = (key: string, patch: Partial<EventLocationValue>) =>
     onChange(withOnePrimary(rows.map((r) => (r.key === key ? { ...r, ...patch } : r))));
@@ -82,7 +104,7 @@ export function EventLocationsField({ value, onChange, disabled = false }: Props
             row={row}
             disabled={disabled}
             canRemove={rows.length > 0}
-            showPrimary={rows.length > 1}
+            showPrimary={filledCount > 1}
             onPatch={(patch) => update(row.key, patch)}
             onRemove={() => remove(row.key)}
             onMakePrimary={() => setPrimary(row.key)}
