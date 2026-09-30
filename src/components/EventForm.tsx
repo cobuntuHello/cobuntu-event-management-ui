@@ -1498,7 +1498,13 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           <DialogFooter>
             {/* secondary, not outline: an outline button reads as equal weight
                 to Done and competes with it. */}
-            <Button variant="secondary" onClick={() => setIsLocationOpen(false)}>Cancel</Button>
+            {/*
+              "Close", not "Cancel". Both buttons here do the same thing -
+              setIsLocationOpen(false) - because the field edits `locations`
+              in place and there is nothing to roll back. "Cancel" promised a
+              discard it never performed.
+            */}
+            <Button variant="secondary" onClick={() => setIsLocationOpen(false)}>Close</Button>
             <Button onClick={() => setIsLocationOpen(false)}>Done</Button>
           </DialogFooter>
         </DialogContent>

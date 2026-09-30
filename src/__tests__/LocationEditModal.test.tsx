@@ -168,18 +168,38 @@ describe("the location field's affordances", () => {
 });
 
 describe("the location modal's chrome", () => {
-  it("has no top-right X — it carries its own bottom actions", () => {
-    const src = readFileSync(resolve(__dirname, "../components/EventForm.tsx"), "utf8");
-    const modal = src.slice(src.indexOf("Location Modal"), src.indexOf("Tags Modal"));
-    expect(modal).toContain("hideClose");
+  /*
+   * These two read the modal's JSX, so they read it with COMMENTS STRIPPED.
+   *
+   * The `hideClose` assertion below used to run against the raw source, and
+   * when the prop was removed the test kept passing -- because the comment
+   * left in its place explained why it had gone, and the word was still in
+   * the file. A source assertion that a comment can satisfy is not an
+   * assertion.
+   */
+  const locationModalCode = () => {
+    const src = readFileSync(resolve(__dirname, "../components/EventForm.tsx"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    return src.slice(src.indexOf("open={isLocationOpen}"), src.indexOf("open={isTagsOpen}"));
+  };
+
+  it("has a top-right X, and it is the muted circular one", () => {
+    // Reversed by request. The house rule it used to cite (bottom actions, no
+    // top-right X) still holds for short confirm dialogs; this is a form you
+    // can open, change your mind about, and want out of without reading to
+    // the end of it.
+    expect(locationModalCode()).not.toContain("hideClose");
   });
 
-  it("closes with a secondary button, not an outline one", () => {
-    // An outline Cancel reads as equal weight to Done and competes with it.
-    const src = readFileSync(resolve(__dirname, "../components/EventForm.tsx"), "utf8");
-    const modal = src.slice(src.indexOf("Location Modal"), src.indexOf("Tags Modal"));
-    // `[^>]*` cannot cross the `>` in the onClick arrow function.
-    expect(modal).toMatch(/variant="secondary"[\s\S]*?>Cancel</);
-    expect(modal).not.toMatch(/variant="outline"[\s\S]{0,80}?>Cancel</);
+  it("closes with a secondary button labelled Close, not an outline Cancel", () => {
+    // Secondary, not outline: an outline button reads as equal weight to Done
+    // and competes with it.
+    //
+    // "Close", not "Cancel": both buttons call setIsLocationOpen(false) and
+    // nothing is rolled back, so "Cancel" promised a discard it never did.
+    const modal = locationModalCode();
+    expect(modal).toMatch(/variant="secondary"[\s\S]*?>Close</);
+    expect(modal).not.toMatch(/>Cancel</);
   });
 });
