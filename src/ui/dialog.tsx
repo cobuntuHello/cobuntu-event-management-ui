@@ -24,23 +24,65 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean }
->(({ className, children, hideClose, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    hideClose?: boolean;
+    /**
+     * Below `sm`, dock to the bottom edge as a drawer instead of floating in
+     * the middle of the viewport.
+     *
+     * A centred box on a phone is a desktop modal that has been shrunk: it
+     * leaves dead space above and below, its content is furthest from the
+     * thumb, and there is no edge to swipe. Docked, it reads as the drawer the
+     * rest of the app uses, and a tall form grows downward from a fixed top
+     * rather than expanding in both directions around the centre.
+     *
+     * OPT-IN rather than the default, because this primitive backs every modal
+     * in the package and a short confirm dialog is fine centred. Flipping the
+     * default is a one-line change here once every caller has been looked at.
+     */
+    mobileDrawer?: boolean;
+  }
+>(({ className, children, hideClose, mobileDrawer, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-[130] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-zinc-200 bg-white p-6 shadow-lg rounded-xl",
+        "fixed z-[130] grid w-full gap-4 border border-zinc-200 bg-white shadow-lg",
+        mobileDrawer
+          ? [
+              // Phone: docked to the bottom edge, square at the bottom, capped
+              // so a long form scrolls inside itself instead of running off
+              // the top of the screen. `pb-[max(...)]` clears the home bar.
+              "inset-x-0 bottom-0 top-auto max-h-[88svh] overflow-y-auto rounded-t-2xl rounded-b-none p-5",
+              "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+              "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom",
+              "data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom",
+              // sm+: back to the centred modal, undoing every drawer rule.
+              "sm:inset-x-auto sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-h-[85vh]",
+              "sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-xl sm:p-6",
+              "sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:slide-out-to-bottom-0",
+            ]
+          : "left-[50%] top-[50%] max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-xl p-6",
         className
       )}
       {...props}
     >
       {children}
-      {/* Top-right close X — omitted when hideClose, for modals that carry
-          their own bottom actions (house style: no top-right X). */}
+      {/*
+        Top-right close.
+        
+        A muted circular plate rather than a bare glyph: on a drawer it sits
+        over the first row of content, and an unplated X at 70% opacity is easy
+        to miss and easier to mis-tap. 36px is the tap target, not the icon.
+        
+        Still omitted when `hideClose` — a modal whose only actions are at the
+        bottom does not want a second, unlabelled way out.
+      */}
       {!hideClose && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 cursor-pointer">
+        <DialogPrimitive.Close
+          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-900 cursor-pointer"
+        >
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
