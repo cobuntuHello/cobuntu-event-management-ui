@@ -41,20 +41,42 @@ const DialogContent = React.forwardRef<
      * default is a one-line change here once every caller has been looked at.
      */
     mobileDrawer?: boolean;
+    /**
+     * Lay the panel out as header / scrolling body / footer, with a fixed
+     * ceiling, instead of letting it grow with its content.
+     *
+     * A modal holding a REPEATABLE list has no natural height: add eight
+     * locations and the panel grows past the viewport, and because the whole
+     * panel is the scroll container, Cancel and Done scroll away with the rows.
+     * The way out of the dialog should not be something you have to go looking
+     * for.
+     *
+     * With this on, the panel is `flex flex-col` + `overflow-hidden`; the
+     * caller puts its scrollable middle in `<DialogBody>` and the header and
+     * footer hold their ground. Opt-in, because a short dialog that fits has
+     * nothing to gain and would grow a pointless inner scroll container.
+     */
+    scrollBody?: boolean;
   }
->(({ className, children, hideClose, mobileDrawer, ...props }, ref) => (
+>(({ className, children, hideClose, mobileDrawer, scrollBody, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-[130] grid w-full gap-4 border border-zinc-200 bg-white shadow-lg",
+        "fixed z-[130] w-full border border-zinc-200 bg-white shadow-lg",
+        // A scrolling body needs the PANEL to stop scrolling: one scroll
+        // container, in the middle, or the footer travels with the content.
+        scrollBody ? "flex flex-col overflow-hidden" : "grid gap-4",
         mobileDrawer
           ? [
               // Phone: docked to the bottom edge, square at the bottom, capped
               // so a long form scrolls inside itself instead of running off
               // the top of the screen. `pb-[max(...)]` clears the home bar.
-              "inset-x-0 bottom-0 top-auto max-h-[88svh] overflow-y-auto rounded-t-2xl rounded-b-none p-5",
+              "inset-x-0 bottom-0 top-auto max-h-[88svh] rounded-t-2xl rounded-b-none p-5",
+              // Only the panel itself scrolls when there is no inner body to
+              // do it; with `scrollBody` the middle owns the scrolling.
+              scrollBody ? "" : "overflow-y-auto",
               "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
               "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom",
               "data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom",
@@ -63,7 +85,10 @@ const DialogContent = React.forwardRef<
               "sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-xl sm:p-6",
               "sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:slide-out-to-bottom-0",
             ]
-          : "left-[50%] top-[50%] max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-xl p-6",
+          : [
+              "left-[50%] top-[50%] max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-xl p-6",
+              scrollBody ? "max-h-[85vh]" : "",
+            ],
         className
       )}
       {...props}
@@ -93,12 +118,34 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
+  // `flex-none` so it holds its ground when the panel is a flex column; inert
+  // in the default grid layout.
+  <div className={cn("flex flex-none flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
+);
+
+/**
+ * The scrolling middle of a `scrollBody` dialog.
+ *
+ * The negative inline margins + matching padding let a focus ring or a
+ * dropdown inside the list breathe to the panel's edge instead of being
+ * clipped by `overflow-y-auto` the moment it crosses the boundary.
+ */
+const DialogBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("-mx-1 min-h-0 flex-1 overflow-y-auto px-1 py-4", className)} {...props} />
 );
 DialogHeader.displayName = "DialogHeader";
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
+  // `flex-none` + a hairline: in a `scrollBody` panel this is the edge the
+  // content scrolls under, and without the rule the last row looks cut off
+  // rather than continuing.
+  <div
+    className={cn(
+      "flex flex-none flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2",
+      className
+    )}
+    {...props}
+  />
 );
 DialogFooter.displayName = "DialogFooter";
 
@@ -118,4 +165,4 @@ const DialogDescription = React.forwardRef<
 ));
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
-export { Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription };
+export { Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription };

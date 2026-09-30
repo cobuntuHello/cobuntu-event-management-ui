@@ -183,7 +183,10 @@ export { EventTimestamps } from "./ui/event-timestamps";
 export { EventTags } from "./ui/event-tags";
 export { RichTextEditor } from "./ui/rich-text-editor";
 export { EventLocationSelector } from "./ui/event-location-selector";
-export { EventLocationsField, makeLocation, type EventLocationValue } from "./ui/event-locations-field";
+export {
+  EventLocationsField, LocationAddButtons, addLocation, locationHasContent,
+  makeLocation, type EventLocationValue,
+} from "./ui/event-locations-field";
 
 // Create-event form — the full "new event" form (image, name, schedule,
 // location/description/tags, ticket tiers, visibility/attendance/approval).
@@ -205,7 +208,7 @@ export { Switch } from "./ui/switch";
 export { Slider } from "./ui/slider";
 export {
   Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger,
-  DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+  DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription,
 } from "./ui/dialog";
 export { BannerCropModal, type BannerCropResult } from "./ui/banner-crop-modal";
 export { StockPhotoPicker } from "./ui/stock-photo-picker";
