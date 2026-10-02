@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EventForm } from "../components/EventForm";
 import { renderWithConfig, mockFetch } from "./test-utils";
+import { __resetStripeStatusCache } from "../components/stripe-status";
 
 /**
  * REGRESSION GUARD: configuring a ticket price must never be gated on a
@@ -32,6 +33,20 @@ import { renderWithConfig, mockFetch } from "./test-utils";
  * Every case below therefore uses a community that is NOT connected — the
  * exact state the old gate blocked on. The rest of the suite mocks
  * `{connected: true, chargesEnabled: true}`, which is why it never caught this.
+ *
+ * ── What this guard does NOT forbid ────────────────────────────────────────
+ *
+ * It forbids BLOCKING, not mentioning. A later change added a non-blocking
+ * notice beside the price field (StripePayoutNotice), because the server does
+ * refuse to CREATE a community-owned paid event without an account to pay out
+ * to, and a host used to meet that rule for the first time as a failed save.
+ *
+ * These cases originally asserted that the words "Connect Stripe" never
+ * appear at all, which is a broader claim than the one the file is defending
+ * and would have forbidden any explanation whatsoever. They now assert what
+ * actually matters: the editor opens, and every pricing control in it works.
+ * Fault 3 is unchanged and still absolute — on an UNPROVEN status, nothing is
+ * claimed at all. See StripePayoutNotice.known.
  */
 
 const PAID_TIER = {
@@ -62,6 +77,13 @@ function renderForm(tiers: unknown[]) {
 }
 
 describe("EventForm — no Stripe gate on configuring prices", () => {
+  /*
+   * `stripeCache` is module-level and keyed only by communityTag, so without
+   * this the 403 and network-failure cases below get the FIRST case's answer
+   * back from cache and never test their own mock at all.
+   */
+  beforeEach(() => __resetStripeStatusCache());
+
   it("opens the tier editor for a PAID tier when the community has NO Stripe", async () => {
     // The exact state the old gate refused on: a paid tier, no connected
     // account. The editor must open anyway.
@@ -74,7 +96,18 @@ describe("EventForm — no Stripe gate on configuring prices", () => {
     await user.click(screen.getByRole("button", { name: /General/ }));
 
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
-    expect(screen.queryByText(/Connect Stripe/i)).not.toBeInTheDocument();
+
+    /*
+     * The price field is EDITABLE, which is the whole claim. The notice beside
+     * it is expected here (the server gave a real answer), but it must not
+     * take the control away — the old gate replaced this field with a modal.
+     */
+    // By value, not by label: the "Price" eyebrow is a styled <p>, not a
+    // <label>, so getByLabelText finds the text and no control under it.
+    const price = screen.getByDisplayValue("20") as HTMLInputElement;
+    expect(price).toBeEnabled();
+    expect(price.type).toBe("number");
+    expect(screen.getByText(/No payment account connected yet/i)).toBeInTheDocument();
   });
 
   it("opens the editor when the status endpoint 403s (a non-admin host)", async () => {
@@ -88,6 +121,9 @@ describe("EventForm — no Stripe gate on configuring prices", () => {
     await user.click(screen.getByRole("button", { name: /General/ }));
 
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    // Fault 3: a permission error is not a payments fact, so NOTHING is said.
+    expect(screen.getByDisplayValue("20")).toBeEnabled();
+    expect(screen.queryByText(/No payment account connected yet/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Connect Stripe/i)).not.toBeInTheDocument();
   });
 
@@ -101,6 +137,8 @@ describe("EventForm — no Stripe gate on configuring prices", () => {
     await user.click(screen.getByRole("button", { name: /General/ }));
 
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    expect(screen.getByDisplayValue("20")).toBeEnabled();
+    expect(screen.queryByText(/No payment account connected yet/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Connect Stripe/i)).not.toBeInTheDocument();
   });
 

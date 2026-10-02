@@ -9,11 +9,18 @@ import { SUPPORTED_CURRENCIES, type DraftTier } from "../types";
 import { getSymbol, isTierLocked } from "../helpers";
 import { Collapse, Eyebrow, StepInput } from "../_primitives";
 import { MembersStep } from "./MembersStep";
+import { StripePayoutNotice, useStripeStatus } from "../../stripe-status";
 import type { MemberPricingRow, MemberPricingTierState } from "../member-pricing";
 
 export interface BasicsStepProps {
   t: DraftTier;
   onUpdate: (patch: Partial<DraftTier>) => void;
+  /**
+   * Resolves the payment-account status and the connect link, both of which
+   * the config context derives per app. Optional so the notice is opt-in: a
+   * caller that omits it renders the step exactly as before.
+   */
+  communityTag?: string;
   /** Member-pricing (community-only) is folded into this step so all
    *  pricing config lives in one place. Off → the section isn't rendered. */
   showMemberPricing?: boolean;
@@ -42,6 +49,7 @@ export interface BasicsStepProps {
 export function BasicsStep({
   t,
   onUpdate,
+  communityTag,
   showMemberPricing = false,
   memberPricingState,
   onMemberPricingRowChange,
@@ -50,6 +58,18 @@ export function BasicsStep({
 }: BasicsStepProps) {
   const sym = getSymbol(t.currency);
   const locked = isTierLocked(t);
+
+  /*
+   * Only asked once the tier is actually PAID. A free tier never needs an
+   * account, so fetching for one would spend a request to learn something
+   * nobody is going to be shown — and the request is permission-gated, so
+   * making it unnecessarily is also how a 403 ends up in the logs for a host
+   * doing nothing wrong. `enabled` short-circuits the hook entirely.
+   */
+  const priceIsPaid = Number(t.price) > 0;
+  const stripe = useStripeStatus(communityTag ?? "", {
+    enabled: !!communityTag && priceIsPaid,
+  });
 
   const billingMode: BillingMode = t.installmentEnabled ? "INSTALLMENT_PLAN" : "ONE_TIME";
 
@@ -113,6 +133,32 @@ export function BasicsStep({
           </Select>
         </div>
       </div>
+
+      {/*
+        Beside the field that causes it, not at the save that reports it.
+
+        Non-blocking by design: the host types whatever price they like and the
+        draft saves. The server still owns the rule (a community-owned paid
+        event cannot be created without an account to pay out to, enforced in
+        EventLifecycleService), and that refusal now carries its own message.
+        This is only the earlier, calmer version of the same sentence.
+
+        ONE guard, deliberately. A free tier is handled by `enabled` above: a
+        disabled hook reports `known: false` whatever the cache holds, and the
+        notice renders nothing without a proven answer. A second
+        `priceIsPaid &&` here looked like defence but could not fail — it was
+        unreachable, so no test could hold it, and unreachable code that looks
+        load-bearing is how the real guard gets "cleaned up" later. The free
+        tier is pinned where it is actually decided: the test asserting no
+        status request is made at all.
+      */}
+      {communityTag && (
+        <StripePayoutNotice
+          communityTag={communityTag}
+          known={stripe.known}
+          connected={stripe.connected}
+        />
+      )}
 
       {/* PWYW minimum — the floor under the buyer-chosen amount. */}
       <Collapse open={t.priceMode === "pwyw"}>
