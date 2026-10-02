@@ -54,6 +54,7 @@ export function StepView({
         <BasicsStep
           t={t}
           onUpdate={onUpdate}
+          communityTag={communityTag}
           showMemberPricing={showMemberPricing}
           memberPricingState={memberPricingState}
           onMemberPricingRowChange={onMemberPricingRowChange}

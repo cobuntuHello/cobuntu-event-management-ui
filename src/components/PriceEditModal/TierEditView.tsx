@@ -13,6 +13,8 @@ export interface TierEditViewProps {
   onUpdate: (patch: Partial<DraftTier>) => void;
   /** Drill into an Advanced sub-screen (Level 3). */
   onEnterStep: (step: StepId) => void;
+  /** Forwarded to BasicsStep for the payment-account notice. */
+  communityTag?: string;
   showMemberPricing?: boolean;
   memberPricingState?: MemberPricingTierState;
   onMemberPricingRowChange?: (idx: number, patch: Partial<MemberPricingRow>) => void;
@@ -60,6 +62,7 @@ export function TierEditView({
   t,
   onUpdate,
   onEnterStep,
+  communityTag,
   showMemberPricing,
   memberPricingState,
   onMemberPricingRowChange,
@@ -161,6 +164,7 @@ export function TierEditView({
           <BasicsStep
             t={t}
             onUpdate={onUpdate}
+            communityTag={communityTag}
             showMemberPricing={showMemberPricing}
             memberPricingState={memberPricingState}
             onMemberPricingRowChange={onMemberPricingRowChange}

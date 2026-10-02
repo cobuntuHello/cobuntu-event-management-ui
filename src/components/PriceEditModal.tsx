@@ -969,6 +969,7 @@ export function PriceEditModal({
             if (idx != null) updateDraft(idx, patch);
           }}
           onEnterStep={(step) => setActiveStep(step)}
+          communityTag={communityTag}
           showMemberPricing={!!showMemberPricing}
           memberPricingState={activeMpKey ? memberPricingByTier.get(activeMpKey) : undefined}
           onMemberPricingRowChange={
