@@ -17,7 +17,7 @@ import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import { RefundPolicyField, type RefundPolicyValue } from "./RefundPolicyField";
 import {
   Lock, UserCheck, Users, Image as ImageIcon, X,
-  Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
+  Eye, EyeOff, Check, ChevronRight, Pencil, MapPin, FileText, Tag as TagIcon,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -1008,6 +1008,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               <div className="space-y-2 mb-3">
                 {tiers.map((t) => {
                   const published = t.publishedAt !== null && t.publishedAt !== undefined;
+                  const cap = parseInt(t.capacity, 10);
+                  const hasCap = !!t.capacity && !Number.isNaN(cap) && cap > 0;
                   return (
                   /*
                    * The WHOLE row opens the tier editor, matching the product
@@ -1031,24 +1033,40 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                    * buyers cannot see, which should not require opening the
                    * editor to discover.
                    */
+                  /* Direction D: an expanded card. The whole card opens the tier
+                     editor, so "Edit" is a plain text cue (no nested button). A
+                     fact strip below surfaces capacity and publish status so a
+                     host sees what's set inside and that the row is editable. */
                   <button
                     key={t.localId}
                     type="button"
                     onClick={() => openTierEditor(t.localId)}
-                    className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-all duration-150 text-left cursor-pointer"
+                    className="group w-full text-left rounded-xl bg-zinc-50 border border-zinc-100 hover:bg-zinc-100 hover:border-zinc-200 transition-all duration-150 cursor-pointer overflow-hidden"
                   >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200 text-zinc-600">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200 text-zinc-600">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-zinc-800 truncate">{t.name || "Unnamed tier"}</p>
+                        <p className="text-[12px] text-zinc-400 mt-0.5 truncate">{t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : "Free"}</p>
+                      </div>
+                      <span className="shrink-0 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-zinc-400 group-hover:text-zinc-600 transition-colors">
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-zinc-800 truncate">{t.name || "Unnamed tier"}</p>
-                      <p className="text-[11px] text-zinc-400">
-                        {t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : "Free"}
-                        {t.capacity ? ` · ${t.capacity} spots` : ""}
-                        {published ? "" : " · Draft"}
-                      </p>
+                    <div className="flex flex-wrap border-t border-zinc-100">
+                      {hasCap && (
+                        <div className="flex-1 min-w-[110px] px-4 py-2.5 border-r border-zinc-100">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Capacity</p>
+                          <p className="text-[13px] font-medium text-zinc-800 mt-0.5 tabular-nums">{cap} spots</p>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-[110px] px-4 py-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Status</p>
+                        <p className="text-[13px] font-medium mt-0.5" style={{ color: published ? "#15803d" : "#a16207" }}>{published ? "Published" : "Draft"}</p>
+                      </div>
                     </div>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
                   </button>
                   );
                 })}
