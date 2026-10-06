@@ -14,6 +14,7 @@ import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal"
 import { RichTextEditor } from "../ui/rich-text-editor";
 import { htmlToPlainText } from "../lib/htmlToPlainText";
 import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
+import { RefundPolicyField, type RefundPolicyValue } from "./RefundPolicyField";
 import {
   Lock, UserCheck, Users, Image as ImageIcon, X,
   Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
@@ -207,6 +208,9 @@ export interface EventFormData {
   // "PUBLIC" if not provided.
   viewability?: "PUBLIC" | "MEMBERS_ONLY";
   requiresApproval: boolean;
+  /** The host's refund policy. null = Standard (platform default window);
+   *  { mode:'default', customBuyerWindowDays:0 } = no self-service refunds. */
+  refundPolicy?: RefundPolicyValue;
   /**
    * Who may see the attendee roster on the customer-facing portal.
    *
@@ -434,6 +438,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     toTierAccessValue(initialData?.accessibility ?? "PUBLIC", initialBuyTierIds),
   );
   const [requiresApproval, setRequiresApproval] = useState(initialData?.requiresApproval || false);
+  /*
+   * Refund policy, seeded from initialData so an untouched edit re-emits what the
+   * event already had. null = Standard (platform default); { customBuyerWindowDays: 0 }
+   * = no self-service refunds. CreateEventData/update both accept `refundPolicy`.
+   */
+  const [refundPolicy, setRefundPolicy] = useState<RefundPolicyValue>(
+    (initialData as { refundPolicy?: RefundPolicyValue } | undefined)?.refundPolicy ?? null,
+  );
   // PUBLIC unless told otherwise — the server column defaults the same way, so
   // a form that never touches this reproduces today's behaviour exactly.
   const [attendeeVisibilityOpen, setAttendeeVisibilityOpen] = useState(false);
@@ -763,7 +775,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       viewability: viewResolved.visibility,
       viewTierIds: viewResolved.tierIds,
       buyTierIds: buyResolved.tierIds,
-      requiresApproval, attendeeVisibility, locationVisibility, tiers: submittableTiers, tags,
+      requiresApproval, refundPolicy, attendeeVisibility, locationVisibility, tiers: submittableTiers, tags,
       categoryId, subCategoryId,
       /*
        * Donation sidecar — emitted so the create clients can PUT it to
@@ -775,7 +787,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl, locationsPayload,
-      viewAccess, buyAccess, requiresApproval, attendeeVisibility, locationVisibility, submittableTiers, tags,
+      viewAccess, buyAccess, requiresApproval, refundPolicy, attendeeVisibility, locationVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedAttendeeOption = ATTENDEE_VISIBILITY_OPTIONS.find(o => o.value === attendeeVisibility);
@@ -1403,6 +1415,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               onCheckedChange={setRequiresApproval}
               onClick={e => e.stopPropagation()} />
           </div>
+        </div>
+
+        {/* Refunds — the host's own policy, the SAME control the manage page's
+            refund modal uses (RefundPolicyField). Standard = platform default
+            window; None = buyers contact the host. */}
+        <div className="mt-6">
+          <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Refunds</p>
+          <RefundPolicyField value={refundPolicy} onChange={setRefundPolicy} />
         </div>
       </div>
       )}

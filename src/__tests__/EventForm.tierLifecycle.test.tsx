@@ -29,6 +29,9 @@ const TIER_ROW = /Unnamed tier|Standard|Tier \d/;
 function tierRowNames(): string[] {
   return screen
     .queryAllByRole("button")
+    // Exclude toggle buttons (aria-pressed): the Refunds control's "Standard
+    // refunds" preset is a toggle and would otherwise match the /Standard/ filter.
+    .filter((b) => !b.hasAttribute("aria-pressed"))
     .map((b) => b.textContent || "")
     .filter((t) => TIER_ROW.test(t))
     .map((t) => t.trim());
