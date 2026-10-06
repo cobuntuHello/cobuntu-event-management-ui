@@ -17,7 +17,7 @@ import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import { RefundPolicyField, type RefundPolicyValue } from "./RefundPolicyField";
 import {
   Lock, UserCheck, Users, Image as ImageIcon, X,
-  Eye, EyeOff, Check, ChevronRight, Pencil, MapPin, FileText, Tag as TagIcon,
+  Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -1033,10 +1033,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                    * buyers cannot see, which should not require opening the
                    * editor to discover.
                    */
-                  /* Direction D: an expanded card. The whole card opens the tier
-                     editor, so "Edit" is a plain text cue (no nested button). A
-                     fact strip below surfaces capacity and publish status so a
-                     host sees what's set inside and that the row is editable. */
+                  /* An expanded, clickable card: the whole row opens the tier editor,
+                     with a chevron as the drill-in cue. A fact strip below surfaces
+                     capacity and publish status so a host sees what's set inside and
+                     that the row is editable. */
                   <button
                     key={t.localId}
                     type="button"
@@ -1051,9 +1051,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                         <p className="text-[14px] font-semibold text-zinc-800 truncate">{t.name || "Unnamed tier"}</p>
                         <p className="text-[12px] text-zinc-400 mt-0.5 truncate">{t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : "Free"}</p>
                       </div>
-                      <span className="shrink-0 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-zinc-400 group-hover:text-zinc-600 transition-colors">
-                        <Pencil className="h-3.5 w-3.5" /> Edit
-                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
                     </div>
                     <div className="flex flex-wrap border-t border-zinc-100">
                       {hasCap && (
