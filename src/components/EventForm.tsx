@@ -15,7 +15,7 @@ import { RichTextEditor } from "../ui/rich-text-editor";
 import { htmlToPlainText } from "../lib/htmlToPlainText";
 import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
-  Ticket, Lock, UserCheck, Users, Image as ImageIcon, X,
+  Lock, UserCheck, Users, Image as ImageIcon, X,
   Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
@@ -318,7 +318,7 @@ interface EventFormProps {
    * (visibility) is unaffected — it stays gated by `hideVisibility` and, in the
    * wizard, lives on its own access step.
    */
-  page?: "listing" | "commerce" | "all";
+  page?: "listing" | "commerce" | "settings" | "all";
   /**
    * Surfaces community member (tier) pricing inside the draftMode tier wizard
    * so per-segment discount overrides can be configured at CREATE time (they
@@ -334,10 +334,15 @@ interface EventFormProps {
 // ─── Component ─────────────────────────────────────────────────
 
 export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false }: EventFormProps) {
-  // Which half of the form this render shows. Default "all" → both true, so the
+  // Which part of the form this render shows. Default "all" → all true, so the
   // one-page consumers (manage/edit drawer, admin single-page) are unchanged.
-  const showListing = page !== "commerce";
-  const showCommerce = page !== "listing";
+  // The wizard splits across pages: "listing", "commerce" (tickets + donations +
+  // attendees + community access) and "settings" ("Policies & access" — the
+  // Require-Approval toggle, and the refund policy later). Explicit membership so
+  // a new page can never fall into a block it does not own.
+  const showListing = page === "all" || page === "listing";
+  const showCommerce = page === "all" || page === "commerce";
+  const showSettings = page === "all" || page === "settings";
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -982,15 +987,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       <div className={`${maxWidthClassName} mt-8`}>
         <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Event Options</p>
         <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
-          {/* Ticket Tiers */}
+          {/* Ticket Tiers — the "Event Options" eyebrow above the card already
+              names this group, so the old in-card Ticket-icon + "Tickets" title +
+              count header is gone (matches the product Variants restructure): the
+              card holds only the tier list + Add button. */}
           <div className="px-5 py-4 first:rounded-t-2xl">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <Ticket className="h-[18px] w-[18px] text-zinc-400" />
-                <span className="text-sm font-medium text-zinc-800">Tickets</span>
-              </div>
-              <span className="text-xs text-zinc-400">{tiers.length === 0 ? "Free event" : `${tiers.length} tier${tiers.length > 1 ? "s" : ""}`}</span>
-            </div>
             {tiers.length > 0 && (
               <div className="space-y-2 mb-3">
                 {tiers.map((t) => {
@@ -1065,39 +1066,13 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         />
       </div>
 
-      {/* ─── Approval ───
-          A SIBLING of Community access, not a parent of it.
-
-          The community-access block used to sit INSIDE this row's
-          `flex items-center justify-between` div, which made it a flex child
-          next to the switch - so the two rendered side by side on the admin
-          form while the products form stacked them. It read as a deliberate
-          two-column layout; it was a stray nesting.
-
-          NOT community-scoped. requiresApproval is deliberately outside
-          COMMUNITY_SCOPED_EVENT_FIELDS, so a member hosting their own event
-          may set it and the backend allows it. It gets its own card rather
-          than moving above, or member hosts would lose a setting they own. */}
-      <div className="mt-6">
-        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Approval</p>
-        <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
-      {/* Require Approval */}
-      <div
-        onClick={() => setRequiresApproval(!requiresApproval)}
-        className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
-        <div className="flex items-center gap-3">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
-          <div>
-            <span className="text-sm font-medium text-zinc-800">Require Approval</span>
-            <p className="text-[11px] text-zinc-400 mt-0.5">Review attendees before confirming their registration</p>
-          </div>
-        </div>
-        <Switch checked={requiresApproval}
-          onCheckedChange={setRequiresApproval}
-          onClick={e => e.stopPropagation()} />
-        </div>
-        </div>
-      </div>
+      {/* ─── Approval moved to the "Policies & access" settings page ───
+          Require-Approval now lives in the showSettings block below the commerce
+          wrapper, so the create wizard's commerce step is tickets + donations +
+          attendees + access, and the skippable approval/refund config has its own
+          step. On the "all" page (drawer / admin single-page) both blocks render,
+          so it still appears there — just after Community access rather than
+          before Attendees. */}
 
       {/* ─── Attendees ───
           Who can see WHO ELSE is coming. A third visibility axis, and its own
@@ -1403,6 +1378,32 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           </p>
         </div>
       )}
+      </div>
+      )}
+
+      {/* ─── Policies & access (settings step) ─── Require-Approval.
+          NOT community-scoped (outside COMMUNITY_SCOPED_EVENT_FIELDS), so a
+          member hosting their own event may set it. The refund policy joins this
+          block later. On "all" it renders after Community access above. */}
+      {showSettings && (
+      <div className={`${maxWidthClassName} mt-8`}>
+        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Approval</p>
+        <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
+          <div
+            onClick={() => setRequiresApproval(!requiresApproval)}
+            className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
+            <div className="flex items-center gap-3">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+              <div>
+                <span className="text-sm font-medium text-zinc-800">Require Approval</span>
+                <p className="text-[11px] text-zinc-400 mt-0.5">Review attendees before confirming their registration</p>
+              </div>
+            </div>
+            <Switch checked={requiresApproval}
+              onCheckedChange={setRequiresApproval}
+              onClick={e => e.stopPropagation()} />
+          </div>
+        </div>
       </div>
       )}
 
