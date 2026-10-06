@@ -1010,6 +1010,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                   const published = t.publishedAt !== null && t.publishedAt !== undefined;
                   const cap = parseInt(t.capacity, 10);
                   const hasCap = !!t.capacity && !Number.isNaN(cap) && cap > 0;
+                  const formCount = t.draftForm?.fields?.length ?? 0;
                   return (
                   /*
                    * The WHOLE row opens the tier editor, matching the product
@@ -1053,13 +1054,17 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                       </div>
                       <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
                     </div>
+                    {/* Facts ALWAYS show (even unset, as "Unlimited" / "Not set")
+                        so a host discovers these exist behind the card. */}
                     <div className="flex flex-wrap border-t border-zinc-100">
-                      {hasCap && (
-                        <div className="flex-1 min-w-[110px] px-4 py-2.5 border-r border-zinc-100">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Capacity</p>
-                          <p className="text-[13px] font-medium text-zinc-800 mt-0.5 tabular-nums">{cap} spots</p>
-                        </div>
-                      )}
+                      <div className="flex-1 min-w-[110px] px-4 py-2.5 border-r border-zinc-100">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Capacity</p>
+                        <p className="text-[13px] font-medium text-zinc-800 mt-0.5 tabular-nums">{hasCap ? `${cap} spots` : "Unlimited"}</p>
+                      </div>
+                      <div className="flex-1 min-w-[110px] px-4 py-2.5 border-r border-zinc-100">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Sign-up form</p>
+                        <p className="text-[13px] font-medium text-zinc-800 mt-0.5">{formCount > 0 ? `${formCount} question${formCount === 1 ? "" : "s"}` : "Not set"}</p>
+                      </div>
                       <div className="flex-1 min-w-[110px] px-4 py-2.5">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Status</p>
                         <p className="text-[13px] font-medium mt-0.5" style={{ color: published ? "#15803d" : "#a16207" }}>{published ? "Published" : "Draft"}</p>
@@ -1093,14 +1098,17 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           defaultCurrency={tiers[0]?.currency || "EUR"}
         />
       </div>
+      </div>
+      )}
 
-      {/* ─── Approval moved to the "Policies & access" settings page ───
-          Require-Approval now lives in the showSettings block below the commerce
-          wrapper, so the create wizard's commerce step is tickets + donations +
-          attendees + access, and the skippable approval/refund config has its own
-          step. On the "all" page (drawer / admin single-page) both blocks render,
-          so it still appears there — just after Community access rather than
-          before Attendees. */}
+      {/* ─── Access & visibility (settings step) ─────────────────────────────
+          Attendees, location and community access moved OFF the Pricing step —
+          they are "who can see / who can buy / do I approve" controls, so Pricing
+          stays tickets + donations only. They live on "Policies & access" with the
+          Approval + Refund block below (all gated on showSettings; the "all" page
+          shows everything). */}
+      {showSettings && (
+      <div className={`${maxWidthClassName} mt-8`}>
 
       {/* ─── Attendees ───
           Who can see WHO ELSE is coming. A third visibility axis, and its own
