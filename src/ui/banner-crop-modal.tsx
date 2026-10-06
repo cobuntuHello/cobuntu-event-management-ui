@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Cropper from "react-easy-crop";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
 import { Button } from "./button";
 import { Slider } from "./slider";
 import { StockPhotoPicker } from "./stock-photo-picker";
@@ -186,6 +186,22 @@ export function BannerCropModal({
     onOpenChange(false);
   };
 
+  /*
+   * Re-pick the image from the cropper's footer. Where stock photos are offered
+   * the source popup is a real choice (Upload vs Stock), so show it; where they
+   * are not (the direct banner flow) that popup degenerates to a single option,
+   * so skip straight to the device picker — and Cancel / the X close the modal
+   * rather than bouncing back to that popup.
+   */
+  const handleChangeImage = () => {
+    if (hideStockPhotos) {
+      triggerFilePicker();
+    } else {
+      setImageSrc(null);
+      setOptionsOpen(true);
+    }
+  };
+
   const showCropModal = imageSrc !== null && !optionsOpen && !stockPhotoOpen;
 
   return (
@@ -247,7 +263,7 @@ export function BannerCropModal({
 
       {/* Crop Modal */}
       <Dialog open={open && showCropModal} onOpenChange={onOpenChange}>
-        <DialogContent hideClose className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-100 flex-shrink-0">
             <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
             {/* The drop target is invisible until something is dragged over it,
@@ -305,17 +321,11 @@ export function BannerCropModal({
 
             {imageSrc && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 flex-1">
-                    <ImageIcon className="h-4 w-4 text-zinc-400" />
-                    <label className="text-sm font-medium text-zinc-800">Zoom</label>
-                  </div>
-                  {/* A real button, not a link. Same for Remove below: both
-                    * DO something to the photo, so neither should read as
-                    * navigation. */}
-                  <Button type="button" variant="outline" size="sm" onClick={() => { setImageSrc(null); setOptionsOpen(true); }} className="text-xs">
-                    Change Image
-                  </Button>
+                {/* Change image now lives in the footer beside the other
+                    actions, so the zoom row is just its label. */}
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-zinc-400" />
+                  <label className="text-sm font-medium text-zinc-800">Zoom</label>
                 </div>
                 {/*
                   * Floor of 100%, not 50%.
@@ -344,20 +354,23 @@ export function BannerCropModal({
             )}
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 gap-2 flex-shrink-0">
-            {imageSrc && (
-              <Button variant="outline" onClick={handleClear} disabled={isSaving}
-                className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 hover:border-red-300 mr-auto">
-                <Trash2 className="h-4 w-4 mr-2" /> Remove
-              </Button>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
-              <Button variant="outline" onClick={() => { setImageSrc(null); setOptionsOpen(true); }} disabled={isSaving}>Cancel</Button>
-              <Button onClick={handleSave} disabled={!imageSrc || !croppedAreaPixels || isSaving} className="min-w-[100px]">
-                {isSaving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : "Save"}
-              </Button>
-            </div>
-          </DialogFooter>
+          {/* One row, four equal actions (2×2 on a narrow modal). All solid
+              fills, no outlines: Remove = danger, Change/Cancel = muted,
+              Save = primary. */}
+          <div className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 grid grid-cols-2 sm:grid-cols-4 gap-2 flex-shrink-0">
+            <Button variant="destructive" onClick={handleClear} disabled={isSaving} className="w-full px-2">
+              <Trash2 className="h-4 w-4 mr-1.5" /> Remove
+            </Button>
+            <Button variant="secondary" onClick={handleChangeImage} disabled={isSaving} className="w-full px-2">
+              Change image
+            </Button>
+            <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSaving} className="w-full px-2">
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={!imageSrc || !croppedAreaPixels || isSaving} className="w-full px-2">
+              {isSaving ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Saving…</> : "Save"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
