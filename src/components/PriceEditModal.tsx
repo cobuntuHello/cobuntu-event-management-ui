@@ -1068,13 +1068,10 @@ export function PriceEditModal({
       )}
       <div className="shrink-0 flex items-center gap-2 mt-4 pt-4 border-t border-zinc-100">
         {activeDraft && activeStep ? (
-          <button
-            type="button"
-            onClick={() => setActiveStep(null)}
-            className="px-4 py-2 text-[13px] font-medium text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer"
-          >
-            Back
-          </button>
+          // Drill-in sub-step (Sales window / Registration form): Back is
+          // right-aligned beside Save (rendered below, after the slot), so the
+          // left stays clear for the form builder's "+ Question" action.
+          null
         ) : activeDraft ? (
           <>
             <button
@@ -1139,6 +1136,17 @@ export function PriceEditModal({
             action bar. `contents` → buttons sit directly in this flex row,
             left of Save. Empty (zero-width) for steps that don't use it. */}
         <div ref={setFooterSlot} className="contents" />
+        {/* Drill-in sub-step: Back sits right, beside Save, with a muted bg
+            (a secondary action) rather than a left-aligned ghost button. */}
+        {activeDraft && activeStep && (
+          <button
+            type="button"
+            onClick={() => setActiveStep(null)}
+            className="px-4 py-2 text-[13px] font-medium text-zinc-700 bg-zinc-100 rounded-lg hover:bg-zinc-200 cursor-pointer transition-colors"
+          >
+            Back
+          </button>
+        )}
         {/* The Publish switch used to sit here, left of Save, as a bare
             control with nothing saying what it did. It now lives in the L2
             "Availability" section with an explanation — see TierEditView. */}
