@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../../config";
+import { EmptyState as SharedEmptyState } from "@cobuntu/management-ui-shared";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { AttendeeDetailDrawer } from "./AttendeeDetailDrawer";
 import { RefundSaleModal, SalesUiConfigProvider, type SaleRow } from "@cobuntu/sales-ui";
@@ -1157,15 +1158,15 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
   function EmptyState({ isPublished, isPast }: { isPublished: boolean; isPast: boolean }) {
     return (
-      <div className="px-6 py-10 text-center">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto text-zinc-200 mb-3">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-        <p className="text-sm text-zinc-500">No attendees yet</p>
-        {isPublished && !isPast && (
-          <p className="text-xs text-zinc-400 mt-1">Invite people to get them signed up.</p>
-        )}
-      </div>
+      <SharedEmptyState
+        icon={
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        }
+        title="No attendees yet"
+        body={isPublished && !isPast ? "Invite people to get them signed up." : undefined}
+      />
     );
   }
 }
