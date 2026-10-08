@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Megaphone, Mail, MessageCircle, X, Send, ChevronLeft, ChevronRight } from "lucide-react";
 import { getEventManagementConfig, useEventManagementConfig } from "../../config";
+import { EmptyState } from "@cobuntu/management-ui-shared";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { useCanEdit } from "../../lib/manageAccess";
 import { apiBase } from "../helpers";
@@ -124,17 +125,19 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
       {loading ? (
         <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-zinc-50 animate-pulse" />)}</div>
       ) : broadcasts && broadcasts.length === 0 ? (
-        <div className="border border-dashed border-zinc-200 rounded-xl py-14 text-center">
-          <Megaphone className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
-          <p className="text-[14px] text-zinc-700 font-medium">No updates sent yet</p>
-          <p className="text-[12px] text-zinc-400 mt-1 mb-4">Send your first announcement to attendees.</p>
-          <button
-            onClick={() => setComposeOpen(true)}
-            className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
-          >
-            Send Update
-          </button>
-        </div>
+        <EmptyState
+          icon={<Megaphone className="w-7 h-7" />}
+          title="No updates sent yet"
+          body="Send your first announcement to attendees."
+          action={
+            <button
+              onClick={() => setComposeOpen(true)}
+              className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
+            >
+              Send Update
+            </button>
+          }
+        />
       ) : (
         <div className="space-y-2">
           {broadcasts?.map(b => (

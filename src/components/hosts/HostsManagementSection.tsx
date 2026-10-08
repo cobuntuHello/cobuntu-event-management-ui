@@ -246,48 +246,50 @@ export function HostsManagementSection({
                 )}
             </div>
 
-            <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 overflow-hidden">
-                {loading ? (
-                    <p className="px-6 py-12 text-center text-[12px] text-zinc-400">Loading hosts…</p>
-                ) : hosts.length === 0 ? (
-                    <EmptyState
-                        bordered={false}
-                        icon={
-                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                <circle cx="9" cy="7" r="4" />
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                            </svg>
-                        }
-                        title="No hosts assigned"
-                        body={isUserOwned
-                            ? "This event needs a creator-host."
-                            : "Anyone with the manage-events role can still manage it."}
-                    />
-                
-                ) : (
-                    <ul className="divide-y divide-zinc-100">
-                        {hosts.map((h) => {
-                            const isImmutableCreator =
-                                isUserOwned && h.userId === event.createdByUserId;
-                            const hasAttendance = attendanceByUserId.has(h.userId);
-                            return (
-                                <li key={h.id}>
-                                    <HostChip
-                                        host={h}
-                                        isImmutableCreator={isImmutableCreator}
-                                        hasAttendance={hasAttendance}
-                                        canManage={canManage && !isPastEvent}
-                                        onRequestRemove={() => setConfirmRemove(h)}
-                                    />
-                                </li>
-                            );
-                        })}
-                    </ul>
-                )}
-            </div>
+            {hosts.length === 0 && !loading ? (
+                /* Dotted empty state stands on its own — no wrapper card, so the
+                   border doesn't nest in a box (uniform with the other tabs). */
+                <EmptyState
+                    icon={
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                    }
+                    title="No hosts assigned"
+                    body={isUserOwned
+                        ? "This event needs a creator-host."
+                        : "Anyone with the manage-events role can still manage it."}
+                />
+            ) : (
+                <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 overflow-hidden">
+                    {loading ? (
+                        <p className="px-6 py-12 text-center text-[12px] text-zinc-400">Loading hosts…</p>
+                    ) : (
+                        <ul className="divide-y divide-zinc-100">
+                            {hosts.map((h) => {
+                                const isImmutableCreator =
+                                    isUserOwned && h.userId === event.createdByUserId;
+                                const hasAttendance = attendanceByUserId.has(h.userId);
+                                return (
+                                    <li key={h.id}>
+                                        <HostChip
+                                            host={h}
+                                            isImmutableCreator={isImmutableCreator}
+                                            hasAttendance={hasAttendance}
+                                            canManage={canManage && !isPastEvent}
+                                            onRequestRemove={() => setConfirmRemove(h)}
+                                        />
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </div>
+            )}
 
             {error && (
                 <p className="mt-3 text-[12px] text-red-600">{error}</p>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { theme, muted } from "../../shared/theme";
 import { agendaDurationMinutes, formatDurationShort } from "../../shared/agendaDuration";
 import { getEventManagementConfig } from "../../config";
+import { EmptyState } from "@cobuntu/management-ui-shared";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { useCanEdit } from "../../lib/manageAccess";
 import { apiBase } from "../helpers";
@@ -398,11 +399,11 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
             </div>
           ))
         ) : editingId !== "new" ? (
-          <div className="px-5 py-12 text-center">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-3" style={muted(0.25)}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            <p className="text-sm" style={muted(0.6)}>No agenda items yet</p>
-            <p className="text-xs mt-1" style={muted(0.45)}>Add schedule items to help attendees plan their time.</p>
-          </div>
+          <EmptyState
+            icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+            title="No agenda items yet"
+            body="Add schedule items to help attendees plan their time."
+          />
         ) : null}
       </div>
     </div>
