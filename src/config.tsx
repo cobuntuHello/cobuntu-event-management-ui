@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { setGoogleMapsApiKey } from "./lib/google-maps";
 
 /**
  * The auth-injection contract between the shared event-management UI and
@@ -80,6 +81,25 @@ export interface EventManagementConfig {
    * will use the built-in fallback if absent. Pass your app's component
    * to keep visual consistency with the rest of the surface.
    */
+  /**
+   * Network overrides for an embedding host (embed-event-wizard, phase 2).
+   *
+   * Each, when set, replaces the URL-built fetch the component would otherwise
+   * make against `apiBaseUrl`, so a host whose API is NOT the app's same-origin
+   * `/api/*` (Cobuntu Embed's public v1 routes) can plug its own calls in.
+   * Unset, behaviour is exactly as before.
+   */
+  searchTags?: (query: string) => Promise<Array<{ id: string; name: string; searchName?: string }>>;
+  createTag?: (name: string) => Promise<{ id: string; name: string; searchName?: string }>;
+  /** Replaces the Stripe-status fetch behind useStripeStatus. Must resolve `{ connected, chargesEnabled }`. */
+  stripeStatus?: (communityTag: string) => Promise<{ connected: boolean; chargesEnabled: boolean }>;
+  /**
+   * Google Maps JavaScript API key for location autocomplete and maps.
+   * Overrides `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, which only exists in a Next
+   * build; a site that is not one passes the key here.
+   */
+  googleMapsApiKey?: string;
+
   UserAvatar?: React.ComponentType<{
     user: {
       name?: string | null;
@@ -132,6 +152,7 @@ export function EventManagementConfigProvider({
   // during render rather than in an effect so a helper called by a child's
   // first render already sees it.
   currentConfig = value;
+  if (value.googleMapsApiKey) setGoogleMapsApiKey(value.googleMapsApiKey);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

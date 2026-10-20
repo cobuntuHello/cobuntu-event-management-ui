@@ -1,0 +1,68 @@
+/*
+ * EventCreateWizard theme (@cobuntu/event-management-ui/theme.css).
+ *
+ * The wizard reads these CSS variables. Set them on .cbt-event-wizard (or pass
+ * the `theme` prop, which sets them inline) to brand it:
+ *
+ *   --text-color      body text; every grey in the form is mixed from it
+ *   --bg-color        page background; footers and modal panels mix toward it
+ *   --brand-color     progress bar, primary buttons, selected cards, switches
+ *   --brand-contrast  text on brand-coloured fills (default #fff)
+ *   --primary-btn-bg  primary button fill (defaults to --brand-color)
+ *   --button-radius   buttons, cards, rows
+ *   --card-radius     the first-time explainer panel
+ *   --heading-font / --body-font   applied when the `theme` prop is set
+ *
+ * The defaults below sit at zero specificity, so any rule of yours wins.
+ * The community app does not import this file: it injects the same adapter
+ * inline and gets its variables from the community theme.
+ */
+:where(.cbt-event-wizard) {
+  --text-color: #18181b;
+  --bg-color: #ffffff;
+  --brand-color: #18181b;
+  --brand-contrast: #ffffff;
+  --button-radius: 10px;
+  --card-radius: 12px;
+  color: var(--text-color);
+}
+
+/* The adapter: the shared form's light/zinc palette mapped onto the variables. */
+.themed-event-form .text-zinc-900,
+.themed-event-form .text-zinc-800,
+.themed-event-form .text-zinc-700 { color: var(--text-color) !important; }
+.themed-event-form .text-zinc-600 { color: color-mix(in srgb, var(--text-color) 70%, transparent) !important; }
+.themed-event-form .text-zinc-500 { color: color-mix(in srgb, var(--text-color) 56%, transparent) !important; }
+.themed-event-form .text-zinc-400 { color: color-mix(in srgb, var(--text-color) 45%, transparent) !important; }
+.themed-event-form .text-zinc-300 { color: color-mix(in srgb, var(--text-color) 33%, transparent) !important; }
+/* Lighter fills — the form read too gray; these keep boxes legible
+   without the heavy grey-box look (CEO). */
+.themed-event-form .bg-white { background-color: color-mix(in srgb, var(--text-color) 3.5%, transparent) !important; }
+.themed-event-form .bg-zinc-50 { background-color: color-mix(in srgb, var(--text-color) 4%, transparent) !important; }
+.themed-event-form .bg-zinc-100 { background-color: color-mix(in srgb, var(--text-color) 6%, transparent) !important; }
+.themed-event-form .bg-zinc-200 { background-color: color-mix(in srgb, var(--text-color) 8.5%, transparent) !important; }
+.themed-event-form .bg-zinc-50\/30 { background-color: color-mix(in srgb, var(--text-color) 3%, transparent) !important; }
+.themed-event-form .ring-zinc-100 { --tw-ring-color: color-mix(in srgb, var(--text-color) 12%, transparent) !important; }
+.themed-event-form .border-zinc-200,
+.themed-event-form .border-zinc-300 { border-color: color-mix(in srgb, var(--text-color) 18%, transparent) !important; }
+.themed-event-form .divide-zinc-100 > :not([hidden]) ~ :not([hidden]) { border-color: color-mix(in srgb, var(--text-color) 10%, transparent) !important; }
+.themed-event-form input,
+.themed-event-form textarea { color: var(--text-color) !important; }
+.themed-event-form input::placeholder,
+.themed-event-form .placeholder\:text-zinc-300::placeholder { color: color-mix(in srgb, var(--text-color) 33%, transparent) !important; }
+.themed-event-form .hover\:bg-zinc-50\/50:hover,
+.themed-event-form .hover\:bg-zinc-50:hover,
+.themed-event-form .hover\:bg-zinc-100:hover { background-color: color-mix(in srgb, var(--text-color) 5%, transparent) !important; }
+.themed-event-form .hover\:bg-zinc-200\/70:hover { background-color: color-mix(in srgb, var(--text-color) 9%, transparent) !important; }
+/* Switch ON → brand; keep the thumb bright for contrast. */
+.themed-event-form [data-state="checked"] { background-color: var(--brand-color, #18181b) !important; }
+.themed-event-form [role="switch"] > span { background-color: #ffffff !important; }
+
+/* Themed root and portal (the `theme` prop adds these classes). */
+.cbt-event-wizard--themed { color: var(--text-color); font-family: var(--body-font, inherit); }
+.cbt-event-wizard--themed h1, .cbt-event-wizard--themed h2, .cbt-event-wizard--themed h3 { font-family: var(--heading-font, var(--body-font, inherit)); }
+.cbt-wizard-portal.themed-event-form .bg-white { background-color: var(--bg-color, #ffffff) !important; }
+.cbt-wizard-portal.themed-event-form .bg-zinc-50 { background-color: color-mix(in srgb, var(--text-color) 4%, var(--bg-color, #ffffff)) !important; }
+.cbt-wizard-portal.themed-event-form .bg-zinc-100 { background-color: color-mix(in srgb, var(--text-color) 6%, var(--bg-color, #ffffff)) !important; }
+.cbt-wizard-portal.themed-event-form .bg-zinc-200 { background-color: color-mix(in srgb, var(--text-color) 8.5%, var(--bg-color, #ffffff)) !important; }
+.cbt-wizard-portal.themed-event-form [role="dialog"] { color: var(--text-color); }

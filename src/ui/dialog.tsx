@@ -4,6 +4,8 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "./utils";
+import { usePortalContainer } from "@cobuntu/management-ui-shared";
+
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -58,8 +60,11 @@ const DialogContent = React.forwardRef<
      */
     scrollBody?: boolean;
   }
->(({ className, children, hideClose, mobileDrawer, scrollBody, ...props }, ref) => (
-  <DialogPortal>
+>(({ className, children, hideClose, mobileDrawer, scrollBody, ...props }, ref) => {
+  // Inside an embedding host's themed wrapper when it provides one.
+  const portalContainer = usePortalContainer();
+  return (
+  <DialogPortal container={portalContainer ?? undefined}>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
@@ -114,7 +119,8 @@ const DialogContent = React.forwardRef<
       )}
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

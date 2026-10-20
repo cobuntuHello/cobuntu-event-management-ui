@@ -1,12 +1,25 @@
 "use client";
 
-import React, { useMemo } from "react";
-import dynamic from "next/dynamic";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import "react-quill-new/dist/quill.snow.css";
 import "./rich-text-editor.css";
 
 // react-quill-new touches `document` on import — defer to client only.
-const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
+//
+// This was next/dynamic({ ssr: false }). Same behaviour without the framework:
+// nothing renders on the server or before mount, then the editor loads lazily.
+// The wizard that contains this is also rendered on sites that are not Next.
+const LazyQuill = lazy(() => import("react-quill-new"));
+function ReactQuill(props: React.ComponentProps<typeof LazyQuill>) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return (
+    <Suspense fallback={null}>
+      <LazyQuill {...props} />
+    </Suspense>
+  );
+}
 
 interface RichTextEditorProps {
   content: string;

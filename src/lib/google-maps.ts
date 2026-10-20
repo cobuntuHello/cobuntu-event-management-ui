@@ -22,7 +22,25 @@ export interface LocationDetails {
   types: string[];
 }
 
-const getApiKey = () => process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+/*
+ * The key, from the host when it passed one, else the Next build's env.
+ *
+ * The env read is literal (`process.env.NEXT_PUBLIC_...`) so Next still inlines
+ * it, and wrapped because outside a Next build `process` may not exist at all.
+ */
+let keyOverride: string | null = null;
+export function setGoogleMapsApiKey(key: string | null | undefined) {
+  keyOverride = key || null;
+}
+export function getGoogleMapsApiKey(): string {
+  if (keyOverride) return keyOverride;
+  try {
+    return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+  } catch {
+    return "";
+  }
+}
+const getApiKey = getGoogleMapsApiKey;
 
 export const isGoogleMapsConfigured = (): boolean => !!getApiKey();
 
