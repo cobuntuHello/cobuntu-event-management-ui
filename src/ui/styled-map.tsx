@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from "react";
 
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+import { getGoogleMapsApiKey } from "../lib/google-maps";
 
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   hex = hex.replace("#", "");
@@ -71,7 +71,7 @@ export function StyledMap({ lat, lng, address, brandColor, className = "" }: Pro
   const markerRef = useRef<google.maps.Marker | null>(null);
 
   useEffect(() => {
-    if (!API_KEY || typeof window === "undefined") return;
+    if (!getGoogleMapsApiKey() || typeof window === "undefined") return;
 
     if (window.google?.maps) {
       initMap();
@@ -85,7 +85,7 @@ export function StyledMap({ lat, lng, address, brandColor, className = "" }: Pro
     }
 
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${getGoogleMapsApiKey()}`;
     script.async = true;
     script.defer = true;
     script.onload = initMap;
@@ -134,7 +134,7 @@ export function StyledMap({ lat, lng, address, brandColor, className = "" }: Pro
     }
   }
 
-  if (!API_KEY) {
+  if (!getGoogleMapsApiKey()) {
     return (
       <div className={`flex items-center justify-center bg-zinc-50 ${className}`}>
         <p className="text-[11px] text-zinc-300">Map unavailable</p>

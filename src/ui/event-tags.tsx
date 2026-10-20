@@ -34,6 +34,12 @@ function useDebounce(value: string, delay: number) {
 }
 
 async function searchTags(config: EventManagementConfig, query: string): Promise<Tag[]> {
+  if (config.searchTags) {
+    try {
+      const list = await config.searchTags(query);
+      return Array.isArray(list) ? list : [];
+    } catch { return []; }
+  }
   try {
     const res = await fetch(`${config.apiBaseUrl}/api/events/search-tags?q=${encodeURIComponent(query)}`, {
       headers: config.authHeaders(),
@@ -45,6 +51,7 @@ async function searchTags(config: EventManagementConfig, query: string): Promise
 }
 
 async function createTag(config: EventManagementConfig, name: string): Promise<Tag> {
+  if (config.createTag) return config.createTag(name);
   const res = await fetch(`${config.apiBaseUrl}/api/tags`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...config.authHeaders() },

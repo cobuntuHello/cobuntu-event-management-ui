@@ -20,6 +20,8 @@ import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "./utils";
+import { usePortalContainer } from "@cobuntu/management-ui-shared";
+
 
 const Select = SelectPrimitive.Root;
 const SelectGroup = SelectPrimitive.Group;
@@ -48,8 +50,11 @@ SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 const SelectContent = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Portal>
+>(({ className, children, position = "popper", ...props }, ref) => {
+  // Inside an embedding host's themed wrapper when it provides one.
+  const portalContainer = usePortalContainer();
+  return (
+  <SelectPrimitive.Portal container={portalContainer ?? undefined}>
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
@@ -67,7 +72,8 @@ const SelectContent = React.forwardRef<
       </SelectPrimitive.Viewport>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
-));
+  );
+});
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
 const SelectItem = React.forwardRef<

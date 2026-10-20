@@ -4,7 +4,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
-import { LAYERS } from "@cobuntu/management-ui-shared";
+import { LAYERS, usePortalTarget } from "@cobuntu/management-ui-shared";
 
 /**
  * Self-contained date + time picker for the tier auto-schedule window.
@@ -49,6 +49,7 @@ export function DateTimePicker({
   const parsed = value ? new Date(value) : null;
   const valid = !!parsed && !Number.isNaN(parsed.getTime());
   const [open, setOpen] = React.useState(false);
+  const portalTarget = usePortalTarget();
   const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
   const [view, setView] = React.useState(() => {
     const base = valid ? (parsed as Date) : new Date();
@@ -155,7 +156,7 @@ export function DateTimePicker({
         )}
       </button>
 
-      {open && coords && typeof document !== "undefined" && createPortal(
+      {open && coords && portalTarget && createPortal(
         <div
           ref={popRef}
           /*
@@ -262,7 +263,7 @@ export function DateTimePicker({
             </button>
           </div>
         </div>,
-        document.body,
+        portalTarget,
       )}
     </>
   );

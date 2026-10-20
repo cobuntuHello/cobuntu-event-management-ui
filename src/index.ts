@@ -278,3 +278,10 @@ export {
   splitDuration,
   formatDurationShort,
 } from "./shared/agendaDuration";
+
+// Member create-event wizard (embed-event-wizard plan, phase 2). Lifted from
+// the community app's /events/new; the app and Cobuntu Embed both render it,
+// each with its own transport, navigation and copy. Prebuilt, scoped CSS for
+// hosts without Tailwind: "@cobuntu/event-management-ui/dist/event-wizard.css";
+// theme variables: "@cobuntu/event-management-ui/create-wizard/theme.css".
+export * from "./create-wizard";

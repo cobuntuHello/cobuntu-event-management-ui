@@ -58,7 +58,7 @@ export function __resetStripeStatusCache() {
 }
 
 export function useStripeStatus(communityTag: string, opts: { enabled?: boolean } = {}): StripeStatus {
-  const { apiBaseUrl, authHeaders, stripeStatusUrl } = useEventManagementConfig();
+  const { apiBaseUrl, authHeaders, stripeStatusUrl, stripeStatus: stripeStatusFn } = useEventManagementConfig();
   const enabled = opts.enabled ?? true;
   const [status, setStatus] = React.useState<StripeStatus>({
     connected: false,
@@ -85,6 +85,17 @@ export function useStripeStatus(communityTag: string, opts: { enabled?: boolean 
     }
 
     (async () => {
+      if (stripeStatusFn) {
+        try {
+          const data = await stripeStatusFn(communityTag);
+          const result = { connected: !!data?.connected, chargesEnabled: !!data?.chargesEnabled };
+          stripeCache.set(communityTag, result);
+          setStatus({ ...result, loading: false, known: true });
+        } catch {
+          setStatus({ connected: false, chargesEnabled: false, loading: false, known: false });
+        }
+        return;
+      }
       try {
         // Default: /stripe/connected (NOT /stripe/status) — gated on
         // ACCESS_ADMIN_APP so non-financial admins can read the boolean to
@@ -114,7 +125,7 @@ export function useStripeStatus(communityTag: string, opts: { enabled?: boolean 
         setStatus({ connected: false, chargesEnabled: false, loading: false, known: false });
       }
     })();
-  }, [communityTag, apiBaseUrl, authHeaders, stripeStatusUrl, enabled]);
+  }, [communityTag, apiBaseUrl, authHeaders, stripeStatusUrl, stripeStatusFn, enabled]);
 
   return status;
 }

@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Info, Minus, Plus } from "lucide-react";
+import { usePortalContainer } from "@cobuntu/management-ui-shared";
 
 /**
  * Small UI primitives local to the PriceEditModal layout. Intentionally
@@ -20,6 +21,7 @@ import { Info, Minus, Plus } from "lucide-react";
  * uppercase/tracked, so the content resets to normal-case body text.
  */
 export function HelpTip({ text, label }: { text: string; label?: string }) {
+  const portalContainer = usePortalContainer();
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
@@ -32,7 +34,7 @@ export function HelpTip({ text, label }: { text: string; label?: string }) {
           <Info className="w-3 h-3" />
         </button>
       </Popover.Trigger>
-      <Popover.Portal>
+      <Popover.Portal container={portalContainer ?? undefined}>
         <Popover.Content
           side="top"
           align="start"
