@@ -134,8 +134,16 @@ describe("3 · categories show their own icon", () => {
     const { container } = render(<CategoryIcon iconId="mdi:calendar" iconColor="#ff0000" imageUrl={null} />);
     const disc = container.querySelector("span")!;
     expect(disc.getAttribute("style")).toContain("#ff0000");
-    expect(container.querySelector("img")!.getAttribute("src"))
-      .toBe("https://api.iconify.design/mdi/calendar.svg?color=%23ffffff");
+    /* Rendered through @iconify/react, like the admin's Manage Categories tile
+       and product-management-ui's CategoryEditModal. Iconify resolves the glyph
+       asynchronously, so the element is what is pinned here, not its paths. */
+    expect(disc.querySelector("span, svg")).not.toBeNull();
+  });
+
+  /* One renderer across the sibling packages. A second way of drawing the same
+     icons is a difference somebody has to discover later. */
+  it("uses the same icon library the sibling packages use", () => {
+    expect(read("components/CategoryPickerRow.tsx")).toContain('from "@iconify/react"');
   });
 
   /*

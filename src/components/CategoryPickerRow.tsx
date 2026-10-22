@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, ChevronRight, FolderTree } from "lucide-react";
+import { Icon } from "@iconify/react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "../ui/dialog";
@@ -18,15 +19,11 @@ import { Button } from "../ui/button";
  * A category's own icon: its `imageUrl` photo, else its Iconify `iconId` glyph
  * on an `iconColor` disc, else nothing.
  *
- * ── Why an <img> and not @iconify/react ─────────────────────────────────────
- *
- * The admin's Manage Categories screen renders these with `<Icon icon={id} />`
- * from @iconify/react. Both host apps already depend on that package, so this
- * one could take it as a peer -- but it is not a dependency of THIS package,
- * and adding an import that cannot be typechecked here is how a shared package
- * ships broken to two apps at once. The Iconify CDN serves the identical icon
- * set over a URL, so the glyph is the same one the admin shows, fetched from
- * the same place, with no dependency to keep in step.
+ * Rendered with @iconify/react, the same way the admin's Manage Categories
+ * screen and product-management-ui's CategoryEditModal already do it. This
+ * package did not depend on it before; taking the dependency is the right call
+ * over a hand-rolled CDN <img>, because a sibling package that renders the
+ * same icons a different way is a difference somebody has to notice later.
  *
  * ── Why no fallback glyph ───────────────────────────────────────────────────
  *
@@ -55,20 +52,14 @@ export function CategoryIcon({
     );
   }
   if (!iconId) return null;
-  /* "mdi:calendar" -> "mdi/calendar.svg". The glyph is drawn white and sits on
-     the category's own colour, matching the admin's tile. */
-  const path = iconId.replace(":", "/");
+  /* White glyph on the category's own colour, matching the admin's tile. */
   return (
     <span
       aria-hidden
-      className="grid shrink-0 place-items-center rounded-full"
+      className="grid shrink-0 place-items-center rounded-full text-white"
       style={{ width: size, height: size, background: iconColor || "#6366f1" }}
     >
-      <img
-        src={`https://api.iconify.design/${path}.svg?color=%23ffffff`}
-        alt=""
-        style={{ width: Math.round(size * 0.62), height: Math.round(size * 0.62) }}
-      />
+      <Icon icon={iconId} width={Math.round(size * 0.62)} height={Math.round(size * 0.62)} />
     </span>
   );
 }
