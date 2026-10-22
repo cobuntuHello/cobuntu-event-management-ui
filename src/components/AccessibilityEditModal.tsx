@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useUpdateEvent } from "../config";
 import {
-    MembershipTierPicker,
+    AccessAxisControl,
     toTierAccessValue,
     fromTierAccessValue,
     ceilingFor,
@@ -79,15 +79,15 @@ export function AccessibilityEditModal({ event, communityTag, onClose, onSaved, 
             <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">Access</h3>
             <p className="text-[12px] text-zinc-500 mb-4">Who can register / RSVP for this event.</p>
 
-            {/* The same picker the create form uses. Public and All members are
-                shortcuts that imply every membership tier below them; implied
-                rows carry an "Included" tag rather than a checkbox that would
-                have to refuse the click. */}
+            {/* The same control the create form uses: full-width tap rows,
+                radios for Public/All members/Specific tiers. */}
             <div className="mb-4">
-                <MembershipTierPicker
+                <AccessAxisControl
+                    label="Who can register"
                     value={access}
                     onChange={setAccess}
                     tiers={membershipTiers}
+                    publicLabel="Anyone can register, members or not"
                     ceiling={ceilingFor(toTierAccessValue(event?.viewability ?? "PUBLIC", viewTierIds))}
                 />
             </div>

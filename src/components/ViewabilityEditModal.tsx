@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useUpdateEvent } from "../config";
 import {
-    MembershipTierPicker,
+    AccessAxisControl,
     toTierAccessValue,
     fromTierAccessValue,
     type TierAccessValue,
@@ -69,14 +69,15 @@ export function ViewabilityEditModal({ event, communityTag, onClose, onSaved, sh
             <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">Visibility</h3>
             <p className="text-[12px] text-zinc-500 mb-4">Who can see this event's detail page.</p>
 
-            {/* The same picker the create form uses. Public and All members are
-                shortcuts that imply every membership tier below them; the rows
-                stay ticked and frozen because they are already included. */}
+            {/* The same control the create form uses: full-width tap rows,
+                radios for Public/All members/Specific tiers. */}
             <div className="mb-4">
-                <MembershipTierPicker
+                <AccessAxisControl
+                    label="Who can see it"
                     value={access}
                     onChange={setAccess}
                     tiers={membershipTiers}
+                    publicLabel="Anyone, including people who are not members"
                 />
             </div>
 

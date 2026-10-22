@@ -16,8 +16,8 @@ import { htmlToPlainText } from "../lib/htmlToPlainText";
 import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import { RefundPolicyField, type RefundPolicyValue } from "./RefundPolicyField";
 import {
-  Lock, UserCheck, Users, Image as ImageIcon, X,
-  Eye, EyeOff, Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
+  Users, Image as ImageIcon, X,
+  Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -28,10 +28,9 @@ import { DonationsField } from "./PriceEditModal/DonationsField";
 // openTierModal for why configuring a price is the wrong moment to check a
 // payment account. stripe-status.tsx itself stays: other surfaces use it.
 import {
-  MembershipTierPicker,
+  AccessAxisControl,
   toTierAccessValue,
   fromTierAccessValue,
-  tierAccessSummary,
   ceilingFor,
   clampToCeiling,
   tierAccessConsequence,
@@ -1363,42 +1362,28 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         {!hideVisibility && (
           <div className="mt-6">
             <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Community access</p>
-            <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
 
-            {/* Who can SEE it. Two tiers of control in one list: Public and
-                All members are shortcuts that imply every membership tier
-                below them, so picking either ticks and freezes the rows. See
-                MembershipTierPicker - "frozen" there means already included,
-                which is the opposite of the card-level rule where a
-                capability you cannot have is not rendered at all. */}
-            <div className="px-5 py-4">
-              <div className="flex items-center gap-3 mb-3">
-                {viewResolved.visibility === "PUBLIC" ? <Eye className="h-[18px] w-[18px] text-zinc-400" /> : <EyeOff className="h-[18px] w-[18px] text-zinc-400" />}
-                <div>
-                  <span className="text-sm font-medium text-zinc-800">Who can see it</span>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">{tierAccessSummary(viewAccess, membershipTiers)}</p>
-                </div>
-              </div>
-              <MembershipTierPicker
+            {/* The two questions read back as ONE rule, promoted above the
+                controls - the card used to ask them in two groups and never
+                state the combined result, which is exactly where "visible to
+                Founding, registerable by anyone" hid. Null for a fully public
+                event - that needs no narrating. */}
+            {tierAccessConsequence(viewAccess, buyAccess, membershipTiers, "register") && (
+              <p className="text-[12px] text-zinc-600 mb-3 px-1 leading-relaxed">
+                {tierAccessConsequence(viewAccess, buyAccess, membershipTiers, "register")}
+              </p>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <AccessAxisControl
+                label="Who can see it"
                 value={viewAccess}
                 onChange={changeViewAccess}
                 tiers={membershipTiers}
                 publicLabel="Anyone, including people who are not members"
               />
-            </div>
-
-            {/* Who can REGISTER. Separate axis on purpose: showing an event to
-                every member while selling to one tier is the case the feature
-                exists for. */}
-            <div className="px-5 py-4">
-              <div className="flex items-center gap-3 mb-3">
-                {buyResolved.visibility === "PUBLIC" ? <UserCheck className="h-[18px] w-[18px] text-zinc-400" /> : <Lock className="h-[18px] w-[18px] text-zinc-400" />}
-                <div>
-                  <span className="text-sm font-medium text-zinc-800">Who can register</span>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">{tierAccessSummary(buyAccess, membershipTiers)}</p>
-                </div>
-              </div>
-              <MembershipTierPicker
+              <AccessAxisControl
+                label="Who can register"
                 value={buyAccess}
                 onChange={setBuyAccess}
                 tiers={membershipTiers}
@@ -1406,20 +1391,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 ceiling={buyCeiling}
               />
             </div>
-          </div>
-          {/* The two questions read back as ONE rule. The card asks them in
-              two groups and never stated the combined result, which is exactly
-              where "visible to Founding, registerable by anyone" hid. Null for
-              a fully public event - that needs no narrating. */}
-          {tierAccessConsequence(viewAccess, buyAccess, membershipTiers, "register") && (
-            <p className="text-[11px] text-zinc-500 mt-2 px-1 leading-relaxed">
-              {tierAccessConsequence(viewAccess, buyAccess, membershipTiers, "register")}
+
+            <p className="text-[11px] text-zinc-400 mt-3 px-1">
+              Available because {communityName || "this community"} owns this event.
             </p>
-          )}
-          <p className="text-[11px] text-zinc-400 mt-2 px-1">
-            Available because {communityName || "this community"} owns this event.
-          </p>
-        </div>
+          </div>
       )}
       </div>
       )}

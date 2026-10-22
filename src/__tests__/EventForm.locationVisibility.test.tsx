@@ -67,11 +67,14 @@ describe("EventForm carries the location-visibility choice", () => {
   });
 
   it("closes the sheet on pick, since one choice IS the decision", async () => {
+    // Scoped to this sheet's own radios by name: the page also carries the
+    // Community access card's AccessAxisControl rows, which are radios too
+    // and stay mounted regardless of this sheet's state.
     const user = userEvent.setup();
     renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: /who can see the location/i }));
     await user.click(await screen.findByRole("radio", { name: /attendees only/i }));
-    await waitFor(() => expect(screen.queryByRole("radio")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("radio", { name: /everyone/i })).not.toBeInTheDocument());
   });
 
   it("offers exactly the two backend modes", () => {
