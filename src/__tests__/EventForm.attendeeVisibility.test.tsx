@@ -114,7 +114,10 @@ describe("EventForm carries the attendee-visibility choice", () => {
     const closers = await screen.findAllByRole("button", { name: /^close$/i });
     expect(closers).toHaveLength(2);
     await user.click(closers[closers.length - 1]); // the footer one
-    await waitFor(() => expect(screen.queryByRole("radio")).not.toBeInTheDocument());
+    // Scoped by name: the page also carries the Community access card's
+    // AccessAxisControl rows, which are radios too and stay mounted
+    // regardless of this sheet's state.
+    await waitFor(() => expect(screen.queryByRole("radio", { name: /everyone/i })).not.toBeInTheDocument());
   });
 
   it("closes the sheet on pick, since one choice IS the decision", async () => {
@@ -122,7 +125,7 @@ describe("EventForm carries the attendee-visibility choice", () => {
     renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: /who can see the guest list/i }));
     await user.click(await screen.findByRole("radio", { name: /nobody/i }));
-    await waitFor(() => expect(screen.queryByRole("radio")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("radio", { name: /everyone/i })).not.toBeInTheDocument());
   });
 
   it("offers exactly the four backend modes", () => {

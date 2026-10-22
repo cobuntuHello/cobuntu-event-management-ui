@@ -41,9 +41,14 @@ describe("what reaches the payload", () => {
      * The pair that means "every tier". Sending rows here would be wrong in a
      * way nothing would catch: it would still work today and then silently
      * exclude any tier created afterwards.
+     *
+     * Public/All members/Specific tiers are now a radio group (a direct
+     * mode choice), not checkboxes you toggle off a prior selection — so
+     * selecting "All members" is a single direct click on the VIEW axis's
+     * own row (the first of the two "All members" radios on the page).
      */
     const latest = render();
-    fireEvent.click(screen.getAllByRole("checkbox", { name: /Public/ })[0]);
+    fireEvent.click(screen.getAllByRole("radio", { name: /All members/ })[0]);
     const d = latest();
     expect(d.viewability).toBe("MEMBERS_ONLY");
     expect(d.viewTierIds).toEqual([]);
@@ -63,7 +68,7 @@ describe("what reaches the payload", () => {
      * honourable, which is view itself.
      */
     const latest = render();
-    fireEvent.click(screen.getAllByRole("checkbox", { name: /Public/ })[0]);
+    fireEvent.click(screen.getAllByRole("radio", { name: /All members/ })[0]);
     const d = latest();
     expect(d.viewability).toBe("MEMBERS_ONLY");
     expect(d.accessibility).toBe("MEMBERS_ONLY");
@@ -71,12 +76,12 @@ describe("what reaches the payload", () => {
 
   it("still lets registration be NARROWER than visibility", () => {
     // The ceiling only stops registration going wider. Seen by everyone and
-    // sold to one tier is the case the whole feature exists for.
+    // sold to one tier is the case the whole feature exists for. View stays
+    // on its default (Public); only the REGISTER axis's own "All members"
+    // radio (the second one on the page) is clicked.
     const latest = render();
-    // Under Public, "All members" is implied and carries a tag rather than a
-    // checkbox - so the register axis narrows via its OWN Public row.
-    const publicRows = screen.getAllByRole("checkbox", { name: /Public/ });
-    fireEvent.click(publicRows[publicRows.length - 1]);
+    const allMembersRadios = screen.getAllByRole("radio", { name: /All members/ });
+    fireEvent.click(allMembersRadios[allMembersRadios.length - 1]);
     const d = latest();
     expect(d.viewability).toBe("PUBLIC");
     expect(d.accessibility).toBe("MEMBERS_ONLY");
@@ -87,20 +92,10 @@ describe("opening an existing event", () => {
   it("shows a members-only event with no grants as All members", () => {
     // The no-backfill rule in the UI: every event predating this feature.
     render({ initialData: { viewability: "MEMBERS_ONLY", accessibility: "MEMBERS_ONLY" } });
-    // Both pickers render the row, hence getAll: one for see, one for register.
-    const rows = screen.getAllByRole("checkbox", { name: /All members/ });
+    // Both controls render the row, hence getAll: one for see, one for register.
+    const rows = screen.getAllByRole("radio", { name: /All members/ });
     expect(rows).toHaveLength(2);
     for (const r of rows) expect(r).toHaveAttribute("aria-checked", "true");
-    /*
-     * ...and the tier rows under them are ticked and DISABLED rather than
-     * absent. They carried an "Included" tag for a while; a column that
-     * alternates between a box and a word cannot be scanned, so every row is a
-     * checkbox again and the implied ones are simply not yours to change.
-     */
-    const implied = screen.getAllByRole("checkbox", { name: /Founding/ })[0];
-    expect(implied).toHaveAttribute("aria-checked", "true");
-    expect(implied).toHaveAttribute("aria-disabled", "true");
-    expect(screen.queryByText("Included")).toBeNull();
   });
 
   it("restores a saved tier selection", () => {
@@ -108,6 +103,8 @@ describe("opening an existing event", () => {
       initialData: { viewability: "MEMBERS_ONLY", accessibility: "PUBLIC" },
       initialViewTierIds: ["t1"],
     });
+    // A saved subset (not "all") opens directly in "Specific tiers" mode, so
+    // the checklist is already rendered — no need to click anything.
     const founding = screen.getAllByRole("checkbox", { name: /Founding/ })[0];
     const alumni = screen.getAllByRole("checkbox", { name: /Alumni/ })[0];
     expect(founding).toHaveAttribute("aria-checked", "true");
