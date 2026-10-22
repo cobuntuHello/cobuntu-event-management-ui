@@ -8,7 +8,7 @@ import {
 } from "../ui/dialog";
 import { EventTimestamps } from "../ui/event-timestamps";
 import { LISTING_NAME_MAX, NAME_COUNTER_FROM, listingNameTooLong } from "../lib/listingNameLimit";
-import { EventLocationsField, LocationAddButtons, addLocation, makeLocation, type EventLocationValue } from "../ui/event-locations-field";
+import { EventLocationsField, LocationAddButtons, addLocation, makeLocation, locationErrors, type EventLocationValue } from "../ui/event-locations-field";
 import { EventTags } from "../ui/event-tags";
 import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
 import { RichTextEditor } from "../ui/rich-text-editor";
@@ -521,6 +521,13 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   function recropBanner() { if (!bannerUrl) return; setBannerCropSrc(bannerUrl); setIsBannerCropOpen(true); }
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
+  /*
+   * Location errors are only SHOWN once Done has been pressed (T-270). Marking
+   * a row red the moment someone adds it would scold them for a field they are
+   * on their way to filling in.
+   */
+  const [locationSubmitted, setLocationSubmitted] = useState(false);
+  const locationRowErrors = locationErrors(locations);
   const [isTagsOpen, setIsTagsOpen] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   // Which tier the modal opens on. The tier LIST lives inline in this form now,
@@ -1538,7 +1545,12 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               selector. `locations` is the source of truth; the legacy flat
               fields mirror its primary via the effect above. */}
           <DialogBody>
-            <EventLocationsField value={locations} onChange={setLocations} hideAddButtons />
+            <EventLocationsField
+              value={locations}
+              onChange={setLocations}
+              hideAddButtons
+              errors={locationSubmitted ? locationRowErrors : undefined}
+            />
           </DialogBody>
           <DialogFooter>
             {/* secondary, not outline: an outline button reads as equal weight
@@ -1549,8 +1561,25 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               in place and there is nothing to roll back. "Cancel" promised a
               discard it never performed.
             */}
-            <Button variant="secondary" onClick={() => setIsLocationOpen(false)}>Close</Button>
-            <Button onClick={() => setIsLocationOpen(false)}>Done</Button>
+            <Button variant="secondary" onClick={() => { setLocationSubmitted(false); setIsLocationOpen(false); }}>Close</Button>
+            {/*
+              Done REFUSES an empty or malformed row rather than dropping it.
+              The save path filters contentless locations out of the payload,
+              so "Add online link" + blank + Done used to close the modal and
+              make the row vanish without a word. Close still leaves freely --
+              it is the way out, and it discards nothing the field has not
+              already written.
+            */}
+            <Button
+              onClick={() => {
+                setLocationSubmitted(true);
+                if (Object.keys(locationErrors(locations)).length > 0) return;
+                setLocationSubmitted(false);
+                setIsLocationOpen(false);
+              }}
+            >
+              Done
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

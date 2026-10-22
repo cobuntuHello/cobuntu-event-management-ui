@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, ChevronRight, FolderTree } from "lucide-react";
+import { Icon } from "@iconify/react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "../ui/dialog";
@@ -14,6 +15,55 @@ import { Button } from "../ui/button";
  * threw that away, so an admin could set a sub-category icon in the admin app
  * and never see it anywhere.
  */
+/**
+ * A category's own icon: its `imageUrl` photo, else its Iconify `iconId` glyph
+ * on an `iconColor` disc, else nothing.
+ *
+ * Rendered with @iconify/react, the same way the admin's Manage Categories
+ * screen and product-management-ui's CategoryEditModal already do it. This
+ * package did not depend on it before; taking the dependency is the right call
+ * over a hand-rolled CDN <img>, because a sibling package that renders the
+ * same icons a different way is a difference somebody has to notice later.
+ *
+ * ── Why no fallback glyph ───────────────────────────────────────────────────
+ *
+ * A category with no icon renders NOTHING rather than a default. Most
+ * categories have one (57/60 product, 100/103 course, 48/57 event), so a
+ * stand-in would be the exception wearing a costume, and a generic glyph
+ * repeated down a list of chips is noise that makes the real icons harder to
+ * read. Blog categories have none at all, so there a default would be on every
+ * single chip.
+ */
+export function CategoryIcon({
+  iconId,
+  iconColor,
+  imageUrl,
+  size = 16,
+}: CategoryIconFields & { size?: number }) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        aria-hidden
+        className="shrink-0 rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  if (!iconId) return null;
+  /* White glyph on the category's own colour, matching the admin's tile. */
+  return (
+    <span
+      aria-hidden
+      className="grid shrink-0 place-items-center rounded-full text-white"
+      style={{ width: size, height: size, background: iconColor || "#6366f1" }}
+    >
+      <Icon icon={iconId} width={Math.round(size * 0.62)} height={Math.round(size * 0.62)} />
+    </span>
+  );
+}
+
 export interface CategoryIconFields {
   iconId?: string | null;
   iconColor?: string | null;
@@ -99,7 +149,20 @@ export function CategoryPickerRow({
         onClick={openDialog}
         className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer"
       >
-        {summary ? (
+        {/*
+          Once a category is chosen, show ITS icon rather than a generic tick.
+          The tick only said "you answered this"; the row already says that by
+          naming the category underneath. A category with no icon of its own
+          keeps the tick, so the row never loses its answered/unanswered cue.
+        */}
+        {summary && selected && (selected.iconId || selected.imageUrl) ? (
+          <CategoryIcon
+            iconId={selected.iconId}
+            iconColor={selected.iconColor}
+            imageUrl={selected.imageUrl}
+            size={22}
+          />
+        ) : summary ? (
           <span
             className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0"
             style={{ background: "var(--brand-color, #18181b)" }}
@@ -142,7 +205,10 @@ export function CategoryPickerRow({
                       : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
                   }`}
                 >
-                  {c.name}
+                  <span className="flex items-center gap-1.5">
+                    <CategoryIcon iconId={c.iconId} iconColor={c.iconColor} imageUrl={c.imageUrl} />
+                    {c.name}
+                  </span>
                 </button>
               ))}
             </div>
@@ -165,7 +231,10 @@ export function CategoryPickerRow({
                           : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
                       }`}
                     >
-                      {s.name}
+                      <span className="flex items-center gap-1.5">
+                        <CategoryIcon iconId={s.iconId} iconColor={s.iconColor} imageUrl={s.imageUrl} />
+                        {s.name}
+                      </span>
                     </button>
                   ))}
                 </div>

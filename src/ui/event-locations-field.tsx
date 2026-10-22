@@ -49,6 +49,60 @@ export function locationHasContent(row: EventLocationValue): boolean {
     : !!row.url.trim();
 }
 
+/**
+ * Is this a link we are willing to send someone to?
+ *
+ * Non-empty is not enough. "zoom" and "meet.google.com/abc" both look like
+ * someone tried, and both produce a dead link on the event page, so the check
+ * is the SHAPE: an absolute http(s) URL with a host that has a dot in it.
+ *
+ * Deliberately not a strict allowlist of providers. Communities use Zoom,
+ * Meet, Teams, Whereby, Jitsi, their own webinar tooling, and a plain
+ * "unrecognised provider" rejection would be wrong far more often than right.
+ */
+export function isValidOnlineUrl(raw: string): boolean {
+  const v = raw.trim();
+  if (!v) return false;
+  let u: URL;
+  try {
+    u = new URL(v);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  return u.hostname.includes(".") && !u.hostname.startsWith(".") && !u.hostname.endsWith(".");
+}
+
+/**
+ * What is wrong with this row, or null when it is fine.
+ *
+ * Returned as a message rather than a boolean because the caller shows it on
+ * the row itself; a generic "something is invalid" on a modal with four rows
+ * leaves the reader hunting.
+ *
+ * An EMPTY row is an error, not something to quietly skip. The save path used
+ * to filter contentless rows out of the payload, so adding an online link,
+ * leaving it blank and pressing Done made the row disappear with no word said.
+ * Discarding what someone deliberately added is worse than refusing to save.
+ */
+export function locationRowError(row: EventLocationValue): string | null {
+  if (row.kind === "PHYSICAL") {
+    return locationHasContent(row) ? null : "Add an address, or remove this location.";
+  }
+  if (!row.url.trim()) return "Add a link, or remove this location.";
+  return isValidOnlineUrl(row.url) ? null : "That does not look like a link. It should start with https://";
+}
+
+/** Every row's error, keyed by row key. Empty object = the set is saveable. */
+export function locationErrors(rows: EventLocationValue[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of rows) {
+    const err = locationRowError(r);
+    if (err) out[r.key] = err;
+  }
+  return out;
+}
+
 /** Ensure exactly one primary — the current one, else the first row. */
 function withOnePrimary(rows: EventLocationValue[]): EventLocationValue[] {
   if (rows.length === 0) return rows;
@@ -111,6 +165,12 @@ interface Props {
    * itself, somewhere that stays put while this list scrolls.
    */
   hideAddButtons?: boolean;
+  /**
+   * Validation messages by row key, from `locationErrors`. The caller owns
+   * WHEN to show them -- typically only after someone presses Done -- so this
+   * field does not scold anyone for a row they are still filling in.
+   */
+  errors?: Record<string, string>;
 }
 
 /**
@@ -118,7 +178,7 @@ interface Props {
  * with one marked primary (the one cards/emails feature). Physical rows get
  * Google Places autocomplete; online rows a validated URL field.
  */
-export function EventLocationsField({ value, onChange, disabled = false, hideAddButtons = false }: Props) {
+export function EventLocationsField({ value, onChange, disabled = false, hideAddButtons = false, errors }: Props) {
   const rows = value;
 
   /*
@@ -157,6 +217,7 @@ export function EventLocationsField({ value, onChange, disabled = false, hideAdd
             onPatch={(patch) => update(row.key, patch)}
             onRemove={() => remove(row.key)}
             onMakePrimary={() => setPrimary(row.key)}
+            error={errors?.[row.key]}
           />
         ))}
       </div>
@@ -174,7 +235,7 @@ export function EventLocationsField({ value, onChange, disabled = false, hideAdd
 }
 
 function LocationRow({
-  row, disabled, canRemove, showPrimary, onPatch, onRemove, onMakePrimary,
+  row, disabled, canRemove, showPrimary, onPatch, onRemove, onMakePrimary, error,
 }: {
   row: EventLocationValue;
   disabled: boolean;
@@ -183,6 +244,7 @@ function LocationRow({
   onPatch: (patch: Partial<EventLocationValue>) => void;
   onRemove: () => void;
   onMakePrimary: () => void;
+  error?: string;
 }) {
   const isPhysical = row.kind === "PHYSICAL";
   return (
@@ -204,7 +266,7 @@ function LocationRow({
         "focus-within:border-zinc-400 focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_0_0_3px_rgba(24,24,27,0.05)]",
         // The primary row is the one the card and the emails feature, so it
         // carries a little more weight than the rest of the list.
-        row.isPrimary && showPrimary ? "border-zinc-300" : "border-zinc-200"
+        error ? "border-red-300" : row.isPrimary && showPrimary ? "border-zinc-300" : "border-zinc-200"
       )}
     >
       <div className="flex items-center gap-2">
@@ -249,6 +311,14 @@ function LocationRow({
         ) : (
           <OnlineInput row={row} disabled={disabled} onPatch={onPatch} />
         )}
+        {/*
+          On the ROW, not the modal. A single "something is invalid" on a sheet
+          with four locations leaves the reader hunting for which one.
+          role="alert" so it is announced when it appears after pressing Done.
+        */}
+        {error && (
+          <p role="alert" className="mt-1.5 text-[12px] text-red-600">{error}</p>
+        )}
       </div>
     </div>
   );
@@ -259,6 +329,7 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -275,6 +346,19 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
     } else { setSuggestions([]); setOpen(false); }
     return () => { if (debounce.current) clearTimeout(debounce.current); };
   }, [row.address]);
+
+  /*
+   * In flow, the list can open below the fold of the modal's scrolling body --
+   * it is not floating over anything, so it only exists where there is room.
+   * Bring it into view rather than leaving the reader to discover it.
+   */
+  useEffect(() => {
+    if (!open || !suggestions.length) return;
+    const el = listRef.current;
+    if (!el) return;
+    const id = requestAnimationFrame(() => el.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    return () => cancelAnimationFrame(id);
+  }, [open, suggestions.length]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false); };
@@ -302,8 +386,29 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
       {row.latitude != null && row.longitude != null && (
         <span className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-zinc-400"><MapPin className="h-3 w-3" /> Pinned on the map</span>
       )}
+      {/*
+        * The suggestion list sits IN FLOW, not absolutely positioned.
+        *
+        * This field lives inside a modal whose body is a scroll container
+        * (EventForm renders <DialogContent ... scrollBody>), and a scroll
+        * container CLIPS its descendants no matter their z-index -- clipping
+        * is not a stacking question, so the z-50 this used to carry never did
+        * anything. The list was cut off at the body's edge.
+        *
+        * Making the modal taller only moves the problem: the list is 240px and
+        * the field can sit anywhere in the body, so it clips again as soon as
+        * the field is near the bottom, and on a phone the keyboard eats the
+        * space that was supposed to hold it.
+        *
+        * In flow, the list simply makes the body taller and the body's own
+        * scrolling handles it. Nothing to clip, nothing to reposition on
+        * scroll, and on a phone the list pushes content down instead of
+        * floating under the keyboard.
+        */}
       {open && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+        <div
+          ref={listRef}
+          className="mt-1 w-full bg-white border border-zinc-200 rounded-lg shadow-sm max-h-60 overflow-y-auto">
           {suggestions.map((s) => (
             <button key={s.place_id} type="button" onClick={() => pick(s)}
               className="w-full px-4 py-3 text-left transition-colors border-b border-zinc-100 last:border-b-0 cursor-pointer hover:bg-zinc-50">
