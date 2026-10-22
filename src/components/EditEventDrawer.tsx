@@ -5,11 +5,11 @@ import { createPortal } from "react-dom";
 import { EventTimestamps } from "../ui/event-timestamps";
 import { EventLocationSelector } from "../ui/event-location-selector";
 import { EventTags } from "../ui/event-tags";
-import { RichTextEditor } from "../ui/rich-text-editor";
+import { MarkdownEditor } from "../ui/markdown-editor";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
 import { useStripeStatus, StripeRequiredWarning } from "./stripe-status";
 import { DistributionEditModal } from "./DistributionEditModal";
-import { htmlToPlainText } from "../lib/htmlToPlainText";
+import { markdownToPlainText } from "../lib/htmlToPlainText";
 import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 
 /**
@@ -256,9 +256,8 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
     }
   }
 
-  // Strip tags AND decode entities so the preview doesn't show raw
-  // "&nbsp;" / "&amp;" from the rich-text editor.
-  const descPlain = htmlToPlainText(form.description);
+  // Strip markdown's own markers so the preview reads as prose.
+  const descPlain = markdownToPlainText(form.description);
 
   // ─── Sub-modal: Description ─────────────────────
   if (subModal === "description") {
@@ -268,7 +267,7 @@ export function EditEventDrawer({ event, communityTag, isOpen, onClose, onSaved,
         <div className="bg-white rounded-xl shadow-xl w-[calc(100vw-2rem)] md:w-[640px] max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
           <ModalHeader title="Event Description" onClose={() => closeSubModal(false)} />
           <div className="flex-1 overflow-y-auto px-6 py-5">
-            <RichTextEditor content={tempDesc} onChange={setTempDesc} placeholder="Describe your event..." />
+            <MarkdownEditor value={tempDesc} onChange={setTempDesc} placeholder="Describe your event..." />
           </div>
           <ModalFooter onCancel={() => closeSubModal(false)} onSave={() => closeSubModal(true)} />
         </div>

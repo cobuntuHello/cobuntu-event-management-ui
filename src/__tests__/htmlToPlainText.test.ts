@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { htmlToPlainText } from "../lib/htmlToPlainText";
+import { htmlToPlainText, markdownToPlainText } from "../lib/htmlToPlainText";
 
 describe("htmlToPlainText", () => {
   it("decodes &nbsp; to spaces (the reported bug)", () => {
@@ -49,5 +49,31 @@ describe("EventForm description preview (reported 2026-08-08)", () => {
     expect(preview).toBe("Test product Test product");
     expect(preview).not.toContain("&nbsp;");
     expect(preview).not.toContain("&");
+  });
+});
+
+describe("markdownToPlainText", () => {
+  it("strips inline delimiters", () => {
+    expect(markdownToPlainText("**bold** and *italic* and ~~gone~~ and `code`")).toBe(
+      "bold and italic and gone and code",
+    );
+  });
+
+  it("strips block markers per line", () => {
+    expect(markdownToPlainText("# Heading\n- one\n- two\n> a quote\n1. first")).toBe(
+      "Heading one two a quote first",
+    );
+  });
+
+  it("handles empty / null / undefined", () => {
+    expect(markdownToPlainText("")).toBe("");
+    expect(markdownToPlainText(null)).toBe("");
+    expect(markdownToPlainText(undefined)).toBe("");
+  });
+
+  it("does not leave raw markdown syntax in the preview", () => {
+    const preview = markdownToPlainText("**Two** communities. *One* room.");
+    expect(preview).toBe("Two communities. One room.");
+    expect(preview).not.toContain("*");
   });
 });

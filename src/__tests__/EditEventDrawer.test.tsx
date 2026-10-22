@@ -4,8 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { EditEventDrawer } from "../components/EditEventDrawer";
 import { renderWithConfig, mockFetch } from "./test-utils";
 
-vi.mock("react-quill-new", () => ({ default: () => null }));
-
 const event = {
   id: "evt-1",
   name: "Summer Mixer",
