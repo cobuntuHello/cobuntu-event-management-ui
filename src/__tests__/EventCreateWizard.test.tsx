@@ -316,7 +316,7 @@ describe("stylesheets", () => {
       if (!/\.tsx?$/.test(f)) continue;
       expect(readFileSync(join(dir, f), "utf8"), f).not.toMatch(/from ["']next\//);
     }
-    expect(readFileSync(join(__dirname, "../ui/rich-text-editor.tsx"), "utf8")).not.toMatch(/from ["']next\//);
+    expect(readFileSync(join(__dirname, "../ui/markdown-editor.tsx"), "utf8")).not.toMatch(/from ["']next\//);
   });
 
   it("the prebuilt event-wizard.css is scoped and covers the wizard's own classes", () => {

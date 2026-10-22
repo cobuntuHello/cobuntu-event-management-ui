@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
-import { RichTextEditor } from "../ui/rich-text-editor";
+import { MarkdownEditor } from "../ui/markdown-editor";
 import { useUpdateEvent } from "../config";
 
 /**
@@ -46,8 +46,8 @@ export function DescriptionEditModal({ event, communityTag, onClose, onSaved, sh
         <ModalShell onClose={onClose} width="w-full sm:w-[640px]">
             <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Edit description</h3>
             <div className="mb-4 max-h-[60vh] overflow-y-auto">
-                <RichTextEditor
-                    content={content}
+                <MarkdownEditor
+                    value={content}
                     onChange={setContent}
                     placeholder="Describe your event..."
                 />

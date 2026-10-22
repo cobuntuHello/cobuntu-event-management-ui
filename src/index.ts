@@ -181,7 +181,8 @@ export {
 // equivalents. Now both apps consume them from here.
 export { EventTimestamps } from "./ui/event-timestamps";
 export { EventTags } from "./ui/event-tags";
-export { RichTextEditor } from "./ui/rich-text-editor";
+export { MarkdownEditor } from "./ui/markdown-editor";
+export type { MarkdownEditorProps } from "./ui/markdown-editor";
 export { EventLocationSelector } from "./ui/event-location-selector";
 export {
   EventLocationsField, LocationAddButtons, addLocation, locationHasContent,

@@ -24,7 +24,7 @@ describe("the description has its own section", () => {
     });
 
     it("edits inline rather than opening a modal", () => {
-        expect(section).toContain("<RichTextEditor");
+        expect(section).toContain("<MarkdownEditor");
         expect(details).not.toContain('modal === "description"');
     });
 
