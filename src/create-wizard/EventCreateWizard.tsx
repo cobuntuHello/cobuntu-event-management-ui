@@ -277,40 +277,70 @@ function WizardInner({
   const [draftPending, setDraftPending] = useState(!!draftId);
   const draftInitial = useMemo(() => (draftRow ? eventDraftToForm(draftRow) : undefined), [draftRow]);
 
-  // Resumed ONCE: isLeaderHere can flip after load, and re-running would undo
-  // however far the person had walked since.
-  const resumed = useRef(false);
+  /*
+   * Resumed ONCE PER DRAFT: isLeaderHere can flip after load, and re-running
+   * would undo however far the person had walked since.
+   *
+   * The run is keyed by the draft id, not by the effect's lifetime. An effect
+   * cleanup is not a reason to drop the answer: StrictMode's mount/cleanup/mount,
+   * Fast Refresh, and a host passing a new draftStepFromUrl (Next syncs our own
+   * replaceState back into useSearchParams) all clean up while getDraft is in
+   * flight. Cancelling per effect and bailing on the re-run left the pending
+   * flag set forever ("Opening your draft..."). So only a real unmount, or a
+   * different draft, discards the result; the values the continuation reads
+   * live in refs so a change mid-flight neither re-runs nor cancels it.
+   */
+  const resumedFor = useRef<string | null>(null);
+  const mounted = useRef(false);
+  const draftIdRef = useRef(draftId);
+  const leaderRef = useRef(isLeaderHere);
+  const stepFromUrlRef = useRef(draftStepFromUrl);
+  draftIdRef.current = draftId;
+  leaderRef.current = isLeaderHere;
+  stepFromUrlRef.current = draftStepFromUrl;
+
+  // Set in the effect body (not the initial value alone) so StrictMode's
+  // simulated unmount, which runs this cleanup, is undone by the re-mount.
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
-    if (!draftId || resumed.current) return;
-    resumed.current = true;
+    if (!draftId || resumedFor.current === draftId) return;
+    resumedFor.current = draftId;
     // Re-armed: this instance may already be up from the blank flow.
     setDraftPending(true);
-    let cancelled = false;
+    const live = () => mounted.current && draftIdRef.current === draftId;
     (async () => {
-      let row: EventDraftRow | null = null;
-      try { row = await transport.getDraft(draftId); } catch { row = null; }
-      if (cancelled) return;
-      if (row) {
-        setDraftRow(row);
-        // Ownership first: it decides which steps exist.
-        const owned = draftOwnership(row);
-        if (isLeaderHere) setOwnership(owned);
-        const steps = resolveCreateSteps({
-          canChooseOwnership: isLeaderHere,
-          ownership: isLeaderHere ? owned : "personal",
-          withCommerceStep: true,
-          withSettingsStep: true,
-        });
-        const target = resumeStep(draftStepFromUrl ?? row.draftStep ?? null, steps);
-        if (target) setStep(target);
+      try {
+        let row: EventDraftRow | null = null;
+        try { row = await transport.getDraft(draftId); } catch { row = null; }
+        if (!live()) return;
+        if (row) {
+          setDraftRow(row);
+          // Ownership first: it decides which steps exist.
+          const leader = leaderRef.current;
+          const owned = draftOwnership(row);
+          if (leader) setOwnership(owned);
+          const steps = resolveCreateSteps({
+            canChooseOwnership: leader,
+            ownership: leader ? owned : "personal",
+            withCommerceStep: true,
+            withSettingsStep: true,
+          });
+          const target = resumeStep(stepFromUrlRef.current ?? row.draftStep ?? null, steps);
+          if (target) setStep(target);
+        }
+      } catch {
+        // A row that cannot be read is treated like no row at all.
+      } finally {
+        // An unreadable draft opens an empty wizard, as if none was asked for.
+        if (live()) setDraftPending(false);
       }
-      // An unreadable draft opens an empty wizard, as if none was asked for.
-      setDraftPending(false);
     })();
-    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftId, draftStepFromUrl, isLeaderHere]);
+  }, [draftId]);
 
   /*
    * The step is saved AS IT MOVES, onto ?step=, so a refresh does not drop
