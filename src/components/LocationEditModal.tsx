@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
-import { EventLocationsField, makeLocation, type EventLocationValue } from "../ui/event-locations-field";
+import { EventLocationsField, makeLocation, locationErrors, type EventLocationValue } from "../ui/event-locations-field";
 import { useUpdateEvent } from "../config";
 
 interface Props {
@@ -41,8 +41,18 @@ export function LocationEditModal({ event, communityTag, onClose, onSaved, showT
   const updateEvent = useUpdateEvent();
   const [locations, setLocations] = useState<EventLocationValue[]>(() => seedLocations(event));
   const [saving, setSaving] = useState(false);
+  /* Shown only after Save is pressed, so a row being typed into is not marked
+     red while someone is still filling it in. */
+  const [submitted, setSubmitted] = useState(false);
 
   async function save() {
+    /*
+     * Refuse an empty or malformed row rather than dropping it. The payload
+     * below FILTERS contentless locations out, so before this an online row
+     * left blank disappeared on save with nothing said about it (T-270).
+     */
+    setSubmitted(true);
+    if (Object.keys(locationErrors(locations)).length > 0) return;
     setSaving(true);
     try {
       // Send the full set (Phase 2). The server persists locations[] as the
@@ -72,7 +82,11 @@ export function LocationEditModal({ event, communityTag, onClose, onSaved, showT
   return (
     <ModalShell onClose={onClose} width="w-full sm:w-[480px]">
       <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Edit location</h3>
-      <EventLocationsField value={locations} onChange={setLocations} />
+      <EventLocationsField
+        value={locations}
+        onChange={setLocations}
+        errors={submitted ? locationErrors(locations) : undefined}
+      />
       <div className="flex justify-end gap-2 mt-5">
         <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
         <button

@@ -181,8 +181,13 @@ export function EventLocationSelector({
                 </div>
               )}
               {showLocationSuggestions && locationSuggestions.length > 0 && (
+                /* In flow, not absolute — same reason as the twin of this list
+                   in event-locations-field.tsx: a scroll container clips its
+                   descendants regardless of z-index, and this selector is used
+                   inside scrolling sheets too. Keeping one of the two floating
+                   is how they drift. */
                 <div ref={suggestionsRef}
-                  className="absolute z-50 w-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                  className="mt-1 w-full bg-white border border-zinc-200 rounded-lg shadow-sm max-h-60 overflow-y-auto">
                   {locationSuggestions.map((suggestion, index) => (
                     <button key={suggestion.place_id} onClick={() => handleLocationSelect(suggestion)}
                       onMouseEnter={() => setSelectedSuggestionIndex(index)}
