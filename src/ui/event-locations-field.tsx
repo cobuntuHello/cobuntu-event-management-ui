@@ -331,6 +331,7 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
   const boxRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [lookupFailed, setLookupFailed] = useState(false);
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
@@ -339,11 +340,23 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
         setLoading(true);
         try {
           setSuggestions(await searchLocations(row.address));
+          setLookupFailed(false);
           setOpen(true);
-        } catch { setSuggestions([]); }
-        finally { setLoading(false); }
+        } catch {
+          /*
+           * A failed lookup is NOT "no such place". Rendering nothing for both
+           * is what let a completely broken autocomplete look like a working
+           * one with nothing to say, in a console with no errors in it.
+           *
+           * The address the user typed is still perfectly valid to save -- it
+           * just has no map pin -- so this is a note, not a blocking error.
+           */
+          setSuggestions([]);
+          setLookupFailed(true);
+          setOpen(false);
+        } finally { setLoading(false); }
       }, 300);
-    } else { setSuggestions([]); setOpen(false); }
+    } else { setSuggestions([]); setOpen(false); setLookupFailed(false); }
     return () => { if (debounce.current) clearTimeout(debounce.current); };
   }, [row.address]);
 
@@ -405,6 +418,11 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
         * scroll, and on a phone the list pushes content down instead of
         * floating under the keyboard.
         */}
+      {lookupFailed && (
+        <span className="mt-1 block text-[11.5px] text-amber-600">
+          Place search is unavailable right now. Your address is still saved, just without a map pin.
+        </span>
+      )}
       {open && suggestions.length > 0 && (
         <div
           ref={listRef}
