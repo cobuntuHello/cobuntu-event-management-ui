@@ -99,9 +99,29 @@ export function getEventStatus(event: any) {
 
   const missingRequirements: string[] = [];
   if (!event?.name?.trim()) missingRequirements.push("add a title");
-  if (!startDate || startDate <= now) missingRequirements.push("set a valid start date");
-  if (!endDate || (startDate && endDate <= startDate)) missingRequirements.push("set a valid end date");
-  if (!event?.physicalLocation?.trim() && !event?.onlineUrl?.trim()) missingRequirements.push("add a location");
+  /*
+   * DATES AND A LOCATION ARE NOT REQUIRED TO PUBLISH.
+   *
+   * This list mirrors the server's publish gate so the CTA can be gated
+   * upfront rather than letting a host press Publish and collect a 400. The
+   * server stopped requiring a start date, an end date, a future start and a
+   * location on 2026-10-23, so these go with it -- a mirror that is stricter
+   * than what it mirrors is just a bug with a confident error message.
+   *
+   * "Venue to be announced" is a real listing: tickets often go on sale before
+   * the venue is confirmed, and sometimes before the date is fixed.
+   *
+   * Start-before-end is NOT checked here. It belongs to saving a date, and the
+   * server enforces it there (updateSingleEvent), so a host hears about it
+   * while editing the field rather than later at a step that has nothing to do
+   * with it.
+   */
+  if (startDate && endDate && endDate <= startDate) {
+    // Kept only as the same backstop the server keeps: it cannot fire when a
+    // date is missing, so it re-imposes nothing, and a window that ends before
+    // it starts should not reach the Publish button looking ready.
+    missingRequirements.push("fix the end date, which is before the start");
+  }
 
   // 2026-06-15 (feat/publish-tier-requirement): an event with tiers
   // cannot be published if none of them have publishedAt set. The BE
