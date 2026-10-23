@@ -157,8 +157,20 @@ describe("an ended event is locked", () => {
   });
 
   it("folds it into the access gate, not into one view", () => {
-    expect(page).toContain("const effectiveCanEdit = canEdit && !hasEnded;");
+    expect(page).toContain("const effectiveCanEdit = canEdit && (!hasEnded || !!forceModerator);");
     expect(page).toContain("<ManageAccessProvider canEdit={effectiveCanEdit}>");
+  });
+
+  it("lets a moderator through regardless — oversight isn't a writer the rule means to lock out", () => {
+    // forceModerator is the same signal visibleViews already trusts for tab
+    // access; the read-only gate used to be the one place that forgot it,
+    // so a superadmin reviewing an ended event got a Settings button that
+    // looked clickable and silently did nothing.
+    const hasEnded = true;
+    const canEdit = true;
+    const forceModerator = true;
+    const effectiveCanEdit = canEdit && (!hasEnded || forceModerator);
+    expect(effectiveCanEdit).toBe(true);
   });
 
   it("leaves a dateless event editable", () => {

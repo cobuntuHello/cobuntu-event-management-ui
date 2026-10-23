@@ -290,9 +290,19 @@ export function EventManagePage({
    * Same definition the page already uses for the card: ended means an END
    * DATE in the past. An event with no dates is NOT past -- that is a listing
    * still being written, and it stays fully editable.
+   *
+   * `forceModerator` bypasses it, same as it already bypasses `visibleViews`
+   * below. Without this, a superadmin opening Settings on any already-
+   * concluded event -- routine, since they review events across communities
+   * they don't personally run -- got a button that looked identical to every
+   * other one and silently did nothing. No error, no toast: useCanEdit's
+   * consumers just refuse to open. A moderator reviewing history still needs
+   * to fix a wrong detail on a past event; "read-only" is for the host who
+   * no longer gets to rewrite what attendees already paid for, not for the
+   * person whose whole job here is oversight.
    */
   const hasEnded = event?.endDate ? new Date(event.endDate) < new Date() : false;
-  const effectiveCanEdit = canEdit && !hasEnded;
+  const effectiveCanEdit = canEdit && (!hasEnded || !!forceModerator);
 
   return (
     /*
