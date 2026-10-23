@@ -77,4 +77,35 @@ describe("readOnlyNoticeCopy", () => {
             expect(c.body).not.toContain("—");
         }
     });
+
+    /*
+     * A superadmin viewing a community-owned event they don't lead is
+     * correctly locked out by the backend (viewerCanEditOverride never
+     * consults isSuperadmin -- superadmin reads, it does not write), but the
+     * member-facing copy above told them to go ask a community leader for
+     * permission they structurally cannot be granted. `isModerator` swaps in
+     * copy that names the real reason instead of inventing an unlock path.
+     */
+    describe("when the viewer is a moderator/superadmin", () => {
+        const copy = readOnlyNoticeCopy({ communityId: "pbn-uuid", hosts: HOSTS }, true);
+
+        it("never tells them to ask a leader for permission", () => {
+            expect(copy.body).not.toMatch(/ask/i);
+            expect(copy.body).not.toMatch(/grant you that permission/i);
+        });
+
+        it("names oversight as the reason, not a missing permission", () => {
+            expect(copy.title).toMatch(/oversight/i);
+        });
+
+        it("takes priority over the member-owned branch too", () => {
+            const c = readOnlyNoticeCopy({ communityId: null, hosts: HOSTS }, true);
+            expect(c.title).toMatch(/oversight/i);
+        });
+
+        it("carries no em-dash", () => {
+            expect(copy.title).not.toContain("—");
+            expect(copy.body).not.toContain("—");
+        });
+    });
 });

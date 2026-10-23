@@ -313,7 +313,9 @@ export function EventManagePage({
     <ManageAccessProvider canEdit={effectiveCanEdit}>
       <div>
         {header ?? (headerProps ? <EventManageHeader {...headerProps} /> : null)}
-        {!effectiveCanEdit && <ReadOnlyNotice event={event} communityTag={communityTag} isPast={hasEnded} />}
+        {!effectiveCanEdit && (
+          <ReadOnlyNotice event={event} communityTag={communityTag} isPast={hasEnded} isModerator={!!forceModerator} />
+        )}
         <SectionsNav communityTag={communityTag} activeView={active} onViewChange={onViewChange} visibleViews={allowed} />
         <ViewTransition viewKey={active}>{content}</ViewTransition>
       </div>
@@ -365,11 +367,34 @@ export function endedNoticeCopy(): { title: string; body: string } {
   };
 }
 
-export function readOnlyNoticeCopy(event: any): { title: string; body: string } {
+/**
+ * `isModerator` (superadmin, or any other forceModerator viewer) changes the
+ * BODY, never the fact of being locked out.
+ *
+ * The backend's rule is deliberate: superadmin reads, it does not write --
+ * `EventController`'s `viewerCanEditOverride` never consults `isSuperadmin`,
+ * because support can see where money went without being able to rewrite
+ * somebody's event from the outside. That is correct and this notice should
+ * not fight it by hiding itself.
+ *
+ * But the member-facing copy below tells the reader to go ask a community
+ * leader for permission -- which is simply wrong advice for an operator
+ * account with no leader relationship to appeal to, and reads as the
+ * platform not knowing who it is talking to. A moderator gets told the true
+ * reason instead: this is oversight, not an unlock request.
+ */
+export function readOnlyNoticeCopy(event: any, isModerator?: boolean): { title: string; body: string } {
   const ownerName =
     event?.hosts?.find((h: any) => h.role === "CREATOR")?.user?.name
     || event?.hosts?.[0]?.user?.name
     || null;
+
+  if (isModerator) {
+    return {
+      title: "You're viewing this in oversight mode.",
+      body: "Editing is restricted to the event's own host and community leaders, by design -- not a permission you're missing.",
+    };
+  }
 
   if (event?.communityId) {
     return {
@@ -461,8 +486,10 @@ function OwnerAvatar({ owner }: { owner: NonNullable<ReturnType<typeof readOnlyO
   );
 }
 
-function ReadOnlyNotice({ event, communityTag, isPast }: { event: any; communityTag: string; isPast?: boolean }) {
-  const { title, body } = isPast ? endedNoticeCopy() : readOnlyNoticeCopy(event);
+function ReadOnlyNotice({
+  event, communityTag, isPast, isModerator,
+}: { event: any; communityTag: string; isPast?: boolean; isModerator?: boolean }) {
+  const { title, body } = isPast ? endedNoticeCopy() : readOnlyNoticeCopy(event, isModerator);
   const owner = readOnlyOwner(event);
 
   return (
