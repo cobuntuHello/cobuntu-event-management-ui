@@ -96,3 +96,25 @@ describe("the pricing tab", () => {
         expect(visibleViews({ event: host, forceModerator: true })).toContain("pricing");
     });
 });
+
+/**
+ * Tab ORDER, as the product owner set it on 2026-10-23.
+ *
+ * SECTIONS decides where, visibleViews decides whether. Pinning the order here
+ * means a later edit to either list cannot quietly reshuffle the strip -- and
+ * the order is a product decision, not an implementation detail, so it is
+ * worth a test that fails loudly rather than a comment nobody reads.
+ */
+describe("the tab order", () => {
+    it("reads as the life of an event", () => {
+        expect(SECTION_KEYS.slice(0, 7)).toEqual([
+            "overview", "details", "pricing", "hosts", "attendees", "agenda", "ledger",
+        ]);
+    });
+
+    it("puts the ledger last of the seven, after the people and the plan", () => {
+        // Money is the outcome; it used to sit second, in front of everything
+        // that produces it.
+        expect(SECTION_KEYS.indexOf("ledger")).toBeGreaterThan(SECTION_KEYS.indexOf("agenda"));
+    });
+});

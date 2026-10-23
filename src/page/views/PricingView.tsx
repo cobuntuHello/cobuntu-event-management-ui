@@ -169,14 +169,12 @@ export function PricingView({
 
   return (
     <div className="space-y-6">
-      <div
-        className="p-5"
-        style={{
-          background: theme.cardBg,
-          borderRadius: theme.cardRadius,
-          border: `1px solid ${theme.borderSubtle}`,
-        }}
-      >
+      {/* No card around these sections.
+          The tier cards are the objects on this page; wrapping them in another
+          bordered surface nested a card inside a card and made the real ones
+          read as list rows rather than as the things you open. The section is
+          just a heading and its content now. */}
+      <div>
         <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>
           Ticket types
         </h2>
@@ -273,26 +271,7 @@ export function PricingView({
         )}
       </div>
 
-      {/* "Whole listing" — the same separator the modal uses before this
-          sidecar, so a host reads donations as listing-level rather than as
-          another ticket type. */}
-      <div className="flex items-center gap-2">
-        <div className="h-px flex-1 bg-zinc-100" />
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Whole listing</span>
-        <div className="h-px flex-1 bg-zinc-100" />
-      </div>
-
-      <div
-        className="px-4 py-4"
-        style={{
-          background: theme.cardBg,
-          borderRadius: theme.cardRadius,
-          border: `1px solid ${theme.borderSubtle}`,
-        }}
-      >
-        {/* DonationsSection is bare (the wizard renders it inside a modal via
-            DonationsField), so it is card-wrapped here -- the same thing the
-            modal does for its own inline list. */}
+      <div>
         <DonationsSection
           donation={donation}
           onUpdate={updateDonation}

@@ -163,13 +163,16 @@ export function EventCard({
               </div>
             </InfoRow>
 
-            {/* Price */}
-            <InfoRow onClick={!isPast ? onEditPrice : undefined} disabled={isPast}
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>}>
-              <p className="text-sm font-medium text-zinc-900">
-                {isPaid ? `${event.currency || "EUR"} ${Number(event.price).toFixed(2)}` : "Free"}
-              </p>
-            </InfoRow>
+            {/* No price row.
+                Pricing has its own tab now, where the tier list and the
+                donations sidecar live. A row here showed one number for an
+                event that can carry several ticket types, and opened the same
+                editor by a second route -- two entry points to one thing, one
+                of which could only ever tell half the story.
+
+                `onEditPrice` stays: it is still what the "publish at least one
+                ticket tier" requirement links to, which is a fix-it shortcut
+                rather than a second home for pricing. */}
 
             {/* Tags */}
             <InfoRow onClick={onEditTags}
