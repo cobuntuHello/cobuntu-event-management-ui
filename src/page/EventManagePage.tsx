@@ -4,6 +4,7 @@ import * as React from "react";
 import { SectionsNav, type ViewKey } from "./sections/SectionsNav";
 import { ViewTransition } from "./ViewTransition";
 import { DetailsView } from "./views/DetailsView";
+import { PricingView } from "./views/PricingView";
 import { HostsView } from "./views/HostsView";
 import { AgendaView } from "./views/AgendaView";
 import { AttendeesView } from "./views/AttendeesView";
@@ -74,7 +75,10 @@ export function visibleViews(opts: {
   // "listings" absent: Overview carries them. The key still resolves, so an
   // existing ?view=listings link keeps working rather than falling through.
   const base: ViewKey[] = [
-    "overview", "details",
+    // "pricing" rides with "details": same audience, same permission. Both
+    // MUST be listed here as well as in the nav's SECTIONS array -- see the
+    // note there.
+    "overview", "details", "pricing",
     // After Details, always. The nav's SECTIONS array is what orders it.
     ...(opts.hasLedger ? (["ledger"] as ViewKey[]) : []),
     "attendees", "hosts", "agenda",
@@ -229,6 +233,18 @@ export function EventManagePage({
           isPublished={isPublished}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          showToast={showToast}
+        />
+      );
+      break;
+
+    case "pricing":
+      content = (
+        <PricingView
+          event={event}
+          communityTag={communityTag}
+          eventId={eventId}
+          onUpdate={onUpdate}
           showToast={showToast}
         />
       );

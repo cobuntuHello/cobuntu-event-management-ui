@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 // keyboard-style event-update broadcasts have low pickup vs members
 // already in WhatsApp groups, so we're betting on integrating with
 // where the conversation already lives.
-export type ViewKey = "overview" | "ledger" | "details" | "hosts" | "listings" | "agenda" | "attendees" | "activity" | "updates";
+export type ViewKey = "overview" | "ledger" | "details" | "pricing" | "hosts" | "listings" | "agenda" | "attendees" | "activity" | "updates";
 
 interface Section {
   label: string;
@@ -53,6 +53,21 @@ const SECTIONS: Section[] = [
    * rather than the first.
    */
   { label: "Details", key: "details" },
+  /*
+   * PRICING SITS IMMEDIATELY AFTER DETAILS.
+   *
+   * Tiers used to be reachable only through a small control on the Details
+   * card, which opened the editor on its own compact list. They are a
+   * first-class part of the event -- what it costs, how many can come -- and
+   * the create wizard already treats them as their own step, so they get their
+   * own tab here and the same card-per-tier list the wizard shows.
+   *
+   * Adding it HERE is only half: this array decides ORDER, while the page's
+   * visibleViews() decides WHETHER a tab shows, and the nav renders the
+   * intersection. A key in one and not the other is silently dropped -- the
+   * mistake that once made product editing unreachable in production.
+   */
+  { label: "Pricing", key: "pricing" },
   /*
    * LEDGER SITS AFTER DETAILS, always.
    *
