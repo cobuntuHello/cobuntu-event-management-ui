@@ -19,7 +19,7 @@ const host = { hosts: [{ userId: "u1" }] };
 describe("the tab set", () => {
     it("gives a host the working tabs", () => {
         expect(visibleViews({ event: host, viewerUserId: "u1" }))
-            .toEqual(["overview", "details", "attendees", "hosts", "agenda"]);
+            .toEqual(["overview", "details", "pricing", "attendees", "hosts", "agenda"]);
     });
 
     /*
@@ -42,16 +42,23 @@ describe("the ledger tab", () => {
 
     it("appears after details when it does", () => {
         const views = visibleViews({ event: host, viewerUserId: "u1", hasLedger: true });
-        expect(views).toEqual(["overview", "details", "ledger", "attendees", "hosts", "agenda"]);
+        expect(views).toEqual(["overview", "details", "pricing", "ledger", "attendees", "hosts", "agenda"]);
     });
 
     /*
      * What a person SEES is ordered by SECTIONS in the nav, which renders
      * SECTIONS filtered by visibleViews -- that list decides whether, this one
      * decides where. Pinning order only in the other list pins nothing.
+     *
+     * This asserted ADJACENCY (details + 1) and Pricing now sits between the
+     * two, so it is relaxed to the rule it was actually defending: the ledger
+     * belongs after the editing surfaces, not in front of them. Adjacency was
+     * how that was expressed when Details was the only thing before it; it was
+     * never the point, and keeping it would have meant putting Pricing
+     * somewhere the person asking for it did not want it.
      */
     it("is ordered after details in the nav, which is what decides", () => {
-        expect(SECTION_KEYS.indexOf("ledger")).toBe(SECTION_KEYS.indexOf("details") + 1);
+        expect(SECTION_KEYS.indexOf("ledger")).toBeGreaterThan(SECTION_KEYS.indexOf("details"));
     });
 
     /*
@@ -62,5 +69,30 @@ describe("the ledger tab", () => {
     it("is offered to a moderator", () => {
         expect(visibleViews({ event: host, forceModerator: true, hasLedger: true }))
             .toContain("ledger");
+    });
+});
+
+/**
+ * The trap this file was written for, now applied to Pricing.
+ *
+ * A key in the nav's SECTIONS but not in visibleViews renders nothing; a key
+ * in visibleViews but not SECTIONS is unreachable. Either way the tab silently
+ * does not exist, which is how product lost Details in production.
+ */
+describe("the pricing tab", () => {
+    it("is in the allowed set for a plain host", () => {
+        expect(visibleViews({ event: host, viewerUserId: "u1" })).toContain("pricing");
+    });
+
+    it("is in the nav's own list too, so the intersection keeps it", () => {
+        expect(SECTION_KEYS).toContain("pricing");
+    });
+
+    it("sits immediately after details, which is where it was asked for", () => {
+        expect(SECTION_KEYS.indexOf("pricing")).toBe(SECTION_KEYS.indexOf("details") + 1);
+    });
+
+    it("is offered to a moderator as well", () => {
+        expect(visibleViews({ event: host, forceModerator: true })).toContain("pricing");
     });
 });

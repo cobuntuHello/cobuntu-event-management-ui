@@ -147,6 +147,22 @@ export interface PriceEditModalProps {
    * backing out of Level 2 closes the modal instead of returning to the list.
    */
   openTierLocalId?: string;
+  /**
+   * Open the modal on a BRAND NEW tier's edit screen (Level 2), skipping the
+   * list — the add-a-tier counterpart to `openTierLocalId`.
+   *
+   * The create wizard does this itself: it appends a blank tier to its own
+   * draft state and hands the new localId to `openTierLocalId`. A manage page
+   * cannot, because outside draftMode the drafts live in here and are seeded
+   * from the server after mount, so there is no id for the caller to pass.
+   * Without this the manage page's "Add" would have to open the Level 1 list,
+   * which is the surface the inline card list replaced.
+   *
+   * Appends one blank tier and jumps to it, once, after loading settles. Save
+   * POSTs it like any other new tier; backing out discards it, since an
+   * untouched blank was never persisted.
+   */
+  openNewTier?: boolean;
 }
 
 export function PriceEditModal({
@@ -161,6 +177,7 @@ export function PriceEditModal({
   initialDraftDonation,
   onDraftCommit,
   openTierLocalId,
+  openNewTier,
 }: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
@@ -209,7 +226,7 @@ export function PriceEditModal({
   // (edit screen) once drafts have loaded, once. `openedDirect` also tells the
   // Level-2 back action to CLOSE the modal (the list lives in the form) rather
   // than pop to the in-modal list.
-  const openedDirect = !!openTierLocalId;
+  const openedDirect = !!openTierLocalId || !!openNewTier;
   const jumpedRef = useRef(false);
   useEffect(() => {
     if (openTierLocalId && !loading && !jumpedRef.current) {
@@ -217,6 +234,20 @@ export function PriceEditModal({
       setActiveTier(openTierLocalId);
     }
   }, [openTierLocalId, loading]);
+
+  // Same jump, for a tier that does not exist yet. Guarded by the SAME
+  // jumpedRef as above so the two can never both fire, and so a re-render
+  // cannot append a second blank tier. `drafts` is in the dep list because
+  // the blank inherits the currency and position of what is already there,
+  // which is only known once the load has populated it.
+  useEffect(() => {
+    if (!openNewTier || loading || jumpedRef.current) return;
+    jumpedRef.current = true;
+    const visibleCount = drafts.filter((x) => !x.deleted).length;
+    const fresh = blankTier(drafts[0]?.currency || "EUR", visibleCount + 1);
+    setDrafts((d) => [...d, fresh]);
+    setActiveTier(fresh.localId);
+  }, [openNewTier, loading, drafts]);
 
   // Footer "step actions" slot. A step that owns primary actions (the
   // form builder's "+ Question" etc.) portals its buttons into this DOM

@@ -59,9 +59,20 @@ function writesToServer(src: string): boolean {
   );
 }
 
-/** Signals that a file opens an editing surface of its own. */
+/**
+ * Signals that a file opens an editing surface of its own.
+ *
+ * The named list is kept, but a generic `setEditing*` is matched too. The
+ * list-only version had a hole: PricingView arrived holding its open editor in
+ * `setEditing`, which is none of these names, so the guard would have called
+ * it read-only and passed a view that opens a tier editor. Enumerating setter
+ * names means every new view has to guess one that happens to be on the list.
+ */
 function opensAnEditor(src: string): boolean {
-  return /set(EditingId|ComposeOpen|Modal|DrawerOpen|BannerCropOpen)\b/.test(src);
+  return (
+    /set(EditingId|ComposeOpen|Modal|DrawerOpen|BannerCropOpen)\b/.test(src)
+    || /\bsetEditing\w*\s*\(/.test(src)
+  );
 }
 
 describe("read-only coverage across the manage views", () => {
