@@ -46,6 +46,27 @@ describe("MarkdownEditor", () => {
     expect(code?.querySelector("strong")).toBeNull();
   });
 
+  it("does not let the italic pass re-match a bold span's own ** marker text", () => {
+    // Regression: **bold** renders its own literal "**" marker characters
+    // into the overlay. Before the delimiters were masked behind placeholder
+    // tokens, the italic regex ran AFTER the bold regex on that same string
+    // and matched across those rendered "**" characters, nesting a stray
+    // <em> inside what should be a single, unbroken <strong>.
+    const { container } = render(<MarkdownEditor value="**bold** and **more bold**" onChange={vi.fn()} />);
+    const strongs = container.querySelectorAll("strong");
+    expect(strongs).toHaveLength(2);
+    expect(strongs[0].textContent).toBe("bold");
+    expect(strongs[1].textContent).toBe("more bold");
+    expect(container.querySelector("em")).toBeNull();
+  });
+
+  it("does not let the italic pass re-match a strikethrough span's own ~~ marker text", () => {
+    const { container } = render(<MarkdownEditor value="~~gone~~ and ~~also gone~~" onChange={vi.fn()} />);
+    const dels = container.querySelectorAll("del");
+    expect(dels).toHaveLength(2);
+    expect(container.querySelector("em")).toBeNull();
+  });
+
   it("calls onChange with the typed value", () => {
     const onChange = vi.fn();
     render(<MarkdownEditor value="" onChange={onChange} />);
