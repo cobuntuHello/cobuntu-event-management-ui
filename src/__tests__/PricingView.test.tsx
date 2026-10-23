@@ -29,6 +29,17 @@ import { PricingView } from "../page/views/PricingView";
 // The modal is a large component with its own fetches. Here we only care
 // about WHICH tier it was asked to open, so it is replaced by a probe that
 // renders the props under test.
+vi.mock("../components/PriceEditModal/DonationsSection", () => ({
+  DonationsSection: ({ onUpdate, defaultCurrency }: any) => (
+    <div data-testid="donations">
+      <span data-testid="donations-currency">{defaultCurrency}</span>
+      <button type="button" onClick={() => onUpdate({ enabled: true })}>
+        toggle-donations
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock("../components/PriceEditModal", () => ({
   PriceEditModal: (props: any) => (
     <div data-testid="price-modal">
@@ -168,5 +179,56 @@ describe("PricingView", () => {
   it("tolerates an event with no tiers", () => {
     renderView({ event: makeEvent({ tiers: undefined }) });
     expect(screen.getByText("Add ticket type")).toBeTruthy();
+  });
+});
+
+/**
+ * DONATIONS — the other half of the wizard's pricing step.
+ *
+ * Shipped missing at first: the tab had the tier list and not the donations
+ * sidecar, which made it a near-copy of the wizard rather than the same step.
+ * These pin the wiring, and specifically that an untouched visit writes
+ * NOTHING -- a PUT with a cleared config from someone who only came to look
+ * is the expensive mistake here.
+ */
+describe("PricingView donations", () => {
+  it("renders the donations sidecar", () => {
+    renderView();
+    expect(screen.getByTestId("donations")).toBeTruthy();
+  });
+
+  it("seeds the currency from the first tier", () => {
+    renderView();
+    expect(screen.getByTestId("donations-currency").textContent).toBe("EUR");
+  });
+
+  it("offers no Save until something actually changed", () => {
+    renderView();
+    expect(screen.queryByText("Save donations")).toBeNull();
+  });
+
+  it("offers Save once a change is made", () => {
+    renderView();
+    fireEvent.click(screen.getByText("toggle-donations"));
+    expect(screen.getByText("Save donations")).toBeTruthy();
+  });
+
+  it("PUTs to the donations endpoint on save", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal("fetch", fetchMock);
+    renderView();
+    fireEvent.click(screen.getByText("toggle-donations"));
+    fireEvent.click(screen.getByText("Save donations"));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/events/evt-1/donations");
+    expect(init.method).toBe("PUT");
+    vi.unstubAllGlobals();
+  });
+
+  it("a read-only viewer cannot change them, so no Save ever appears", () => {
+    renderView({ canEdit: false });
+    fireEvent.click(screen.getByText("toggle-donations"));
+    expect(screen.queryByText("Save donations")).toBeNull();
   });
 });

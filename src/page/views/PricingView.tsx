@@ -4,7 +4,15 @@ import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { PriceEditModal } from "../../components/PriceEditModal";
 import { theme, muted } from "../../shared/theme";
-import { getSymbol, toDisplay } from "../../components/PriceEditModal/helpers";
+import {
+  getSymbol,
+  toDisplay,
+  loadDonationFromEvent,
+  buildDonationBody,
+} from "../../components/PriceEditModal/helpers";
+import { DonationsSection } from "../../components/PriceEditModal/DonationsSection";
+import type { DonationDraft } from "../../components/PriceEditModal/types";
+import { useEventManagementConfig, useJsonHeaders } from "../../config";
 import { useCanEdit } from "../../lib/manageAccess";
 
 /**
@@ -94,6 +102,61 @@ export function PricingView({
   const openTier = (key: string) => {
     if (!canEdit) return;
     setEditingTier(key);
+  };
+
+  /*
+   * DONATIONS — the "whole listing" sidecar, as the wizard shows it.
+   *
+   * The wizard's pricing step is tiers AND donations: DonationsField sits
+   * directly under the tier list. This tab was shipped with the tier half
+   * only, which made it a near-copy rather than the same step.
+   *
+   * On the manage page the same editor already existed, but inside
+   * PriceEditModal's Level 1 list -- the surface these cards deliberately
+   * skip. So it was still reachable (Details -> the small price control) and
+   * absent from the tab that is now the natural home for it.
+   *
+   * Independent of tiers, and saved independently: its own PUT /donations,
+   * which is exactly what the modal does. `donationDirty` keeps an untouched
+   * visit from issuing a pointless write -- and more importantly from sending
+   * a cleared config for a host who only came to look.
+   */
+  const { apiBaseUrl } = useEventManagementConfig();
+  const jsonHeaders = useJsonHeaders();
+  const [donation, setDonation] = useState<DonationDraft>(() => loadDonationFromEvent(event));
+  const [donationDirty, setDonationDirty] = useState(false);
+  const [savingDonation, setSavingDonation] = useState(false);
+
+  const updateDonation = (patch: Partial<DonationDraft>) => {
+    if (!canEdit) return;
+    setDonationDirty(true);
+    setDonation((d) => ({ ...d, ...patch }));
+  };
+
+  const saveDonation = async () => {
+    if (!canEdit || !donationDirty || savingDonation) return;
+    setSavingDonation(true);
+    try {
+      const res = await fetch(
+        `${apiBaseUrl}/api/communities/${communityTag}/events/${eventId}/donations`,
+        {
+          method: "PUT",
+          headers: jsonHeaders(),
+          body: JSON.stringify(buildDonationBody(donation, tiers[0]?.products?.currency || "EUR")),
+        },
+      );
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || "Failed to save donation settings");
+      }
+      setDonationDirty(false);
+      showToast("Donations updated");
+      onUpdate();
+    } catch (e: any) {
+      showToast(e?.message || "Failed to save donation settings");
+    } finally {
+      setSavingDonation(false);
+    }
   };
 
   const tiers: any[] = Array.isArray(event?.tiers) ? event.tiers : [];
@@ -207,6 +270,50 @@ export function PricingView({
           Add ticket type
         </button>
         </>
+        )}
+      </div>
+
+      {/* "Whole listing" — the same separator the modal uses before this
+          sidecar, so a host reads donations as listing-level rather than as
+          another ticket type. */}
+      <div className="flex items-center gap-2">
+        <div className="h-px flex-1 bg-zinc-100" />
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Whole listing</span>
+        <div className="h-px flex-1 bg-zinc-100" />
+      </div>
+
+      <div
+        className="px-4 py-4"
+        style={{
+          background: theme.cardBg,
+          borderRadius: theme.cardRadius,
+          border: `1px solid ${theme.borderSubtle}`,
+        }}
+      >
+        {/* DonationsSection is bare (the wizard renders it inside a modal via
+            DonationsField), so it is card-wrapped here -- the same thing the
+            modal does for its own inline list. */}
+        <DonationsSection
+          donation={donation}
+          onUpdate={updateDonation}
+          defaultCurrency={tiers[0]?.products?.currency || "EUR"}
+        />
+        {/* Its own Save, because donations persist through their own endpoint
+            and not with the tiers. Appears only once something changed: a
+            permanently-enabled Save invites a write that would send a cleared
+            config for a host who came only to look. */}
+        {canEdit && donationDirty && (
+          <div className="flex justify-end pt-3">
+            <button
+              type="button"
+              onClick={saveDonation}
+              disabled={savingDonation}
+              className="px-4 py-2 text-[13px] font-medium rounded-lg cursor-pointer disabled:opacity-40"
+              style={{ background: theme.brand, color: theme.onBrand }}
+            >
+              {savingDonation ? "Saving..." : "Save donations"}
+            </button>
+          </div>
         )}
       </div>
 
