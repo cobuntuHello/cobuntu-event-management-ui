@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useUpdateEvent } from "../config";
-import { RefundPolicyField, type RefundPolicyValue } from "./RefundPolicyField";
+import { RefundPolicyField, type RefundPolicyValue } from "@cobuntu/management-ui-shared";
 
 /**
  * Edit `events.refundPolicy` on the manage page, using the SAME RefundPolicyField
