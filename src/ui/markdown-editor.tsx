@@ -28,24 +28,37 @@ function escapeHtml(s: string): string {
 function formatLine(raw: string): string {
   let line = escapeHtml(raw);
 
-  // Code spans first, and masked, so later passes never reformat inside one.
-  const codeSpans: string[] = [];
-  line = line.replace(/`([^`\n]+)`/g, (_, inner) => {
-    const i = codeSpans.length;
-    codeSpans.push(
-      `<span class="text-zinc-300">\`</span><code class="font-mono text-[0.9em] bg-zinc-900/5 rounded px-1">${inner}</code><span class="text-zinc-300">\`</span>`,
-    );
+  // Every multi-character delimiter (code/bold/strike) is matched and
+  // immediately masked behind a placeholder token, so its own literal
+  // marker characters (the two asterisks in "**", etc.) can never be
+  // re-matched by the italic pass that runs after it — without this, a
+  // bold span's rendered "**" text is itself a pair of asterisks the
+  // italic regex would happily treat as its own delimiters.
+  const tokens: string[] = [];
+  const mask = (html: string) => {
+    const i = tokens.length;
+    tokens.push(html);
     return `\u0000${i}\u0000`;
-  });
+  };
+
+  line = line.replace(/`([^`\n]+)`/g, (_, inner) =>
+    mask(`<span class="text-zinc-300">\`</span><code class="font-mono text-[0.9em] bg-zinc-900/5 rounded px-1">${inner}</code><span class="text-zinc-300">\`</span>`),
+  );
+  line = line.replace(/\*\*(.+?)\*\*/g, (_, inner) =>
+    mask(`<span class="text-zinc-300">**</span><strong class="text-zinc-900">${inner}</strong><span class="text-zinc-300">**</span>`),
+  );
+  line = line.replace(/__(.+?)__/g, (_, inner) =>
+    mask(`<span class="text-zinc-300">__</span><strong class="text-zinc-900">${inner}</strong><span class="text-zinc-300">__</span>`),
+  );
+  line = line.replace(/~~(.+?)~~/g, (_, inner) =>
+    mask(`<span class="text-zinc-300">~~</span><del class="text-zinc-500">${inner}</del><span class="text-zinc-300">~~</span>`),
+  );
 
   line = line
-    .replace(/\*\*(.+?)\*\*/g, '<span class="text-zinc-300">**</span><strong class="text-zinc-900">$1</strong><span class="text-zinc-300">**</span>')
-    .replace(/__(.+?)__/g, '<span class="text-zinc-300">__</span><strong class="text-zinc-900">$1</strong><span class="text-zinc-300">__</span>')
-    .replace(/~~(.+?)~~/g, '<span class="text-zinc-300">~~</span><del class="text-zinc-500">$1</del><span class="text-zinc-300">~~</span>')
     .replace(/(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g, '<span class="text-zinc-300">*</span><em>$1</em><span class="text-zinc-300">*</span>')
     .replace(/(?<![_\w])_(?!\s)(.+?)(?<!\s)_(?!\w)/g, '<span class="text-zinc-300">_</span><em>$1</em><span class="text-zinc-300">_</span>');
 
-  line = line.replace(/\u0000(\d+)\u0000/g, (_, i) => codeSpans[Number(i)]);
+  line = line.replace(/\u0000(\d+)\u0000/g, (_, i) => tokens[Number(i)]);
 
   const heading = line.match(/^(#{1,3})(\s+)(.*)$/);
   if (heading) {
