@@ -299,7 +299,7 @@ interface EventFormProps {
   initialBuyTierIds?: string[];
   /**
    * Tailwind max-width class applied to both content sections (name/banner/
-   * schedule, and the Event Options card below it). Defaults to `max-w-3xl`
+   * schedule, and the ticket tiers below it). Defaults to `max-w-3xl`
    * — the form's original fixed width, kept as the default so existing
    * consumers embedding this in a wider page shell (which was relying on
    * the form self-narrowing) don't change. A consumer whose OWN page
@@ -1003,13 +1003,21 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           On mobile no left padding — section uses full container width. */}
       {showCommerce && (
       <div className={`${maxWidthClassName} mt-8`}>
-        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Event Options</p>
-        <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
-          {/* Ticket Tiers — the "Event Options" eyebrow above the card already
-              names this group, so the old in-card Ticket-icon + "Tickets" title +
-              count header is gone (matches the product Variants restructure): the
-              card holds only the tier list + Add button. */}
-          <div className="px-5 py-4 first:rounded-t-2xl">
+        {/*
+          Ticket tiers, unwrapped.
+          
+          This used to be an "EVENT OPTIONS" eyebrow over a zinc-50 card that
+          held the tier list and the Add button. Both are gone: the step is
+          already titled "Pricing" and subtitled "Set your ticket tiers", so the
+          eyebrow restated the heading two lines above it, and the card was a
+          grey box whose only contents were cards of their own — a container
+          around a list that already reads as a list, which on the cream
+          storefront background put three nested surfaces behind every tier.
+          
+          The tier rows and the Add button now sit directly in the column, so
+          each tier card is the only surface in the group.
+        */}
+        <div>
             {tiers.length > 0 && (
               <div className="space-y-2 mb-3">
                 {tiers.map((t) => {
@@ -1088,13 +1096,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               {tiers.length === 0 ? "Add ticket tier" : "Add ticket tier"}
             </button>
-          </div>
-
         </div>
 
       {/* ─── Donations ─── listing-level; its own row that opens a modal
-          (desktop) / drawer (mobile). Outside the Event Options card because a
-          donation applies to the whole event, not a single tier. Create takes
+          (desktop) / drawer (mobile). Its own row, separate from the tiers,
+          because a donation applies to the whole event, not a single tier. Create takes
           no inline donationConfig, so the consumer PUTs `donation` to
           /communities/:tag/events/:id/donations after create. */}
       <div className="mt-6">
