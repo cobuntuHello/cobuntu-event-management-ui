@@ -20,6 +20,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { render, screen, act } from "@testing-library/react";
 import { useState } from "react";
 import { ManageAccessProvider, useCanEdit, useEditAction } from "../lib/manageAccess";
@@ -128,5 +130,49 @@ describe("useEditAction", () => {
     );
     act(() => { screen.getByText("go").click(); });
     expect(ran).toBe(true);
+  });
+});
+
+/**
+ * AN ENDED EVENT IS READ-ONLY — derived once, at the provider.
+ *
+ * The rule is a product decision (2026-10-23): once an event has finished it
+ * is a record, so nothing about it changes. It lives on EventManagePage next
+ * to ManageAccessProvider rather than inside each view, because every surface
+ * already asks useCanEdit() and a view added later should inherit it rather
+ * than have to remember.
+ *
+ * Pricing is what made the gap obvious: repricing a ticket nobody can buy
+ * changes nothing a buyer sees, while quietly disagreeing with what attendees
+ * actually paid.
+ *
+ * Read from the source: the behaviour is one expression, and asserting it
+ * here keeps a later edit from loosening it without a reader noticing.
+ */
+describe("an ended event is locked", () => {
+  const page = readFileSync(join(__dirname, "..", "page", "EventManagePage.tsx"), "utf8");
+
+  it("derives the lock from the end date", () => {
+    expect(page).toContain("const hasEnded = event?.endDate ? new Date(event.endDate) < new Date() : false;");
+  });
+
+  it("folds it into the access gate, not into one view", () => {
+    expect(page).toContain("const effectiveCanEdit = canEdit && !hasEnded;");
+    expect(page).toContain("<ManageAccessProvider canEdit={effectiveCanEdit}>");
+  });
+
+  it("leaves a dateless event editable", () => {
+    // No end date is a listing still being written, not a finished one. The
+    // ternary above answers false, which is the whole point of this case.
+    const noDates = { endDate: null };
+    const hasEnded = noDates.endDate ? new Date(noDates.endDate) < new Date() : false;
+    expect(hasEnded).toBe(false);
+  });
+
+  it("explains which read-only this is", () => {
+    // "Ask a leader for permission" is the wrong answer, and a little
+    // insulting, when the real one is "this already happened".
+    expect(page).toContain("endedNoticeCopy");
+    expect(page).toContain("This event has ended.");
   });
 });

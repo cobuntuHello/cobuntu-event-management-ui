@@ -272,16 +272,38 @@ export function EventManagePage({
       content = overviewSlot ?? null;
   }
 
+  /*
+   * AN ENDED EVENT IS READ-ONLY.
+   *
+   * Derived ONCE and fed to the provider, rather than remembered by each
+   * surface. Every view and modal already asks `useCanEdit()`, so one rule
+   * here locks the description, the pricing tab, the tier editors and the
+   * quick-edit modals together -- and a view added later inherits it instead
+   * of having to know about it.
+   *
+   * The event card already dimmed its own rows once an event was past, so the
+   * intent existed; it just stopped at that card. Pricing was the surface that
+   * made the gap obvious: repricing a ticket nobody can buy changes nothing a
+   * buyer will ever see, while quietly disagreeing with what attendees
+   * actually paid.
+   *
+   * Same definition the page already uses for the card: ended means an END
+   * DATE in the past. An event with no dates is NOT past -- that is a listing
+   * still being written, and it stays fully editable.
+   */
+  const hasEnded = event?.endDate ? new Date(event.endDate) < new Date() : false;
+  const effectiveCanEdit = canEdit && !hasEnded;
+
   return (
     /*
      * The nav sits OUTSIDE the provider's read-only effect on purpose: moving
      * between tabs is reading, not writing, and a read-only viewer is here
      * precisely to look around.
      */
-    <ManageAccessProvider canEdit={canEdit}>
+    <ManageAccessProvider canEdit={effectiveCanEdit}>
       <div>
         {header ?? (headerProps ? <EventManageHeader {...headerProps} /> : null)}
-        {!canEdit && <ReadOnlyNotice event={event} communityTag={communityTag} />}
+        {!effectiveCanEdit && <ReadOnlyNotice event={event} communityTag={communityTag} isPast={hasEnded} />}
         <SectionsNav communityTag={communityTag} activeView={active} onViewChange={onViewChange} visibleViews={allowed} />
         <ViewTransition viewKey={active}>{content}</ViewTransition>
       </div>
@@ -320,6 +342,19 @@ export function EventManagePage({
  * Exported and pure so it can be tested without the page's config providers,
  * the same shape as `visibleViews`.
  */
+/**
+ * Copy for an event that has simply finished, as opposed to one somebody else
+ * owns. Two different reasons to be locked out deserve two different notices:
+ * "ask a leader for permission" is wrong and a little insulting when the
+ * actual answer is "this already happened".
+ */
+export function endedNoticeCopy(): { title: string; body: string } {
+  return {
+    title: "This event has ended.",
+    body: "It is kept here as a record, so its details and pricing can no longer be changed. Attendees, the ledger and the agenda are still here to read.",
+  };
+}
+
 export function readOnlyNoticeCopy(event: any): { title: string; body: string } {
   const ownerName =
     event?.hosts?.find((h: any) => h.role === "CREATOR")?.user?.name
@@ -416,8 +451,8 @@ function OwnerAvatar({ owner }: { owner: NonNullable<ReturnType<typeof readOnlyO
   );
 }
 
-function ReadOnlyNotice({ event, communityTag }: { event: any; communityTag: string }) {
-  const { title, body } = readOnlyNoticeCopy(event);
+function ReadOnlyNotice({ event, communityTag, isPast }: { event: any; communityTag: string; isPast?: boolean }) {
+  const { title, body } = isPast ? endedNoticeCopy() : readOnlyNoticeCopy(event);
   const owner = readOnlyOwner(event);
 
   return (
