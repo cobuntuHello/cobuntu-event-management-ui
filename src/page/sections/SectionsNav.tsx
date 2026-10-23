@@ -69,15 +69,23 @@ const SECTIONS: Section[] = [
    */
   { label: "Pricing", key: "pricing" },
   /*
-   * LEDGER SITS AFTER DETAILS, always.
-   *
    * THIS array orders the strip -- the nav renders SECTIONS filtered by
    * visibleViews, so that list decides WHETHER a tab shows and this decides
    * WHERE. Order pinned only in the other list is pinned in the wrong place.
+   *
+   * Order set by the product owner, 2026-10-23:
+   *   Overview, Details, Pricing, Hosts, Attendees, Agenda, Ledger
+   *
+   * It reads as the life of an event: what it is, what it costs, who runs it,
+   * who is coming, what happens on the day, and what it made. The ledger moved
+   * from second-after-details to last for that reason -- money is the outcome,
+   * and it was sitting in front of the people and the plan that produce it.
+   * The older note here said "LEDGER SITS AFTER DETAILS, always", which this
+   * still satisfies; what it was defending is that the ledger comes after the
+   * editing surfaces, not that it is adjacent to them.
    */
-  { label: "Ledger", key: "ledger" },
-  { label: "Attendees", key: "attendees" },
   { label: "Hosts", key: "hosts" },
+  { label: "Attendees", key: "attendees" },
   /*
    * "listings" is still a valid KEY, but no longer a TAB: Overview carries one
    * section per community with that listing's own numbers and terms, plus the
@@ -85,6 +93,7 @@ const SECTIONS: Section[] = [
    * screen less well is a second place to look for one answer.
    */
   { label: "Agenda", key: "agenda" },
+  { label: "Ledger", key: "ledger" },
   // Activity log — reverse-chrono feed of every host-visible action.
   // Lives near the end so the day-to-day tabs (Attendees/Hosts/etc.)
   // stay in the primary scan position. Plan doc:
