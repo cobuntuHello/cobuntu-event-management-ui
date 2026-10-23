@@ -36,6 +36,8 @@ import {
   tierAccessConsequence,
   type TierAccessValue,
   type MembershipTier,
+  PolicyRow,
+  type AudienceLevel,
 } from "@cobuntu/management-ui-shared";
 
 // ─── Currencies ────────────────────────────────────────────────
@@ -126,12 +128,24 @@ export type AttendeeVisibility = "PUBLIC" | "ATTENDEES_ONLY" | "COUNT_ONLY" | "H
 
 /** The four choices, in the order the picker offers them: most open first. */
 export const ATTENDEE_VISIBILITY_OPTIONS: {
-  value: AttendeeVisibility; label: string; hint: string;
+  value: AttendeeVisibility; label: string; hint: string; level: AudienceLevel;
 }[] = [
-  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees who is going" },
-  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The list appears once someone has a ticket" },
-  { value: "COUNT_ONLY", label: "Just the number", hint: "How many are going, but no names or faces" },
-  { value: "HIDDEN", label: "Nobody", hint: "No list and no number" },
+  /*
+   * `level` is how much of the audience each choice lets in, which is what
+   * the row's meter pictures. It is declared HERE, beside the options, so the
+   * scale and the wording are read and changed together -- a level set in the
+   * component would drift from the option it describes the first time one of
+   * these is reordered.
+   *
+   * COUNT_ONLY is the approximate one: "just the number" is not really fewer
+   * PEOPLE seeing it, it is everyone seeing LESS. It sits at 1 because what
+   * the meter answers is "how much is shared", and a bare count is the least
+   * you can share without sharing nothing.
+   */
+  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees who is going", level: 3 },
+  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The list appears once someone has a ticket", level: 2 },
+  { value: "COUNT_ONLY", label: "Just the number", hint: "How many are going, but no names or faces", level: 1 },
+  { value: "HIDDEN", label: "Nobody", hint: "No list and no number", level: 0 },
 ];
 
 /**
@@ -144,10 +158,10 @@ export type LocationVisibility = "PUBLIC" | "ATTENDEES_ONLY";
 
 /** The two choices, most open first. */
 export const LOCATION_VISIBILITY_OPTIONS: {
-  value: LocationVisibility; label: string; hint: string;
+  value: LocationVisibility; label: string; hint: string; level: AudienceLevel;
 }[] = [
-  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees the address" },
-  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The address appears once someone has a ticket" },
+  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees the address", level: 3 },
+  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The address appears once someone has a ticket", level: 2 },
 ];
 
 /** One location as sent to the server (Phase 2). Mirrors backend EventLocationInput. */
@@ -1150,20 +1164,16 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             are choosing between them. The sheet lists all four with their
             explanation and ticks the current one, which is the same shape the
             location, description and category rows on this form already use. */}
-        <button
-          type="button"
+        {/* The hint is NOT repeated here. It explains the concept, which is
+            only useful next to the alternatives it has to be weighed against
+            -- so it lives in the sheet below, and the row states the answer. */}
+        <PolicyRow
+          icon={<Users className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
+          title="Who can see the guest list"
+          value={selectedAttendeeOption?.label ?? ""}
+          level={selectedAttendeeOption?.level ?? 3}
           onClick={() => setAttendeeVisibilityOpen(true)}
-          className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer"
-        >
-          <Users className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />
-          <span className="flex-1 min-w-0">
-            <span className="block text-sm font-medium text-zinc-800">Who can see the guest list</span>
-            <span className="block text-[12.5px] text-zinc-500 truncate">
-              {selectedAttendeeOption?.label} · {selectedAttendeeOption?.hint}
-            </span>
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
-        </button>
+        />
       </div>
 
       <Dialog open={attendeeVisibilityOpen} onOpenChange={setAttendeeVisibilityOpen}>
@@ -1268,20 +1278,13 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           enforcement and same manage-page exemption as the guest list. */}
       <div className="mt-6">
         <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Location</p>
-        <button
-          type="button"
+        <PolicyRow
+          icon={<MapPin className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
+          title="Who can see the location"
+          value={selectedLocationOption?.label ?? ""}
+          level={selectedLocationOption?.level ?? 3}
           onClick={() => setLocationVisibilityOpen(true)}
-          className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer"
-        >
-          <MapPin className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />
-          <span className="flex-1 min-w-0">
-            <span className="block text-sm font-medium text-zinc-800">Who can see the location</span>
-            <span className="block text-[12.5px] text-zinc-500 truncate">
-              {selectedLocationOption?.label} · {selectedLocationOption?.hint}
-            </span>
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
-        </button>
+        />
       </div>
 
       <Dialog open={locationVisibilityOpen} onOpenChange={setLocationVisibilityOpen}>
