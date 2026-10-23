@@ -14,7 +14,6 @@ import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal"
 import { MarkdownEditor } from "../ui/markdown-editor";
 import { markdownToPlainText } from "../lib/htmlToPlainText";
 import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
-import { RefundPolicyField, type RefundPolicyValue } from "./RefundPolicyField";
 import {
   Users, Image as ImageIcon, X,
   Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
@@ -38,6 +37,8 @@ import {
   type MembershipTier,
   PolicyRow,
   type AudienceLevel,
+  RefundPolicyField,
+  type RefundPolicyValue,
 } from "@cobuntu/management-ui-shared";
 
 // ─── Currencies ────────────────────────────────────────────────
@@ -1424,7 +1425,23 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
               <div>
                 <span className="text-sm font-medium text-zinc-800">Require Approval</span>
-                <p className="text-[11px] text-zinc-400 mt-0.5">Review attendees before confirming their registration</p>
+                {/*
+                  * What is true RIGHT NOW, not what the feature is.
+                  *
+                  * This read "Review attendees before confirming their
+                  * registration" in both positions -- a description of the
+                  * switch, which the switch's own label already gives. Reading
+                  * it told you nothing about which way it was set; you had to
+                  * look at the toggle and work the consequence out yourself.
+                  * Now the line changes with the setting and states the
+                  * outcome, so the row answers "what happens when someone
+                  * registers" without being interpreted.
+                  */}
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  {requiresApproval
+                    ? "You approve each person before they are registered"
+                    : "Anyone can register straight away"}
+                </p>
               </div>
             </div>
             <Switch checked={requiresApproval}
