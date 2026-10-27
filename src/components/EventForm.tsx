@@ -17,7 +17,7 @@ import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
   Users, Image as ImageIcon, X,
   Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
-  Pencil, Wallet, Ticket, CreditCard, Heart, Info,
+  Pencil, Wallet, Ticket, CreditCard, Heart, Info, Shield,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -1383,6 +1383,16 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           shows everything). */}
       {showSettings && (
       <div className={`${maxWidthClassName} mt-8`}>
+
+      {/* Orientation banner, same treatment as the basics/pricing steps'
+          — a Shield icon here rather than the pencil/wallet those steps
+          use, since this step is specifically about access and policy,
+          not naming or money. */}
+      <InfoBanner
+        title="Set your policies & access"
+        body="Decide who can see, join and buy before you publish."
+        icon={<Shield className="h-[12px] w-[12px]" strokeWidth={2.6} />}
+      />
 
       {/* ─── Attendees ───
           Who can see WHO ELSE is coming. A third visibility axis, and its own
