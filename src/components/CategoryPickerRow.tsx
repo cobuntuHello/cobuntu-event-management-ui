@@ -170,7 +170,13 @@ export function CategoryPickerRow({
             <Check className="h-3 w-3" strokeWidth={3.5} />
           </span>
         ) : (
-          <FolderTree className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />
+          // Colored badge only in the unanswered state — matches the
+          // location/description rows on EventForm (lucide icon on a tinted
+          // circle rather than flat gray), so the three detail rows read as
+          // one family before any of them is filled in.
+          <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-purple-100 shrink-0">
+            <FolderTree className="h-[13px] w-[13px] text-purple-600" />
+          </span>
         )}
         <span className="flex-1 min-w-0">
           <span className={`block text-sm truncate ${summary ? "font-medium text-zinc-800" : "text-zinc-500"}`}>
