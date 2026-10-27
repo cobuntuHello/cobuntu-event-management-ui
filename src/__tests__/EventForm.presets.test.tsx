@@ -125,6 +125,9 @@ describe("EventForm — dismissible pricing-step tip", () => {
 
     expect(await screen.findByText(/Good to know/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Dismiss/i }));
-    expect(screen.queryByText(/Good to know/i)).not.toBeInTheDocument();
+    // Dismissal now plays a short close animation before unmounting (see
+    // DismissibleTipBanner / TIP_CLOSE_MS), so the text disappears
+    // asynchronously rather than on the same tick as the click.
+    await waitFor(() => expect(screen.queryByText(/Good to know/i)).not.toBeInTheDocument());
   });
 });
