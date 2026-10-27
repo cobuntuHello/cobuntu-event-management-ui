@@ -1195,23 +1195,23 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           above) rather than tracked separately, so hand-editing a tier price
           and coming back here shows the truth instead of a stale tap.
         */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5 items-stretch">
           {(() => {
             const paidGateKnown = stripeStatus.known && stripeStatus.connected;
             const cards: { key: PresetKey; title: string; body: string; icon: React.ReactNode; popular?: boolean; locked?: boolean; hint?: string }[] = [
               {
                 key: "free", title: "Free entry", icon: <Ticket className="h-[18px] w-[18px]" strokeWidth={2} />,
-                body: "No price, no approval step — anyone who can see the event can RSVP straight away. Any ticket tier underneath becomes a free RSVP.",
+                body: "Anyone who can see the event can RSVP, no approval needed.",
               },
               {
                 key: "paid", title: "Paid entry", icon: <CreditCard className="h-[18px] w-[18px]" strokeWidth={2} />, popular: true,
-                body: "Buyers pay a ticket price at checkout before they're in. Your tiers carry the prices, so you can still offer several price points.",
+                body: "Buyers pay a ticket price at checkout.",
                 locked: !paidGateKnown,
                 hint: paidGateKnown ? undefined : "Connect Stripe to accept payments",
               },
               {
                 key: "donations", title: "Free with donations", icon: <Heart className="h-[18px] w-[18px]" strokeWidth={2} />,
-                body: "Entry stays free and unblocked, but an optional donation prompt is offered at signup for anyone who wants to chip in.",
+                body: "Free, with an optional donation at signup.",
               },
             ];
             return cards.map((c) => {
@@ -1222,7 +1222,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                   type="button"
                   onClick={() => handlePresetClick(c.key)}
                   aria-pressed={isSelected}
-                  className={`relative text-left rounded-xl px-3.5 py-3 transition-colors cursor-pointer ${
+                  className={`relative h-full flex flex-col items-start text-left rounded-xl px-3.5 py-3 transition-colors cursor-pointer ${
                     c.locked ? "opacity-70" : ""
                   } ${
                     isSelected ? "border-2 border-zinc-900" : "border border-zinc-200 hover:border-zinc-300"
@@ -1231,7 +1231,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                   {c.popular && (
                     <span className="absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wide bg-zinc-900 text-white px-1.5 py-0.5 rounded-full">Popular</span>
                   )}
-                  <span className={`flex items-center justify-center w-9 h-9 rounded-full mb-2 ${c.locked ? "bg-zinc-100 text-zinc-400" : "bg-zinc-100 text-zinc-700"}`}>
+                  {/* Same fixed badge size and top position on every card, so
+                      the three stay aligned regardless of title/body length. */}
+                  <span className={`flex items-center justify-center w-9 h-9 rounded-full mb-2 shrink-0 ${c.locked ? "bg-zinc-100 text-zinc-400" : "bg-zinc-100 text-zinc-700"}`}>
                     {c.icon}
                   </span>
                   <p className="text-[13.5px] font-semibold text-zinc-800">{c.title}</p>
