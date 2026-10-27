@@ -358,11 +358,27 @@ interface EventFormProps {
    * ProductForm's `showMemberPricing`.
    */
   showMemberPricing?: boolean;
+  /**
+   * Lets the host app hand this form a USER-scoped Stripe-readiness answer it
+   * already computed, instead of trusting the internal `useStripeStatus`
+   * hook here — which hits the COMMUNITY-scoped, ACCESS_ADMIN_APP-gated
+   * `/stripe/connected` endpoint (see the long comment on that hook). A
+   * member creating their own event is never an admin of the community, so
+   * that check 403s for them and the "Paid" preset card locks for every
+   * member regardless of whether THEIR OWN Stripe account is ready. The
+   * community app already knows the member's Stripe readiness (it computes
+   * it for other member-selling flows) and passes it through here so the
+   * gate asks the right question. Omitted → falls back to the internal hook,
+   * unchanged from before this prop existed.
+   */
+  stripeStatusOverride?: { connected: boolean; connectUrl?: string | null };
 }
+
+export type { EventFormProps };
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false, stripeStatusOverride }: EventFormProps) {
   // Which part of the form this render shows. Default "all" → all true, so the
   // one-page consumers (manage/edit drawer, admin single-page) are unchanged.
   // The wizard splits across pages: "listing", "commerce" (tickets + donations +
@@ -856,7 +872,15 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    * `useStripeStatus` import above): committing to a "Paid entry" preset is
    * the moment that matters, unlike merely opening the editor to look.
    */
-  const stripeStatus = useStripeStatus(communityTag);
+  const internalStripeStatus = useStripeStatus(communityTag);
+  const stripeStatus = stripeStatusOverride
+    ? {
+        connected: stripeStatusOverride.connected,
+        chargesEnabled: stripeStatusOverride.connected,
+        loading: false,
+        known: true,
+      }
+    : internalStripeStatus;
   const { stripeConnectUrl } = useEventManagementConfig();
 
   /*
@@ -910,7 +934,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    *  something useful, it just branches on whether paying actually works. */
   function handlePresetClick(key: PresetKey) {
     if (key === "paid" && !(stripeStatus.known && stripeStatus.connected)) {
-      if (stripeConnectUrl) window.location.href = stripeConnectUrl(communityTag);
+      const url = stripeStatusOverride?.connectUrl ?? (stripeConnectUrl ? stripeConnectUrl(communityTag) : undefined);
+      if (url) window.location.href = url;
       return;
     }
     if (!presetDirty) {

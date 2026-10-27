@@ -113,6 +113,26 @@ describe("EventForm — pricing presets", () => {
     await user.click(screen.getByRole("button", { name: /Keep editing/i }));
     expect(screen.queryByText(/Reset to this preset/i)).not.toBeInTheDocument();
   });
+
+  it("stripeStatusOverride unlocks Paid entry even when the internal (community-scoped) check says not connected", async () => {
+    // The internal /stripe/connected check reports not-connected (e.g. a
+    // member who gets a 403 from the admin-gated endpoint) — the override
+    // is what the host app passes when it already knows THIS USER's own
+    // Stripe is ready, and it must win.
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: false, chargesEnabled: false } }]);
+    renderWithConfig(
+      <EventForm
+        communityTag="c-1"
+        page="commerce"
+        onChange={vi.fn()}
+        initialData={{ tiers: [FREE_TIER] } as any}
+        stripeStatusOverride={{ connected: true }}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Paid entry/ })).not.toBeDisabled());
+    expect(screen.queryByText(/Connect Stripe to accept payments/i)).not.toBeInTheDocument();
+  });
 });
 
 describe("EventForm — dismissible pricing-step tip", () => {
