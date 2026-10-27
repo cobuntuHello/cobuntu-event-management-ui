@@ -103,6 +103,29 @@ beforeEach(() => {
   try { localStorage.setItem("us-first-time-creator-seen::orbis::event", "1"); } catch { /* ignore */ }
 });
 
+describe("missing-name validation doesn't double-show", () => {
+  it("does not raise the page-level summary banner for a blank name (EventForm's own inline pill already says it)", async () => {
+    renderWizard();
+    await waitFor(() => expect(h.props.length).toBeGreaterThan(0));
+    // EventForm itself is mocked out in this file (see the vi.mock above),
+    // so this only pins EventCreateWizard's own half: it must not also raise
+    // its page-level FormErrorBanner (role="alert") for the exact complaint
+    // EventForm's own inline pill already covers. Clearing the name through
+    // the same onChange path EventForm would use.
+    h.props.at(-1).onChange(fake({ name: "" }));
+    press("Next");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("still raises the summary banner for a details-step problem with no inline equivalent (name too long)", async () => {
+    renderWizard();
+    await waitFor(() => expect(h.props.length).toBeGreaterThan(0));
+    h.props.at(-1).onChange(fake({ name: "x".repeat(300) }));
+    press("Next");
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+});
+
 describe("transport", () => {
   it("asks for drafts and permissions when the host did not pass them, then opens", async () => {
     const { tr } = renderWizard();
