@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Info } from "lucide-react";
 import { WizardLink } from "./navigation";
 
 /**
@@ -137,33 +138,46 @@ export function FormNoticeBanner({
 export function InfoBanner({
   title,
   body,
+  icon,
   className = "",
 }: {
   title: string;
   body: string;
+  /** The glyph shown in the banner's icon chip. REQUIRED, not defaulted to a
+   *  generic info-circle: each step's banner should carry an icon that
+   *  reflects what that step is actually about (naming vs. money, etc.), so
+   *  callers pass their own lucide icon rather than inheriting a one-size
+   *  info mark. */
+  icon: React.ReactNode;
   className?: string;
 }) {
-  const PURPLE = "#8b5cf6";
+  // Tints off the community's own brand color (set as --brand-color by the
+  // host, same variable the answered-state row checkmarks use elsewhere in
+  // EventForm.tsx) instead of a fixed hex, so the banner looks native to
+  // whichever community is viewing the wizard. Falls back to a neutral dark
+  // zinc (not purple) when no brand color is set, matching the rest of this
+  // form's neutral default palette.
+  const BRAND_FALLBACK = "#27272a";
+  const brandBg = `color-mix(in srgb, var(--brand-color, ${BRAND_FALLBACK}) 10%, var(--bg-color, #ffffff))`;
+  const brandBorder = `color-mix(in srgb, var(--brand-color, ${BRAND_FALLBACK}) 25%, transparent)`;
+  const brandIconBg = `color-mix(in srgb, var(--brand-color, ${BRAND_FALLBACK}) 20%, transparent)`;
+  const brandTitle = `color-mix(in srgb, var(--brand-color, ${BRAND_FALLBACK}) 55%, var(--text-color, #111))`;
   return (
     <div
       className={`flex items-start gap-2.5 rounded-xl px-3.5 py-3 ${className}`}
       style={{
-        background: `color-mix(in srgb, ${PURPLE} 10%, var(--bg-color, #ffffff))`,
-        border: `1px solid color-mix(in srgb, ${PURPLE} 25%, transparent)`,
+        background: brandBg,
+        border: `1px solid ${brandBorder}`,
       }}
     >
       <span
-        className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full"
-        style={{ background: `color-mix(in srgb, ${PURPLE} 20%, transparent)`, color: PURPLE }}
+        className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full"
+        style={{ background: brandIconBg, color: "var(--brand-color, " + BRAND_FALLBACK + ")" }}
       >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="16" x2="12" y2="11" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
-        </svg>
+        {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-[13.5px] font-semibold leading-snug" style={{ color: `color-mix(in srgb, ${PURPLE} 55%, var(--text-color, #111))` }}>
+        <p className="text-[13.5px] font-semibold leading-snug" style={{ color: brandTitle }}>
           {title}
         </p>
         <p className="mt-0.5 text-[12.5px] leading-snug" style={{ color: "color-mix(in srgb, var(--text-color, #111) 68%, transparent)" }}>
@@ -241,11 +255,18 @@ export function DismissibleTipBanner({
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, opacity: Math.max(0, 1 - dragOffsetY / (TIP_SWIPE_DISMISS_PX * 2)) } : undefined}
-      className={`flex items-start gap-2.5 rounded-xl bg-zinc-50 px-3.5 py-3 transition-transform ${className}`}
+      className={`flex items-start gap-2.5 rounded-xl bg-blue-50 px-3.5 py-3 transition-transform ${className}`}
     >
+      {/* Info-blue, not the muted zinc gray every other aside in this file
+          uses — this one IS informational content ("here's what you can
+          still change later"), so it should read that way rather than as a
+          flat neutral note. */}
+      <span className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+        <Info className="h-[11px] w-[11px]" strokeWidth={2.6} />
+      </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[13.5px] font-semibold leading-snug text-zinc-800">{title}</p>
-        <p className="mt-0.5 text-[12.5px] leading-snug text-zinc-500">{body}</p>
+        <p className="text-[13.5px] font-semibold leading-snug text-blue-900">{title}</p>
+        <p className="mt-0.5 text-[12.5px] leading-snug text-blue-700/80">{body}</p>
       </div>
       <button
         type="button"

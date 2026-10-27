@@ -182,7 +182,12 @@ export function CategoryPickerRow({
           <span className={`block text-sm truncate ${summary ? "font-medium text-zinc-800" : "text-zinc-500"}`}>
             {summary ? "Category" : "Choose a category"}
           </span>
-          {summary && <span className="block text-[12.5px] text-zinc-500 truncate">{summary}</span>}
+          {/* Subtitle in both states, matching the location/description rows
+              on EventForm: unanswered says what the field is for, answered
+              shows the actual selection. */}
+          <span className="block text-[12.5px] text-zinc-500 truncate">
+            {summary || `Help people discover your ${noun}.`}
+          </span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
       </button>

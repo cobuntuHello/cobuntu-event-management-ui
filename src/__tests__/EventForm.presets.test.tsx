@@ -67,11 +67,19 @@ describe("EventForm — pricing presets", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: /Paid entry/ })).toHaveAttribute("aria-pressed", "true"));
   });
 
-  it("Paid entry is disabled until Stripe is known-connected", async () => {
+  it("Paid entry stays clickable (not disabled) until Stripe is connected, and sends the host to Stripe Connect on click", async () => {
     mockFetch([{ url: /\/stripe\/connected/, body: { connected: false, chargesEnabled: false } }]);
+    const user = userEvent.setup();
     renderForm();
-    await waitFor(() => expect(screen.getByRole("button", { name: /Paid entry/ })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Paid entry/ })).not.toBeDisabled());
     expect(screen.getByText(/Connect Stripe to accept payments/i)).toBeInTheDocument();
+
+    const hrefSpy = vi.spyOn(window.location, "href", "set");
+
+    await user.click(screen.getByRole("button", { name: /Paid entry/ }));
+    expect(hrefSpy).toHaveBeenCalledWith(expect.stringContaining("stripe"));
+
+    hrefSpy.mockRestore();
   });
 
   it("Free entry click applies immediately when nothing is dirty (no confirm)", async () => {
