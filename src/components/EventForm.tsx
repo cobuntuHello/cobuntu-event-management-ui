@@ -23,9 +23,18 @@ import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
 import type { MemberPricingUpsert } from "./PriceEditModal/member-pricing";
 import { blankTier, blankDonation } from "./PriceEditModal/helpers";
 import { DonationsField } from "./PriceEditModal/DonationsField";
-// `useStripeStatus` / `StripeRequiredWarning` deliberately not imported — see
-// openTierModal for why configuring a price is the wrong moment to check a
-// payment account. stripe-status.tsx itself stays: other surfaces use it.
+// `StripeRequiredWarning` deliberately not imported — see openTierModal for
+// why configuring a price is the wrong moment to check a payment account.
+// `useStripeStatus` IS imported now (it wasn't before this file's preset
+// cards shipped): the tier-opening gate above and the "Paid entry" preset
+// card gate below are different concerns. Opening the editor to look at or
+// correct a price should never be blocked — that reasoning doesn't apply to
+// a preset that commits to charging money, which the spec explicitly
+// requires gating on a connected account. Use it ONLY for that gate; don't
+// let it creep back into gating tier-opening.
+import { useStripeStatus } from "./stripe-status";
+import { useEventManagementConfig } from "../config";
+import { InfoBanner, DismissibleTipBanner } from "../create-wizard/banners";
 import {
   AccessAxisControl,
   toTierAccessValue,
@@ -39,6 +48,7 @@ import {
   type AudienceLevel,
   RefundPolicyField,
   type RefundPolicyValue,
+  DiscardPrompt,
 } from "@cobuntu/management-ui-shared";
 
 // ─── Currencies ────────────────────────────────────────────────
@@ -516,6 +526,28 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [categoryId, setCategoryId] = useState<string | null>(initialData?.categoryId ?? null);
   const [subCategoryId, setSubCategoryId] = useState<string | null>(initialData?.subCategoryId ?? null);
 
+  /*
+   * ── Pricing presets ──────────────────────────────────────────────────
+   *
+   * Three one-tap shortcuts ("Free entry" / "Paid entry" / "Free with
+   * donations") that set `tiers`/`donation` in bulk, plus a highlight that
+   * shows which one the CURRENT state matches. The highlight is derived, not
+   * stored — storing "which preset is active" as its own state would drift
+   * from reality the moment someone edits a tier price by hand without going
+   * through a preset.
+   *
+   * `presetDirty` is the guard against silently nuking a host's manual setup:
+   * starts false (nothing to lose), flips true the moment ANYTHING outside a
+   * preset click changes tier/donation config (handleTiersCommit,
+   * DonationsField's onUpdate), and flips back false right after a preset
+   * successfully applies. A preset click applies immediately while
+   * !presetDirty; once dirty, it goes through `DiscardPrompt` first.
+   * `pendingPresetClick` is which preset the confirm is for, so onConfirm
+   * knows what to apply.
+   */
+  const [presetDirty, setPresetDirty] = useState(false);
+  const [pendingPresetClick, setPendingPresetClick] = useState<"free" | "paid" | "donations" | null>(null);
+
   // UI state
   const [isBannerCropOpen, setIsBannerCropOpen] = useState(false);
   // Inline banner upload — tap the banner → native device picker (our own
@@ -656,6 +688,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   }
 
   function handleTiersCommit({ tiers: drafts }: { tiers: DraftTier[]; donation: DonationDraft }) {
+    // Manual edit through the tier modal, not a preset click — this is
+    // exactly the path presetDirty exists to catch. Presets apply via
+    // setTiers/setDonation directly (never through this function), so this
+    // can't recursively dirty itself from its own application.
+    setPresetDirty(true);
     // Round-trip DraftTier[] → TierItem[]. localId is preserved so the
     // list re-renders stably; new tiers get a fresh uuid from the modal.
     setTiers(
@@ -811,6 +848,68 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       viewAccess, buyAccess, requiresApproval, refundPolicy, attendeeVisibility, locationVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /*
+   * ── Preset gate + derived highlight ───────────────────────────────────
+   *
+   * Stripe is checked here, not at tier-open (see the long comment on
+   * `useStripeStatus` import above): committing to a "Paid entry" preset is
+   * the moment that matters, unlike merely opening the editor to look.
+   */
+  const stripeStatus = useStripeStatus(communityTag);
+  const { stripeConnectUrl } = useEventManagementConfig();
+
+  /*
+   * The FIRST tier is the source of truth for "is this priced", matching the
+   * precedent already set by `donation`'s currency seed above
+   * (`blankDonation(initialData?.tiers?.[0]?.currency || "EUR")`) — when
+   * multiple tiers disagree there is no single right answer, so this picks
+   * the same tier that precedent already picks.
+   */
+  const primaryTierPrice = parseFloat(tiers[0]?.price || "0");
+  const primaryTierHasPrice = !Number.isNaN(primaryTierPrice) && primaryTierPrice > 0;
+
+  type PresetKey = "free" | "paid" | "donations";
+  const selectedPreset: PresetKey | null = useMemo(() => {
+    if (primaryTierHasPrice) return "paid"; // price>0 wins regardless of donation.enabled, per spec
+    return donation.enabled ? "donations" : "free";
+  }, [primaryTierHasPrice, donation.enabled]);
+
+  /** Actually mutates tiers/donation for the given preset. Goes through
+   *  setTiers/setDonation directly — NOT handleTiersCommit/DonationsField's
+   *  onUpdate — so applying a preset can never mark itself dirty. */
+  function applyPreset(key: PresetKey) {
+    if (key === "free") {
+      setTiers((ts) => ts.map((t) => ({ ...t, price: "0" })));
+      setDonation((d) => ({ ...d, enabled: false }));
+    } else if (key === "paid") {
+      // Never fabricate an amount. A tier that already has a price keeps it;
+      // one that doesn't is left blank so the tier editor's own input
+      // naturally prompts for a number instead of silently charging €10 (or
+      // whatever a made-up default would be) for something the host never
+      // typed.
+      setTiers((ts) => ts.map((t) => {
+        const p = parseFloat(t.price || "0");
+        return !Number.isNaN(p) && p > 0 ? t : { ...t, price: "" };
+      }));
+      setDonation((d) => ({ ...d, enabled: false }));
+    } else {
+      setTiers((ts) => ts.map((t) => ({ ...t, price: "0" })));
+      setDonation((d) => ({ ...d, enabled: true }));
+    }
+    setPresetDirty(false);
+  }
+
+  /** Entry point for clicking a preset card. Applies immediately when
+   *  nothing would be lost; otherwise defers to DiscardPrompt. */
+  function handlePresetClick(key: PresetKey) {
+    if (key === "paid" && !(stripeStatus.known && stripeStatus.connected)) return; // card is disabled in this state; see render
+    if (!presetDirty) {
+      applyPreset(key);
+      return;
+    }
+    setPendingPresetClick(key);
+  }
+
   const selectedAttendeeOption = ATTENDEE_VISIBILITY_OPTIONS.find(o => o.value === attendeeVisibility);
   const selectedLocationOption = LOCATION_VISIBILITY_OPTIONS.find(o => o.value === locationVisibility);
   const hasLocation = locationsPayload.length > 0;
@@ -871,6 +970,15 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               )}
             </div>
           )}
+
+          {/* Decorative orientation banner — no input lives inside it, it just
+              tells a host what this step is for before the name field asks
+              for anything. Lavender rather than FormNoticeBanner's amber: this
+              is not a warning, there's nothing to fix here. */}
+          <InfoBanner
+            title="Let's start with the basics"
+            body="Give your event a name people will recognize"
+          />
 
           {/* Event name */}
           <div>
@@ -953,7 +1061,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
               {hasLocation ? (
                 <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
-              ) : <MapPin className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
+              ) : (
+                /* Colored badge only in the UNANSWERED state — the moment a
+                   location is set, the brand-color checkmark above takes
+                   over and this never shows again. */
+                <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-green-100 shrink-0">
+                  <MapPin className="h-[13px] w-[13px] text-green-600" />
+                </span>
+              )}
               <span className="flex-1 min-w-0">
                 <span className={`block text-sm truncate ${hasLocation ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{hasLocation ? "Location" : "Add location"}</span>
                 {hasLocation && <span className="block text-[12.5px] text-zinc-500 truncate">{locationSummary}</span>}
@@ -965,7 +1080,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
               {descriptionPreview ? (
                 <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
-              ) : <FileText className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
+              ) : (
+                <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-amber-100 shrink-0">
+                  <FileText className="h-[13px] w-[13px] text-amber-600" />
+                </span>
+              )}
               <span className="flex-1 min-w-0">
                 <span className={`block text-sm truncate ${descriptionPreview ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{descriptionPreview ? "Description" : "Add description"}</span>
                 {descriptionPreview && <span className="block text-[12.5px] text-zinc-500 truncate">{descriptionPreview}</span>}
@@ -1032,6 +1151,72 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           The tier rows and the Add button now sit directly in the column, so
           each tier card is the only surface in the group.
         */}
+
+        {/* Orientation banner, same lavender/decorative treatment as the
+            basics step's — no dismiss, no action, just framing for the three
+            preset cards right below it. */}
+        <InfoBanner
+          title="Configure your event's business model"
+          body="Choose how people can get access. You can change these later."
+          className="mb-3"
+        />
+
+        {/*
+          ── Pricing presets ──────────────────────────────────────────────
+          Three cards, one tap each, that set tiers+donation in bulk. The
+          highlighted card is DERIVED from current state (selectedPreset
+          above) rather than tracked separately, so hand-editing a tier price
+          and coming back here shows the truth instead of a stale tap.
+        */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5">
+          {(() => {
+            const paidGateKnown = stripeStatus.known && stripeStatus.connected;
+            const cards: { key: PresetKey; title: string; body: string; popular?: boolean; disabled?: boolean; hint?: string }[] = [
+              { key: "free", title: "Free entry", body: "Anyone can RSVP, no payment required." },
+              {
+                key: "paid", title: "Paid entry", body: "Charge a ticket price for access.", popular: true,
+                disabled: !paidGateKnown,
+                hint: paidGateKnown ? undefined : "Connect Stripe to accept payments",
+              },
+              { key: "donations", title: "Free with donations", body: "Free to attend, donations welcome." },
+            ];
+            return cards.map((c) => {
+              const isSelected = selectedPreset === c.key;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  disabled={c.disabled}
+                  onClick={() => handlePresetClick(c.key)}
+                  aria-pressed={isSelected}
+                  className={`relative text-left rounded-xl px-3.5 py-3 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                    isSelected ? "border-2 border-zinc-900" : "border border-zinc-200 hover:border-zinc-300"
+                  }`}
+                >
+                  {c.popular && (
+                    <span className="absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wide bg-zinc-900 text-white px-1.5 py-0.5 rounded-full">Popular</span>
+                  )}
+                  <p className="text-[13.5px] font-semibold text-zinc-800">{c.title}</p>
+                  <p className="mt-0.5 text-[12px] text-zinc-500 leading-snug">{c.body}</p>
+                  {c.hint && (
+                    stripeConnectUrl ? (
+                      <a
+                        href={stripeConnectUrl(communityTag)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1.5 inline-block text-[11.5px] font-medium text-amber-700 underline underline-offset-2"
+                      >
+                        {c.hint}
+                      </a>
+                    ) : (
+                      <p className="mt-1.5 text-[11.5px] text-amber-700">{c.hint}</p>
+                    )
+                  )}
+                </button>
+              );
+            });
+          })()}
+        </div>
+
         <div>
             {tiers.length > 0 && (
               <div className="space-y-2 mb-3">
@@ -1121,8 +1306,38 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       <div className="mt-6">
         <DonationsField
           donation={donation}
-          onUpdate={(patch) => setDonation((d) => ({ ...d, ...patch }))}
+          onUpdate={(patch) => {
+            // Manual edit through the donations UI, not a preset click — see
+            // presetDirty's comment above. Presets write donation via
+            // setDonation directly inside applyPreset, never through here.
+            setPresetDirty(true);
+            setDonation((d) => ({ ...d, ...patch }));
+          }}
           defaultCurrency={tiers[0]?.currency || "EUR"}
+        />
+      </div>
+
+      {/* Reset-confirm guard: only shown once a preset click would actually
+          discard something (presetDirty). Applying is deferred to onConfirm;
+          cancel does nothing, leaving the host's manual setup untouched. */}
+      <DiscardPrompt
+        open={pendingPresetClick !== null}
+        onCancel={() => setPendingPresetClick(null)}
+        onConfirm={() => {
+          if (pendingPresetClick) applyPreset(pendingPresetClick);
+          setPendingPresetClick(null);
+        }}
+        title="Reset to this preset?"
+        message="Your custom ticket tiers and donation setup will be replaced with this preset's defaults."
+        confirmLabel="Reset"
+      />
+
+      {/* Dismissible tip, bottom of the pricing step. See DismissibleTipBanner
+          for why dismissal is local-only (no persistence pattern to reuse). */}
+      <div className="mt-6">
+        <DismissibleTipBanner
+          title="Good to know"
+          body="You can always add more ticket types, adjust pricing, customize the sign-up form, or set a maximum capacity later."
         />
       </div>
       </div>
