@@ -194,6 +194,12 @@ export function InfoBanner({
  *  enough. */
 const TIP_SWIPE_DISMISS_PX = 80;
 
+/** How long the close animation runs — the unmount (and `onDismiss?.()`) is
+ *  deferred by this long so the fade/collapse has time to play instead of
+ *  the banner vanishing instantly. Kept in one const so the CSS transition
+ *  duration below and the JS setTimeout delay can't drift apart. */
+const TIP_CLOSE_MS = 180;
+
 /**
  * A dismissible "tip" banner — muted-gray circular X (not the amber warning
  * palette, this is reassurance, not a problem) plus swipe-to-dismiss on
@@ -222,29 +228,86 @@ export function DismissibleTipBanner({
   onDismiss?: () => void;
 }) {
   const [dismissed, setDismissed] = useState(false);
+  // "closing" is the transitional state between the user asking to dismiss
+  // (X click or swipe past the threshold) and the banner actually unmounting
+  // — it drives the fade/collapse CSS below while `dismissed` (set after
+  // TIP_CLOSE_MS) is what actually removes the banner from the tree and
+  // fires `onDismiss`.
+  const [closing, setClosing] = useState(false);
   const dragStartY = useRef<number | null>(null);
   const [dragOffsetY, setDragOffsetY] = useState(0);
+  const dragActive = useRef(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, []);
 
   function dismiss() {
-    setDismissed(true);
-    onDismiss?.();
+    if (closing || dismissed) return;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      setDismissed(true);
+      onDismiss?.();
+      return;
+    }
+    setClosing(true);
+    closeTimer.current = setTimeout(() => {
+      setDismissed(true);
+      onDismiss?.();
+    }, TIP_CLOSE_MS);
   }
 
-  function onTouchStart(e: React.TouchEvent) {
-    dragStartY.current = e.touches[0]?.clientY ?? null;
+  function dragStart(y: number) {
+    dragActive.current = true;
+    dragStartY.current = y;
   }
-  function onTouchMove(e: React.TouchEvent) {
+  function dragMove(y: number) {
     if (dragStartY.current === null) return;
-    const delta = (e.touches[0]?.clientY ?? 0) - dragStartY.current;
+    const delta = y - dragStartY.current;
     if (delta > 0) setDragOffsetY(delta);
   }
-  function onTouchEnd() {
+  function dragEnd() {
+    dragActive.current = false;
     if (dragOffsetY > TIP_SWIPE_DISMISS_PX) {
       dismiss();
       return;
     }
     setDragOffsetY(0);
     dragStartY.current = null;
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    dragStart(e.touches[0]?.clientY ?? 0);
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    dragMove(e.touches[0]?.clientY ?? 0);
+  }
+  function onTouchEnd() {
+    dragEnd();
+  }
+
+  // Mouse-drag swipe on desktop, parallel to the touch handlers above —
+  // pointer events would collapse touch+mouse into one handler set, but
+  // mobile browsers also fire pointer events for touch, and doubling up
+  // both pointer and touch handlers on the same element risks double-firing
+  // the drag math. Keeping them as separate, explicit mouse handlers avoids
+  // that risk entirely.
+  function onMouseDown(e: React.MouseEvent) {
+    dragStart(e.clientY);
+    const onMove = (ev: MouseEvent) => dragMove(ev.clientY);
+    const onUp = () => {
+      dragEnd();
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   }
 
   if (dismissed) return null;
@@ -254,8 +317,15 @@ export function DismissibleTipBanner({
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, opacity: Math.max(0, 1 - dragOffsetY / (TIP_SWIPE_DISMISS_PX * 2)) } : undefined}
-      className={`flex items-start gap-2.5 rounded-xl bg-blue-50 px-3.5 py-3 transition-transform ${className}`}
+      onMouseDown={onMouseDown}
+      style={
+        closing
+          ? { transform: "translateY(-6px) scaleY(0.92)", opacity: 0, maxHeight: 0, marginTop: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0, overflow: "hidden" }
+          : dragOffsetY > 0
+            ? { transform: `translateY(${dragOffsetY}px)`, opacity: Math.max(0, 1 - dragOffsetY / (TIP_SWIPE_DISMISS_PX * 2)) }
+            : undefined
+      }
+      className={`flex items-start gap-2.5 rounded-xl bg-blue-50 px-3.5 py-3 transition-[transform,opacity,max-height,margin,padding] duration-[180ms] motion-reduce:transition-none motion-reduce:!transform-none motion-reduce:!opacity-100 ${className}`}
     >
       {/* Info-blue, not the muted zinc gray every other aside in this file
           uses — this one IS informational content ("here's what you can
