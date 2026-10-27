@@ -17,6 +17,7 @@ import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
   Users, Image as ImageIcon, X,
   Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
+  Pencil, Wallet, Ticket, CreditCard, Heart, Info, Shield,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -900,9 +901,18 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   }
 
   /** Entry point for clicking a preset card. Applies immediately when
-   *  nothing would be lost; otherwise defers to DiscardPrompt. */
+   *  nothing would be lost; otherwise defers to DiscardPrompt.
+   *
+   *  "Paid entry" without Stripe connected is NOT an inert card: clicking it
+   *  sends the host to connect Stripe instead of silently doing nothing. A
+   *  disabled-looking card that also does nothing on click reads as broken
+   *  rather than as "not available yet" — this way the click always does
+   *  something useful, it just branches on whether paying actually works. */
   function handlePresetClick(key: PresetKey) {
-    if (key === "paid" && !(stripeStatus.known && stripeStatus.connected)) return; // card is disabled in this state; see render
+    if (key === "paid" && !(stripeStatus.known && stripeStatus.connected)) {
+      if (stripeConnectUrl) window.location.href = stripeConnectUrl(communityTag);
+      return;
+    }
     if (!presetDirty) {
       applyPreset(key);
       return;
@@ -978,6 +988,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           <InfoBanner
             title="Let's start with the basics"
             body="Give your event a name people will recognize"
+            icon={<Pencil className="h-[12px] w-[12px]" strokeWidth={2.6} />}
           />
 
           {/* Event name */}
@@ -987,9 +998,18 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               aria-invalid={listingNameTooLong(name) || undefined}
               className="w-full text-[28px] font-bold text-zinc-900 placeholder:text-zinc-300 bg-transparent border-none outline-none p-0 leading-tight" />
             {showErrors && !name.trim() && (
-              <p className="text-[13px] text-amber-600 mt-2 flex items-center gap-1.5">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z" /></svg>
-                Give your event a name
+              // Soft rounded-pill treatment, matching the row-badge language
+              // used elsewhere in this form (rounded-full tinted icon chip)
+              // rather than a sharp triangle-and-plain-text warning.
+              <p className="mt-2 flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-[13px] text-amber-700">
+                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </span>
+                Give your event a name so people know what they're joining
               </p>
             )}
             {/*
@@ -1071,7 +1091,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               )}
               <span className="flex-1 min-w-0">
                 <span className={`block text-sm truncate ${hasLocation ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{hasLocation ? "Location" : "Add location"}</span>
-                {hasLocation && <span className="block text-[12.5px] text-zinc-500 truncate">{locationSummary}</span>}
+                {/* Subtitle in BOTH states now: unanswered says what the field
+                    is for, answered keeps showing the actual summary. */}
+                <span className="block text-[12.5px] text-zinc-500 truncate">
+                  {hasLocation ? locationSummary : "Add a venue or an online meeting link."}
+                </span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
             </button>
@@ -1087,7 +1111,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               )}
               <span className="flex-1 min-w-0">
                 <span className={`block text-sm truncate ${descriptionPreview ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{descriptionPreview ? "Description" : "Add description"}</span>
-                {descriptionPreview && <span className="block text-[12.5px] text-zinc-500 truncate">{descriptionPreview}</span>}
+                <span className="block text-[12.5px] text-zinc-500 truncate">
+                  {descriptionPreview || "Tell people what to expect."}
+                </span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
             </button>
@@ -1158,6 +1184,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         <InfoBanner
           title="Configure your event's business model"
           body="Choose how people can get access. You can change these later."
+          icon={<Wallet className="h-[12px] w-[12px]" strokeWidth={2.6} />}
           className="mb-3"
         />
 
@@ -1171,14 +1198,21 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5">
           {(() => {
             const paidGateKnown = stripeStatus.known && stripeStatus.connected;
-            const cards: { key: PresetKey; title: string; body: string; popular?: boolean; disabled?: boolean; hint?: string }[] = [
-              { key: "free", title: "Free entry", body: "Anyone can RSVP, no payment required." },
+            const cards: { key: PresetKey; title: string; body: string; icon: React.ReactNode; popular?: boolean; locked?: boolean; hint?: string }[] = [
               {
-                key: "paid", title: "Paid entry", body: "Charge a ticket price for access.", popular: true,
-                disabled: !paidGateKnown,
+                key: "free", title: "Free entry", icon: <Ticket className="h-[18px] w-[18px]" strokeWidth={2} />,
+                body: "No price, no approval step — anyone who can see the event can RSVP straight away. Any ticket tier underneath becomes a free RSVP.",
+              },
+              {
+                key: "paid", title: "Paid entry", icon: <CreditCard className="h-[18px] w-[18px]" strokeWidth={2} />, popular: true,
+                body: "Buyers pay a ticket price at checkout before they're in. Your tiers carry the prices, so you can still offer several price points.",
+                locked: !paidGateKnown,
                 hint: paidGateKnown ? undefined : "Connect Stripe to accept payments",
               },
-              { key: "donations", title: "Free with donations", body: "Free to attend, donations welcome." },
+              {
+                key: "donations", title: "Free with donations", icon: <Heart className="h-[18px] w-[18px]" strokeWidth={2} />,
+                body: "Entry stays free and unblocked, but an optional donation prompt is offered at signup for anyone who wants to chip in.",
+              },
             ];
             return cards.map((c) => {
               const isSelected = selectedPreset === c.key;
@@ -1186,30 +1220,28 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 <button
                   key={c.key}
                   type="button"
-                  disabled={c.disabled}
                   onClick={() => handlePresetClick(c.key)}
                   aria-pressed={isSelected}
-                  className={`relative text-left rounded-xl px-3.5 py-3 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                  className={`relative text-left rounded-xl px-3.5 py-3 transition-colors cursor-pointer ${
+                    c.locked ? "opacity-70" : ""
+                  } ${
                     isSelected ? "border-2 border-zinc-900" : "border border-zinc-200 hover:border-zinc-300"
                   }`}
                 >
                   {c.popular && (
                     <span className="absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wide bg-zinc-900 text-white px-1.5 py-0.5 rounded-full">Popular</span>
                   )}
+                  <span className={`flex items-center justify-center w-9 h-9 rounded-full mb-2 ${c.locked ? "bg-zinc-100 text-zinc-400" : "bg-zinc-100 text-zinc-700"}`}>
+                    {c.icon}
+                  </span>
                   <p className="text-[13.5px] font-semibold text-zinc-800">{c.title}</p>
                   <p className="mt-0.5 text-[12px] text-zinc-500 leading-snug">{c.body}</p>
                   {c.hint && (
-                    stripeConnectUrl ? (
-                      <a
-                        href={stripeConnectUrl(communityTag)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-1.5 inline-block text-[11.5px] font-medium text-amber-700 underline underline-offset-2"
-                      >
-                        {c.hint}
-                      </a>
-                    ) : (
-                      <p className="mt-1.5 text-[11.5px] text-amber-700">{c.hint}</p>
-                    )
+                    // Still clickable as a whole card (handlePresetClick sends
+                    // the host to Stripe Connect when locked) — this hint is
+                    // just the explicit affordance text, not a separate
+                    // disabled-vs-enabled gate.
+                    <p className="mt-1.5 text-[11.5px] font-medium text-amber-700">{c.hint}</p>
                   )}
                 </button>
               );
@@ -1351,6 +1383,16 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           shows everything). */}
       {showSettings && (
       <div className={`${maxWidthClassName} mt-8`}>
+
+      {/* Orientation banner, same treatment as the basics/pricing steps'
+          — a Shield icon here rather than the pencil/wallet those steps
+          use, since this step is specifically about access and policy,
+          not naming or money. */}
+      <InfoBanner
+        title="Set your policies & access"
+        body="Decide who can see, join and buy before you publish."
+        icon={<Shield className="h-[12px] w-[12px]" strokeWidth={2.6} />}
+      />
 
       {/* ─── Attendees ───
           Who can see WHO ELSE is coming. A third visibility axis, and its own
