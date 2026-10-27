@@ -552,7 +552,19 @@ function WizardInner({
   function goNext() {
     if (step === "details") {
       const v = validate(formDataRef.current);
-      if (v) { setShowErrors(true); setError(v); return; }
+      if (v) {
+        setShowErrors(true);
+        /*
+         * A missing name is already flagged inline, under the field itself,
+         * by EventForm's own showErrors pill -- raising the summary banner
+         * for the exact same thing said it twice on a screen where the field
+         * warning is already in view. Every OTHER details-step problem (name
+         * too long, missing dates) has no inline equivalent, so it still
+         * needs the banner.
+         */
+        if (formDataRef.current?.name?.trim()) setError(v);
+        return;
+      }
     }
     if (currentExtra) {
       const v = validateExtra(currentExtra.id);
@@ -585,7 +597,11 @@ function WizardInner({
     const publish = action.publish;
     const d = formDataRef.current;
     const v = validate(d);
-    if (v) { setShowErrors(true); setError(v); return; }
+    if (v) {
+      setShowErrors(true);
+      if (d?.name?.trim()) setError(v);
+      return;
+    }
     for (const s of extraSteps) {
       const ev = validateExtra(s.id);
       if (ev) {

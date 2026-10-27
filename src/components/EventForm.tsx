@@ -17,7 +17,7 @@ import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
   Users, Image as ImageIcon, X,
   Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
-  Pencil, Wallet, Ticket, CreditCard, Heart, Info, Shield,
+  PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -1019,7 +1019,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           <InfoBanner
             title="Let's start with the basics"
             body="Give your event a name people will recognize"
-            icon={<Pencil className="h-[12px] w-[12px]" strokeWidth={2.6} />}
+            icon={<PenLine className="h-[12px] w-[12px]" strokeWidth={2.6} />}
           />
 
           {/* Event name */}
@@ -1164,10 +1164,19 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
               {tags.length > 0 ? (
                 <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
-              ) : <TagIcon className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
+              ) : (
+                <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-purple-100 shrink-0">
+                  <TagIcon className="h-[13px] w-[13px] text-purple-600" />
+                </span>
+              )}
               <span className="flex-1 min-w-0">
                 <span className={`block text-sm truncate ${tags.length > 0 ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{tags.length > 0 ? "Tags" : "Add tags"}</span>
-                {tags.length > 0 && <span className="block text-[12.5px] text-zinc-500 truncate">{tags.map(t => t.name).join(" · ")}</span>}
+                {/* Subtitle in BOTH states, matching every other row on this
+                    step — was answered-only, leaving the unanswered row with
+                    no hint of what it's for. */}
+                <span className="block text-[12.5px] text-zinc-500 truncate">
+                  {tags.length > 0 ? tags.map(t => t.name).join(" · ") : "Help people discover your event."}
+                </span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
             </button>
