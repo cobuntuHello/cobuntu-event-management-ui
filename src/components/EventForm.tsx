@@ -50,6 +50,7 @@ import {
   RefundPolicyField,
   type RefundPolicyValue,
   DiscardPrompt,
+  ConfirmLeaveModal,
 } from "@cobuntu/management-ui-shared";
 
 // ─── Currencies ────────────────────────────────────────────────
@@ -564,6 +565,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    */
   const [presetDirty, setPresetDirty] = useState(false);
   const [pendingPresetClick, setPendingPresetClick] = useState<"free" | "paid" | "donations" | null>(null);
+  /* Confirm before leaving the wizard for Stripe Connect onboarding — a
+     redirect with no warning was a jarring pattern interrupt (feedback).
+     Holds the target URL rather than a bare boolean, so onConfirm doesn't
+     need to recompute it. */
+  const [pendingStripeLeaveUrl, setPendingStripeLeaveUrl] = useState<string | null>(null);
 
   // UI state
   const [isBannerCropOpen, setIsBannerCropOpen] = useState(false);
@@ -935,7 +941,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   function handlePresetClick(key: PresetKey) {
     if (key === "paid" && !(stripeStatus.known && stripeStatus.connected)) {
       const url = stripeStatusOverride?.connectUrl ?? (stripeConnectUrl ? stripeConnectUrl(communityTag) : undefined);
-      if (url) window.location.href = url;
+      if (url) setPendingStripeLeaveUrl(url);
       return;
     }
     if (!presetDirty) {
@@ -1389,6 +1395,20 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         title="Reset to this preset?"
         message="Your custom ticket tiers and donation setup will be replaced with this preset's defaults."
         confirmLabel="Reset"
+      />
+
+      <ConfirmLeaveModal
+        open={pendingStripeLeaveUrl !== null}
+        onCancel={() => setPendingStripeLeaveUrl(null)}
+        onConfirm={() => {
+          const url = pendingStripeLeaveUrl;
+          setPendingStripeLeaveUrl(null);
+          if (url) window.location.href = url;
+        }}
+        title="Connect Stripe to accept payments"
+        message="You'll be taken to Stripe to connect your account. You can come back and finish this event afterward."
+        confirmLabel="Continue to Stripe"
+        cancelLabel="Not now"
       />
 
       {/* Dismissible tip, bottom of the pricing step. See DismissibleTipBanner

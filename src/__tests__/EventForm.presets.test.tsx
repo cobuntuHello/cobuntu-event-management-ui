@@ -67,16 +67,20 @@ describe("EventForm — pricing presets", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: /Paid entry/ })).toHaveAttribute("aria-pressed", "true"));
   });
 
-  it("Paid entry stays clickable (not disabled) until Stripe is connected, and sends the host to Stripe Connect on click", async () => {
+  it("Paid entry stays clickable (not disabled) and confirms before sending the host to Stripe Connect", async () => {
     mockFetch([{ url: /\/stripe\/connected/, body: { connected: false, chargesEnabled: false } }]);
     const user = userEvent.setup();
     renderForm();
     await waitFor(() => expect(screen.getByRole("button", { name: /Paid entry/ })).not.toBeDisabled());
-    expect(screen.getByText(/Connect Stripe to accept payments/i)).toBeInTheDocument();
 
     const hrefSpy = vi.spyOn(window.location, "href", "set");
 
     await user.click(screen.getByRole("button", { name: /Paid entry/ }));
+    // No immediate navigation — a confirm dialog interrupts first.
+    expect(hrefSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /Continue to Stripe/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Continue to Stripe/i }));
     expect(hrefSpy).toHaveBeenCalledWith(expect.stringContaining("stripe"));
 
     hrefSpy.mockRestore();
