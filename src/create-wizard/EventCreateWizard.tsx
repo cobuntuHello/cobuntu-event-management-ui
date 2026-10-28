@@ -534,6 +534,12 @@ function WizardInner({
         buyTierIds: fromTierAccessValue(buyAccess).tierIds,
       } : {}),
       requiresApproval: d.requiresApproval || false,
+      // Discovery gate (T-288). `?? true` and not `|| true`: a host who turned
+      // this OFF must have that sent, and `false || true` is true — the bug
+      // that would have made the toggle look functional and do nothing.
+      // NOT clamped to community ownership like the two gates above: a member
+      // hosting their own event owns whether their own party is advertised.
+      listed: d.listed ?? true,
       attendeeVisibility: d.attendeeVisibility || "PUBLIC",
       locationVisibility: (d as EventFormData & { locationVisibility?: "PUBLIC" | "ATTENDEES_ONLY" }).locationVisibility || "PUBLIC",
       // One mapping, owned by the package: a hand-rolled allowlist silently dropped fields.

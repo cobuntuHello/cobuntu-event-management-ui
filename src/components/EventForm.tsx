@@ -234,6 +234,19 @@ export interface EventFormData {
   // "PUBLIC" if not provided.
   viewability?: "PUBLIC" | "MEMBERS_ONLY";
   requiresApproval: boolean;
+  /**
+   * Discovery gate (T-288) — may this event appear on a LIST at all.
+   *
+   * A SEPARATE axis from viewAccess/buyAccess above, not a fourth option on
+   * them. Those answer who may SEE and who may REGISTER; this answers whether
+   * the event can be FOUND by browsing. A private hire is often open to
+   * anyone holding the link, which is LESS exclusive than members-only, so it
+   * is not another rung on that ladder.
+   *
+   * Optional so callers from before the rollout still type-check; the backend
+   * column defaults to true, which is today's behaviour.
+   */
+  listed?: boolean;
   /** The host's refund policy. null = Standard (platform default window);
    *  { mode:'default', customBuyerWindowDays:0 } = no self-service refunds. */
   refundPolicy?: RefundPolicyValue;
@@ -480,6 +493,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     toTierAccessValue(initialData?.accessibility ?? "PUBLIC", initialBuyTierIds),
   );
   const [requiresApproval, setRequiresApproval] = useState(initialData?.requiresApproval || false);
+  // `?? true` and not `|| true`: an event deliberately set to false must open
+  // as false, and `false || true` is true. The backend column defaults to
+  // true, so an absent value genuinely means listed (T-288).
+  const [listed, setListed] = useState(initialData?.listed ?? true);
   /*
    * Refund policy, seeded from initialData so an untouched edit re-emits what the
    * event already had. null = Standard (platform default); { customBuyerWindowDays: 0 }
@@ -856,7 +873,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       viewability: viewResolved.visibility,
       viewTierIds: viewResolved.tierIds,
       buyTierIds: buyResolved.tierIds,
-      requiresApproval, refundPolicy, attendeeVisibility, locationVisibility, tiers: submittableTiers, tags,
+      requiresApproval, listed, refundPolicy, attendeeVisibility, locationVisibility, tiers: submittableTiers, tags,
       categoryId, subCategoryId,
       /*
        * Donation sidecar — emitted so the create clients can PUT it to
@@ -868,7 +885,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     });
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl, locationsPayload,
-      viewAccess, buyAccess, requiresApproval, refundPolicy, attendeeVisibility, locationVisibility, submittableTiers, tags,
+      viewAccess, buyAccess, requiresApproval, listed, refundPolicy, attendeeVisibility, locationVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /*
@@ -1760,6 +1777,58 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             <Switch checked={requiresApproval}
               onCheckedChange={setRequiresApproval}
               onClick={e => e.stopPropagation()} />
+          </div>
+        </div>
+
+        {/* ─── Discovery (T-288) ───────────────────────────────────────────
+            A SEPARATE SECTION FROM COMMUNITY ACCESS ABOVE, on purpose. Access
+            asks who may see and who may register; this asks whether the event
+            can be FOUND. They are independent: an unlisted event can be open
+            to anyone with the link (a client's birthday) or members-only (a
+            rehearsal nobody advertises). Folding this into the access ladder
+            would make the second combination impossible to express.
+
+            Like requiresApproval, NOT community-scoped: a member hosting
+            their own event owns the choice about whether their own party is
+            advertised, and scoping it would take the setting away from
+            exactly the hosts most likely to need it. */}
+        <div className="mt-6">
+          <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Discovery</p>
+          <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
+            <div
+              onClick={() => setListed(!listed)}
+              className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-zinc-50/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                <div>
+                  <span className="text-sm font-medium text-zinc-800">Show on the calendar</span>
+                  {/*
+                    * What is true RIGHT NOW, the same rule the approval row
+                    * above follows.
+                    *
+                    * ⚠️ THE "off" LINE MUST KEEP SAYING THE SECOND SENTENCE.
+                    * Unlisted is NOT access control, and it was deliberately
+                    * left uncoupled from approval (28 October 2026) so a host
+                    * who needs the guest list enforced says so separately.
+                    * A host who reads "only people with the link" and stops
+                    * there will believe this protects a private hire, and a
+                    * forwarded link will quietly put a stranger on a client's
+                    * guest list. The sentence is the only thing standing
+                    * between that belief and that outcome.
+                    */}
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    {listed
+                      ? "Anyone browsing can find it"
+                      : requiresApproval
+                        ? "Only people with the link can find it, and you approve each one"
+                        : "Only people with the link can find it. Anyone with the link can still register."}
+                  </p>
+                </div>
+              </div>
+              <Switch checked={listed}
+                onCheckedChange={setListed}
+                onClick={e => e.stopPropagation()} />
+            </div>
           </div>
         </div>
 

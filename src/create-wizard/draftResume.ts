@@ -37,6 +37,10 @@ export function eventDraftToForm(row: EventDraftRow): Partial<EventFormData> {
     physicalLocation: typeof row.physicalLocation === "string" ? row.physicalLocation : "",
     onlineUrl: typeof row.onlineUrl === "string" ? row.onlineUrl : "",
     requiresApproval: row.requiresApproval === true,
+    // `!== false`, so an absent value resumes as LISTED, matching the column
+    // default. `=== true` would silently unlist every draft saved before this
+    // field existed (T-288).
+    listed: (row as { listed?: boolean }).listed !== false,
   } as Partial<EventFormData>;
 }
 
