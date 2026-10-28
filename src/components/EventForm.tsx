@@ -1844,7 +1844,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
       {/* ─── Description Editor Dialog ─── */}
       <Dialog open={isDescriptionOpen} onOpenChange={setIsDescriptionOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-3xl h-[640px] max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Event Description</DialogTitle>
             <DialogDescription>Describe your event. What should attendees expect?</DialogDescription>
