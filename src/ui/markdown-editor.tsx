@@ -9,6 +9,11 @@ export interface MarkdownEditorProps {
   disabled?: boolean;
   minRows?: number;
   autoFocus?: boolean;
+  /** Hard cap on the stored value's length, enforced on the textarea itself
+   * and surfaced as an always-visible "n / max" counter. Defaults to 2000 —
+   * an event description is free text, not a one-line label, and a silent
+   * truncation would be worse than a visible ceiling. */
+  maxLength?: number;
 }
 
 /**
@@ -20,6 +25,8 @@ export interface MarkdownEditorProps {
  * behaviour (caret, selection, undo, spellcheck, resize) keeps working for
  * free instead of being reimplemented.
  */
+
+const MAX_GROW_PX = 200;
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -88,51 +95,79 @@ export function MarkdownEditor({
   disabled,
   minRows = 6,
   autoFocus,
+  maxLength = 2000,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
 
+  // Grows with content up to MAX_GROW_PX (a nicer typing feel than a rigid
+  // fixed-height box from the first keystroke), then stops and scrolls
+  // internally instead of pushing the modal around it taller without bound.
   const resize = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    const next = Math.min(el.scrollHeight, MAX_GROW_PX);
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight > MAX_GROW_PX ? "auto" : "hidden";
   }, []);
 
   useLayoutEffect(() => {
     resize();
   }, [value, resize]);
 
+  // The highlight overlay is a separate absolutely-positioned element pinned
+  // to the same box, not a child of the scrolling textarea -- once the
+  // textarea scrolls internally (past MAX_GROW_PX) its content moves but the
+  // overlay's own scrollTop does not follow automatically, so the highlight
+  // drifts out of alignment with the real text underneath it. Mirrored here
+  // on every scroll event instead.
+  const handleScroll = useCallback(() => {
+    if (overlayRef.current && textareaRef.current) {
+      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, []);
+
   const html = value.length ? value.split("\n").map(formatLine).join("\n") : "";
+  const atLimit = value.length >= maxLength;
 
   return (
-    <div
-      className={`group relative rounded-2xl transition-all duration-150 ${
-        disabled
-          ? "bg-zinc-50 opacity-60"
-          : focused
-          ? "bg-white shadow-[0_1px_2px_rgba(16,24,32,0.04),0_0_0_4px_rgba(24,24,27,0.05)] ring-1 ring-zinc-200"
-          : "bg-zinc-50 ring-1 ring-transparent hover:ring-zinc-100"
-      }`}
-    >
+    <div>
       <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-4 py-3.5 text-[14.5px] leading-relaxed text-zinc-800"
-        dangerouslySetInnerHTML={{ __html: html || "&nbsp;" }}
-      />
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        placeholder={placeholder}
-        disabled={disabled}
-        autoFocus={autoFocus}
-        rows={minRows}
-        spellCheck
-        className="relative w-full resize-none overflow-hidden whitespace-pre-wrap break-words border-0 bg-transparent px-4 py-3.5 text-[14.5px] leading-relaxed text-transparent caret-zinc-900 outline-none placeholder:text-zinc-300"
-      />
+        className={`group relative rounded-2xl transition-all duration-150 ${
+          disabled
+            ? "bg-zinc-50 opacity-60"
+            : focused
+            ? "bg-white shadow-[0_1px_2px_rgba(16,24,32,0.04),0_0_0_4px_rgba(24,24,27,0.05)] ring-1 ring-zinc-200"
+            : "bg-zinc-50 ring-1 ring-transparent hover:ring-zinc-100"
+        }`}
+      >
+        <div
+          ref={overlayRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-4 py-3.5 text-[14.5px] leading-relaxed text-zinc-800"
+          dangerouslySetInnerHTML={{ __html: html || "&nbsp;" }}
+        />
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onScroll={handleScroll}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          rows={minRows}
+          maxLength={maxLength}
+          spellCheck
+          className="relative w-full resize-none whitespace-pre-wrap break-words border-0 bg-transparent px-4 py-3.5 text-[14.5px] leading-relaxed text-transparent caret-zinc-900 outline-none placeholder:text-zinc-300"
+        />
+      </div>
+      <p className={`mt-1 text-right text-[11px] tabular-nums ${atLimit ? "text-red-500" : "text-zinc-400"}`}>
+        {value.length} / {maxLength}
+      </p>
     </div>
   );
 }
