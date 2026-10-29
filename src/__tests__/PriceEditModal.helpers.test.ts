@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildDonationBody,
   buildTierBody,
+  describeSaveError,
   findTiersWithMaterialChanges,
   fromSmallestUnit,
   getSymbol,
@@ -15,6 +16,37 @@ import {
   blankTier,
   blankDonation,
 } from "../components/PriceEditModal/helpers";
+
+describe("describeSaveError — save-time Stripe gate", () => {
+  it("maps STRIPE_NOT_CONNECTED to a personal-account message on a personal event", () => {
+    const msg = describeSaveError({ code: "STRIPE_NOT_CONNECTED" }, "fallback", true);
+    expect(msg).toMatch(/your own stripe/i);
+  });
+
+  it("maps STRIPE_NOT_CONNECTED to a community-account message on a community event", () => {
+    const msg = describeSaveError({ code: "STRIPE_NOT_CONNECTED" }, "fallback", false);
+    expect(msg).toMatch(/community/i);
+    expect(msg).not.toMatch(/your own stripe/i);
+  });
+
+  it("is checked by presence of `code`, not the whole error shape (ownerType/ownerId ignored)", () => {
+    const msg = describeSaveError(
+      { code: "STRIPE_NOT_CONNECTED", ownerType: "USER", ownerId: "u1" } as any,
+      "fallback",
+      true,
+    );
+    expect(msg).toMatch(/your own stripe/i);
+  });
+
+  it("falls through to the server's own message for any other error shape", () => {
+    expect(describeSaveError({ error: "Name too long" }, "fallback", false)).toBe("Name too long");
+  });
+
+  it("falls through to the fallback when the body has neither code nor error", () => {
+    expect(describeSaveError({}, "fallback", false)).toBe("fallback");
+    expect(describeSaveError(null, "fallback", false)).toBe("fallback");
+  });
+});
 
 describe("PriceEditModal helpers — currency conversion", () => {
   it("toSmallestUnit/toDisplay roundtrip for fractional currencies", () => {

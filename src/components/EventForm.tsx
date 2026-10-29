@@ -956,7 +956,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    *  rather than as "not available yet" — this way the click always does
    *  something useful, it just branches on whether paying actually works. */
   function handlePresetClick(key: PresetKey) {
-    if (key === "paid" && !(stripeStatus.known && stripeStatus.connected)) {
+    // "Paid entry" and "Free with donations" both collect money from the
+    // buyer, so both need somewhere for it to land — same check, same
+    // redirect-to-Connect fallback. ("Free entry" never moves money.)
+    if ((key === "paid" || key === "donations") && !(stripeStatus.known && stripeStatus.connected)) {
       const url = stripeStatusOverride?.connectUrl ?? (stripeConnectUrl ? stripeConnectUrl(communityTag) : undefined);
       if (url) setPendingStripeLeaveUrl(url);
       return;
@@ -1269,6 +1272,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               {
                 key: "donations", title: "Free with donations", icon: <Heart className="h-[18px] w-[18px]" strokeWidth={2} />,
                 body: "Free, with an optional donation at signup.",
+                // Donations are money too — same Stripe requirement as "Paid
+                // entry", and the same lock/hint treatment.
+                locked: !paidGateKnown,
+                hint: paidGateKnown ? undefined : "Connect Stripe to accept donations",
               },
             ];
             return cards.map((c) => {
