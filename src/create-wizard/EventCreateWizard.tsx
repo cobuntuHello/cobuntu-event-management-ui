@@ -367,6 +367,15 @@ function WizardInner({
   }
 
   const [created, setCreated] = useState<{ slug: string; name: string; outcome: CreateOutcome } | null>(null);
+  /*
+   * The event itself always creates fine even when the donations PUT that
+   * follows it fails (see handleSubmit) — it is a best-effort sidecar call,
+   * not a precondition. But a STRIPE_NOT_CONNECTED failure there means the
+   * donations config the host just set up was silently dropped, which is
+   * worth a note beside the success modal rather than a console.warn only
+   * the host's browser console ever sees.
+   */
+  const [donationsSaveFailed, setDonationsSaveFailed] = useState(false);
   // The confirmation is the last step, appended once it exists.
   const steps = created ? [...flowSteps, "done" as const] : flowSteps;
   const railCurrent = created ? ("done" as const) : step;
@@ -468,6 +477,28 @@ function WizardInner({
   const [paidIntent, setPaidIntent] = useState(false);
   // T&Cs §11.4: paid listings require the MEMBER's Stripe (charges enabled).
   const [stripeReadiness, setStripeReadiness] = useState<{ loading: boolean; ready: boolean }>({ loading: true, ready: false });
+
+  /*
+   * Which Stripe account the "Paid"/"Free with donations" preset tiles (and
+   * their save-time gate) check is OWNERSHIP-aware, mirroring
+   * `cannotTakeCommission` above:
+   *
+   *   - personal: the MEMBER's own Connect account (`stripeReadiness`, from
+   *     `transport.stripeStatus()`) — a personal event pays out to the
+   *     member.
+   *   - community: the COMMUNITY's account (`community.payments`, the same
+   *     prop `cannotTakeCommission` reads) — a community-owned event pays
+   *     out to the community.
+   *
+   * Without this, EventForm's own `useStripeStatus(communityTag)` fallback
+   * is wired through this wizard's config provider to `transport
+   * .stripeStatus()` UNCONDITIONALLY (see the EventManagementConfigProvider
+   * above) — i.e. the member's own account, even for a community-owned
+   * event, which is the wrong account to be checking at all.
+   */
+  const stripeStatusOverride = effectiveOwnership === "personal"
+    ? { connected: stripeReadiness.ready, connectUrl: hrefs.connectStripe }
+    : { connected: !!community.payments?.connected };
 
   useEffect(() => {
     let cancelled = false;
@@ -618,9 +649,19 @@ function WizardInner({
       }
     }
 
-    // §11.4: block paid submissions when the member's Stripe isn't ready.
+    // §11.4: block paid submissions when the member's Stripe isn't ready —
+    // ownership-scoped, because `stripeReadiness` is the MEMBER's own
+    // account. A community-owned event pays out to the COMMUNITY's account
+    // instead (checked below via `cannotTakeCommission`), so gating it on
+    // the member's personal Stripe would block a leader from creating a
+    // community-owned paid event over an account that was never going to be
+    // used for it.
     const hasPaidTier = !!d!.tiers?.some((tier) => (parseFloat(tier.price) || 0) > 0);
-    if (hasPaidTier && !stripeReadiness.ready) { setStripeMissing(true); return; }
+    const hasDonations = !!d?.donation?.enabled;
+    if (effectiveOwnership === "personal" && (hasPaidTier || hasDonations) && !stripeReadiness.ready) {
+      setStripeMissing(true);
+      return;
+    }
     // Independent: whether the COMMUNITY can be paid its commission.
     if (hasPaidTier && cannotTakeCommission) { setCommunityPaymentsMissing(true); return; }
 
@@ -644,6 +685,12 @@ function WizardInner({
         const msg: string = result.message || t("failedToCreateEvent");
         if (
           result.code === "STRIPE_REQUIRED" ||
+          // Defensive: the backend gate on EventTierService / DonationConfigService
+          // uses this code (see the create-event path's own tier/donation
+          // validation). Checked by presence of the field, not an exact string
+          // match against the whole error shape, since it also carries
+          // `ownerType`/`ownerId` this wizard doesn't need.
+          result.code === "STRIPE_NOT_CONNECTED" ||
           msg.toLowerCase().includes("connected stripe account") ||
           msg.toLowerCase().includes("connect your stripe account")
         ) {
@@ -657,14 +704,22 @@ function WizardInner({
       const event = result.event;
       const target = (event.slug as string | undefined) || event.id;
 
-      // Donations sidecar: best effort, the event already exists.
+      // Donations sidecar: best effort, the event already exists, so a
+      // failure here never blocks the create flow — but a STRIPE_NOT_CONNECTED
+      // failure specifically means the donations the host just configured
+      // were silently NOT saved, which `console.warn` alone would hide from
+      // them entirely. Surface that one case; anything else keeps the old
+      // best-effort silence (the event itself is still created fine).
       try {
         const donationPayload = d?.donation ? donationDraftToPayload(d.donation) : null;
         if (donationPayload && event?.id) {
           await transport.saveDonations(event.id, donationPayload);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn("[create event] donations save failed", e);
+        if (e?.code === "STRIPE_NOT_CONNECTED") {
+          setDonationsSaveFailed(true);
+        }
       }
 
       // The outcome is NOT the button: a member submission lands PENDING however it was sent.
@@ -735,8 +790,13 @@ function WizardInner({
         </p>
       </header>
 
-      {/* §11.4: the member-Stripe heads-up, only once the event goes paid. */}
-      {(stripeMissing || (paidIntent && !stripeReadiness.loading && !stripeReadiness.ready)) && (
+      {/*
+        §11.4: the member-Stripe heads-up, only once the event goes paid (or
+        takes donations — both pay out to the MEMBER on a personal event) AND
+        only for a personal event. A community-owned event pays out to the
+        community instead; see the banner below.
+      */}
+      {(stripeMissing || (effectiveOwnership === "personal" && paidIntent && !stripeReadiness.loading && !stripeReadiness.ready)) && (
         <FormNoticeBanner
           className="mb-6"
           title={t("connectStripeTitle")}
@@ -800,7 +860,10 @@ function WizardInner({
                   formDataRef.current = data;
                   // Restart the quiet period; the save fires once typing stops.
                   autosave.schedule();
-                  setPaidIntent(!!data.tiers?.some((tier: { price: string }) => (parseFloat(tier.price) || 0) > 0));
+                  setPaidIntent(
+                    !!data.tiers?.some((tier: { price: string }) => (parseFloat(tier.price) || 0) > 0) ||
+                    !!data.donation?.enabled,
+                  );
                 }}
                 showErrors={showErrors}
                 hideVisibility
@@ -808,6 +871,7 @@ function WizardInner({
                 showMemberPricing={effectiveOwnership === "community"}
                 communityName={communityName}
                 initialData={draftInitial}
+                stripeStatusOverride={stripeStatusOverride}
               />
             )}
           </div>
@@ -944,18 +1008,29 @@ function WizardInner({
       )}
 
       {created && (
-        <CreatedModal
-          open
-          kind="event"
-          outcome={created.outcome}
-          name={created.name}
-          viewHref={hrefs.viewEvent(created.slug)}
-          manageHref={hrefs.manageEvent(created.slug)}
-          /* The listing review thread, where the request is tracked and its terms negotiated. */
-          reviewHref={hrefs.reviewListing(created.slug)}
-          createAnotherHref={hrefs.createAnother}
-          onNavigate={navigate}
-        />
+        <>
+          {donationsSaveFailed && (
+            <FormNoticeBanner
+              className="mb-6"
+              title={t("donationsNotSavedTitle")}
+              body={t("donationsNotSavedBody")}
+              actionHref={effectiveOwnership === "personal" ? hrefs.connectStripe : undefined}
+              actionLabel={effectiveOwnership === "personal" ? t("connectStripe") : undefined}
+            />
+          )}
+          <CreatedModal
+            open
+            kind="event"
+            outcome={created.outcome}
+            name={created.name}
+            viewHref={hrefs.viewEvent(created.slug)}
+            manageHref={hrefs.manageEvent(created.slug)}
+            /* The listing review thread, where the request is tracked and its terms negotiated. */
+            reviewHref={hrefs.reviewListing(created.slug)}
+            createAnotherHref={hrefs.createAnother}
+            onNavigate={navigate}
+          />
+        </>
       )}
       </div>
     </>

@@ -25,6 +25,8 @@ export const EVENT_WIZARD_MESSAGES_EN = {
       "connectStripeTitle": "Connect Stripe to sell tickets",
       "connectStripeBody": "Paid ticket tiers need a connected Stripe Connect account with charges enabled. You can still create a free event.",
       "connectStripe": "Connect Stripe",
+      "donationsNotSavedTitle": "Donations were not saved",
+      "donationsNotSavedBody": "Your event was created, but the donation settings could not be saved because there's no connected Stripe account to receive them yet. Connect one, then set donations up again from the event's pricing settings.",
       "creating": "Creating…",
       "submitForReview": "Submit for review",
       "submit": "Submit",

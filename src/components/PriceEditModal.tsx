@@ -31,6 +31,7 @@ import {
   blankTier,
   buildDonationBody,
   buildTierBody,
+  describeSaveError,
   findTiersWithMaterialChanges,
   fromSmallestUnit,
   isTierLocked,
@@ -181,6 +182,10 @@ export function PriceEditModal({
 }: PriceEditModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
+  // Same ownership test PricingView already uses for `showMemberPricing`
+  // (member pricing/segments are community-scoped). Drives which account the
+  // STRIPE_NOT_CONNECTED message below points the host at.
+  const isPersonalEvent = !event?.communityId;
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<DraftTier[]>([]);
   const [originalTiers, setOriginalTiers] = useState<Map<string, OriginalTierSnapshot>>(new Map());
@@ -731,11 +736,11 @@ export function PriceEditModal({
         } else if (t.id) {
           const body = buildTierBody(t, { notifyAttendees });
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body) });
-          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to update "${t.name}"`); }
+          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(describeSaveError(e, `Failed to update "${t.name}"`, isPersonalEvent)); }
         } else if (!t.deleted) {
           const body = buildTierBody(t);
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
-          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to create "${t.name}"`); }
+          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(describeSaveError(e, `Failed to create "${t.name}"`, isPersonalEvent)); }
         }
       }
 
@@ -808,7 +813,7 @@ export function PriceEditModal({
         });
         if (!res.ok) {
           const e = await res.json().catch(() => ({}));
-          throw new Error(e.error || "Failed to save donation settings");
+          throw new Error(describeSaveError(e, "Failed to save donation settings", isPersonalEvent));
         }
       }
 

@@ -9,6 +9,7 @@ import {
   toDisplay,
   loadDonationFromEvent,
   buildDonationBody,
+  describeSaveError,
 } from "../../components/PriceEditModal/helpers";
 import { DonationsSection } from "../../components/PriceEditModal/DonationsSection";
 import type { DonationDraft } from "../../components/PriceEditModal/types";
@@ -147,7 +148,8 @@ export function PricingView({
       );
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
-        throw new Error(e.error || "Failed to save donation settings");
+        // Same ownership test PricingView already uses for `showMemberPricing`.
+        throw new Error(describeSaveError(e, "Failed to save donation settings", !event?.communityId));
       }
       setDonationDirty(false);
       showToast("Donations updated");

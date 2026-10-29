@@ -118,6 +118,32 @@ describe("EventForm — pricing presets", () => {
     expect(screen.queryByText(/Reset to this preset/i)).not.toBeInTheDocument();
   });
 
+  it("Free with donations is locked the same way as Paid entry when Stripe isn't connected", async () => {
+    // Donations collect money too, so the gate that was added for "Paid
+    // entry" has to cover this card the same way — it previously had none.
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: false, chargesEnabled: false } }]);
+    const user = userEvent.setup();
+    renderForm();
+    await waitFor(() => expect(screen.getByText(/Connect Stripe to accept donations/i)).toBeInTheDocument());
+
+    const hrefSpy = vi.spyOn(window.location, "href", "set");
+    await user.click(screen.getByRole("button", { name: /Free with donations/ }));
+    // Same confirm-before-redirect flow as Paid entry, not an inert click.
+    expect(screen.getByRole("button", { name: /Continue to Stripe/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Continue to Stripe/i }));
+    expect(hrefSpy).toHaveBeenCalledWith(expect.stringContaining("stripe"));
+    hrefSpy.mockRestore();
+  });
+
+  it("Free with donations applies normally once Stripe is connected", async () => {
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: true, chargesEnabled: true } }]);
+    const user = userEvent.setup();
+    renderForm();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Free with donations/ })).not.toHaveClass(/opacity-70/));
+    await user.click(screen.getByRole("button", { name: /Free with donations/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Free with donations/ })).toHaveAttribute("aria-pressed", "true"));
+  });
+
   it("stripeStatusOverride unlocks Paid entry even when the internal (community-scoped) check says not connected", async () => {
     // The internal /stripe/connected check reports not-connected (e.g. a
     // member who gets a 403 from the admin-gated endpoint) — the override

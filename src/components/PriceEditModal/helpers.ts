@@ -14,6 +14,38 @@ import {
   type DraftTier,
 } from "./types";
 
+/**
+ * Turns a failed tier/donation save's JSON body into a message, with a
+ * defensive, OWNERSHIP-aware special case for the backend's save-time Stripe
+ * gate.
+ *
+ * `EventTierService.createTier`/`updateTier` and
+ * `DonationConfigService.setForEvent` reject a paid tier or an enabled
+ * donation config with `{ code: "STRIPE_NOT_CONNECTED", ownerType, ownerId }`
+ * when there is nowhere to pay the money out to — checked at SAVE time, on
+ * every save (not just first activation), because a price or a donation
+ * toggle can be edited back on after Stripe was disconnected just as easily
+ * as it can be set for the first time.
+ *
+ * Checked by the PRESENCE of `code`, not by matching the whole shape: the
+ * body also carries `ownerType`/`ownerId`, which this UI doesn't need and
+ * shouldn't have to mirror exactly to recognize its own gate. Any other
+ * error shape falls through to `e.error` (the generic server message) or
+ * `fallback`, unchanged from before this gate existed.
+ */
+export function describeSaveError(
+  e: { code?: string; error?: string } | null | undefined,
+  fallback: string,
+  isPersonalEvent: boolean,
+): string {
+  if (e?.code === "STRIPE_NOT_CONNECTED") {
+    return isPersonalEvent
+      ? "Connect your own Stripe account before setting a price or enabling donations — it's where this event's payouts go."
+      : "This community hasn't connected a Stripe account yet, so it can't be paid out to. Ask a community leader to connect one before setting a price or enabling donations.";
+  }
+  return e?.error || fallback;
+}
+
 export function getSymbol(code: string): string {
   return SUPPORTED_CURRENCIES.find((c) => c.code === code)?.symbol || code;
 }
