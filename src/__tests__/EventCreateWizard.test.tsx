@@ -269,6 +269,22 @@ describe("extra steps", () => {
   });
 });
 
+describe("extraStepsAfter", () => {
+  const extraSteps = [{ id: "about-you", label: "About you", title: "Tell us about you", render: () => <div /> }];
+
+  it("puts the extra steps right after the named step", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, extraStepsAfter: "details" });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "About you", "Pricing", "Policies & access", "Arrangement"]);
+  });
+
+  it("falls back to the end when the step is not in the flow", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, extraStepsAfter: "nope" });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement", "About you"]);
+  });
+});
+
 describe("copy", () => {
   it("defaults to English without a host t", async () => {
     renderWizard({ initialDrafts: [], canCreateForCommunity: false });
