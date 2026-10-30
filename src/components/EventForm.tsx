@@ -1844,7 +1844,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             window; None = buyers contact the host. */}
         <div className="mt-6">
           <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Refunds</p>
-          <RefundPolicyField value={refundPolicy} onChange={setRefundPolicy} />
+          <RefundPolicyField value={refundPolicy} onChange={setRefundPolicy} anchor="EVENT_START" />
         </div>
       </div>
       )}

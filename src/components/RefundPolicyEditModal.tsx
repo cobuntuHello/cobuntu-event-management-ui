@@ -52,7 +52,7 @@ export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, s
             </p>
 
             <div className="mb-5">
-                <RefundPolicyField value={value} onChange={setValue} />
+                <RefundPolicyField value={value} onChange={setValue} anchor="EVENT_START" />
             </div>
 
             <div className="flex justify-end gap-2">
