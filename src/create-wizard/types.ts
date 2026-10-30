@@ -248,6 +248,12 @@ export interface EventCreateWizardProps {
   navigation: EventCreateWizardNavigation;
   copy?: EventCreateWizardCopy;
   extraSteps?: EventCreateWizardExtraStep<any>[];
+  /**
+   * Where `extraSteps` go: right after this built-in step id (e.g. "details").
+   * Omitted, or an id not in this flow, they stay after the last Cobuntu step,
+   * as before. Opt-in, so no other host changes.
+   */
+  extraStepsAfter?: string;
   theme?: EventCreateWizardTheme;
   /**
    * Where portalled layers mount. "inline" (default) mounts them inside the

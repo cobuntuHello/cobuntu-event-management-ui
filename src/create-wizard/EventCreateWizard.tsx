@@ -57,7 +57,8 @@ import type {
  *   - the submit buttons come from resolveSubmitActions (the state the listing
  *     will LAND in, never the role), and the paid-tier gates check the member's
  *     own Stripe and whether the community can collect its commission;
- *   - host-defined `extraSteps` sit after the last Cobuntu step, before submit.
+ *   - host-defined `extraSteps` sit after the last Cobuntu step, before submit
+ *     (or after a named step, with `extraStepsAfter`).
  *     Their answers go to `onDone`, never to Cobuntu.
  */
 export function EventCreateWizard(props: EventCreateWizardProps) {
@@ -188,7 +189,7 @@ type InnerProps = Omit<EventCreateWizardProps, "initialDrafts" | "canCreateForCo
 };
 
 function WizardInner({
-  community, viewer, transport, navigation, extraSteps = [],
+  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter,
   isLeader: isLeaderHere, drafts: myDrafts, draftId, draftStepFromUrl,
   syncStepToUrl = true, onLocalResume,
 }: InnerProps) {
@@ -224,7 +225,11 @@ function WizardInner({
   const extraLabels = useMemo(() => Object.fromEntries(extraSteps.map((s) => [s.id, s.label])), [extraSteps]);
   const [extraValues, setExtraValues] = useState<Record<string, unknown>>({});
   const [extraErrors, setExtraErrors] = useState<Record<string, boolean>>({});
-  const flowSteps = [...baseSteps, ...extraIds] as CreateStepId[];
+  // Default: after the last Cobuntu step. `extraStepsAfter` puts them after a named one.
+  const anchor = extraStepsAfter ? baseSteps.indexOf(extraStepsAfter as CreateStepId) : -1;
+  const flowSteps = (anchor >= 0
+    ? [...baseSteps.slice(0, anchor + 1), ...extraIds, ...baseSteps.slice(anchor + 1)]
+    : [...baseSteps, ...extraIds]) as CreateStepId[];
 
   /*
    * Null means "they have not moved yet", so the opening step is DERIVED: the
