@@ -27,7 +27,7 @@
     "react-dom": ">=19"
   },
   "dependencies": {
-    "@cobuntu/management-ui-shared": "github:cobuntuHello/cobuntu-management-ui-shared#3be5e0c7e3dd6f09a04e5057be052d19b0601fd6",
+    "@cobuntu/management-ui-shared": "github:cobuntuHello/cobuntu-management-ui-shared#09db78090c10d51ce319fda1400de81b9558b3b2",
     "@cobuntu/sales-ui": "github:cobuntuHello/cobuntu-sales-ui#e99ca6808d5a129a05497ffc0cbc61b82c575bbc",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
