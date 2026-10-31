@@ -238,6 +238,21 @@ export interface EventCreateWizardCommunity {
   memberFeeModel: MemberFeeModel | null;
   /** Whether member event submissions are reviewed before going live. */
   memberRequireApproval: boolean;
+  /**
+   * The community's own cancellation terms, when it publishes some (T-296).
+   *
+   * Present means the HOST DOES NOT CHOOSE a refund policy: a venue owns its
+   * terms and every event booked there inherits them, so the settings step
+   * STATES them instead of offering a picker. The backend copies the same
+   * policy onto the event at creation, so this is a display of what will
+   * happen rather than a second source of truth.
+   *
+   * Absent or empty leaves the existing picker exactly as it was, which is
+   * every community that has not set house terms.
+   */
+  refundBands?: { days: number; pct: number }[] | null;
+  /** Names the house in that statement, e.g. "TEJÁ's cancellation terms". */
+  refundTitle?: string;
 }
 
 export interface EventCreateWizardProps {
