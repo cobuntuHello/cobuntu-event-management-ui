@@ -37,7 +37,7 @@ function fake(over: any = {}) {
     startDate: new Date("2026-11-01T00:00:00Z"), endDate: new Date("2026-11-01T00:00:00Z"),
     startTime: "19:00", endTime: "22:00", timezone: "Europe/Lisbon",
     physicalLocation: "", onlineUrl: "", requiresApproval: false, attendeeVisibility: "PUBLIC",
-    tiers: [], tags: [], categoryId: null, subCategoryId: null, ...over,
+    tiers: [{ name: "General", price: "0", capacity: null }], tags: [], categoryId: null, subCategoryId: null, ...over,
   };
 }
 
