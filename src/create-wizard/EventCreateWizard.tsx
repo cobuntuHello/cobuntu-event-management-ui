@@ -608,6 +608,19 @@ function WizardInner({
         return;
       }
     }
+    /*
+     * Hard requirement, 2026-10-31: an event needs at least one ticket tier
+     * to be listed, same rule as the product wizard. Checked on leaving
+     * Pricing ("commerce"), not on leaving Details — at that point the form
+     * hasn't shown Pricing yet, and `d.tiers` is still whatever untouched
+     * initial state the host passed in, so checking it there would trap
+     * every new event on step one.
+     */
+    if (step === "commerce" && !formDataRef.current?.tiers?.length) {
+      setShowErrors(true);
+      setError(t("errNeedTier"));
+      return;
+    }
     if (currentExtra) {
       const v = validateExtra(currentExtra.id);
       if (v) { setExtraErrors((e) => ({ ...e, [currentExtra.id]: true })); setError(v); return; }
@@ -642,6 +655,14 @@ function WizardInner({
     if (v) {
       setShowErrors(true);
       if (d?.name?.trim()) setError(v);
+      return;
+    }
+    // Same hard requirement as above, re-checked at final submit in case a
+    // caller reaches handleSubmit without ever going through goNext's
+    // Pricing-step gate.
+    if (!d?.tiers?.length) {
+      setShowErrors(true);
+      setError(t("errNeedTier"));
       return;
     }
     for (const s of extraSteps) {

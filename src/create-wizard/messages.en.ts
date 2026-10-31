@@ -16,6 +16,7 @@ export const EVENT_WIZARD_MESSAGES_EN = {
       "eventNameRequired": "Event name is required",
       "startDateRequired": "Start date is required",
       "endDateRequired": "End date is required",
+      "errNeedTier": "Add at least one ticket tier to continue",
       "notAuthenticated": "Not authenticated",
       "failedToCreateEvent": "Failed to create event",
       "events": "Events",
