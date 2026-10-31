@@ -48,6 +48,8 @@ import {
   PolicyRow,
   type AudienceLevel,
   RefundPolicyField,
+  RefundScheduleStatement,
+  type RefundBand,
   type RefundPolicyValue,
   DiscardPrompt,
   ConfirmLeaveModal,
@@ -298,6 +300,18 @@ export interface EventFormData {
 }
 
 interface EventFormProps {
+  /**
+   * The community's own cancellation terms, when it publishes some (T-296).
+   *
+   * Present means the HOST DOES NOT CHOOSE: a venue owns its refund policy and
+   * every event booked there inherits it, so the form states the terms instead
+   * of offering a picker. The backend copies the same policy onto the event at
+   * creation, so this is a display of what WILL happen, not a second source of
+   * truth the form has to keep in sync.
+   */
+  houseRefundBands?: RefundBand[] | null;
+  /** Names the house in the statement, e.g. "TEJÁ's cancellation terms". */
+  houseRefundTitle?: string;
   communityTag: string;
   /**
    * The community's EVENT categories, loaded by the CONSUMER.
@@ -392,7 +406,7 @@ export type { EventFormProps };
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false, stripeStatusOverride }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false, stripeStatusOverride, houseRefundBands, houseRefundTitle }: EventFormProps) {
   // Which part of the form this render shows. Default "all" → all true, so the
   // one-page consumers (manage/edit drawer, admin single-page) are unchanged.
   // The wizard splits across pages: "listing", "commerce" (tickets + donations +
@@ -1839,12 +1853,30 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           </div>
         </div>
 
-        {/* Refunds — the host's own policy, the SAME control the manage page's
-            refund modal uses (RefundPolicyField). Standard = platform default
-            window; None = buyers contact the host. */}
+        {/* Refunds.
+
+            Two different questions, decided by whether the COMMUNITY publishes
+            its own cancellation terms:
+
+            - It does: the host does not choose. A venue owns its refund policy
+              and every event booked there inherits it, so this states the terms
+              (RefundScheduleStatement). Asking a host hiring a room to pick
+              their own refund rules was the wrong question, and worse, the
+              answer was silently dropped on create until T-296 fixed that.
+            - It does not: the host sets their own, with the SAME control the
+              manage page's refund modal uses (RefundPolicyField). Standard =
+              platform default window; None = buyers contact the host. */}
         <div className="mt-6">
           <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Refunds</p>
-          <RefundPolicyField value={refundPolicy} onChange={setRefundPolicy} anchor="EVENT_START" />
+          {houseRefundBands && houseRefundBands.length > 0 ? (
+            <RefundScheduleStatement
+              bands={houseRefundBands}
+              anchor="EVENT_START"
+              {...(houseRefundTitle ? { title: houseRefundTitle } : {})}
+            />
+          ) : (
+            <RefundPolicyField value={refundPolicy} onChange={setRefundPolicy} anchor="EVENT_START" />
+          )}
         </div>
       </div>
       )}

@@ -877,6 +877,11 @@ function WizardInner({
                 communityName={communityName}
                 initialData={draftInitial}
                 stripeStatusOverride={stripeStatusOverride}
+                /* The house terms, when the community publishes them: the
+                   settings step states them instead of asking the host to
+                   choose. See EventCreateWizardCommunity.refundBands. */
+                houseRefundBands={community.refundBands ?? null}
+                {...(community.refundTitle ? { houseRefundTitle: community.refundTitle } : {})}
               />
             )}
           </div>
