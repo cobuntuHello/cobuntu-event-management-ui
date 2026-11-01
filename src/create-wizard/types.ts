@@ -190,6 +190,18 @@ export interface EventCreateWizardNavigation {
 export interface EventCreateWizardExtraStep<V = unknown> {
   /** Unique, and not one of the built-in step ids. */
   id: string;
+  /**
+   * Put THIS step after a named built-in step, overriding `extraStepsAfter`.
+   *
+   * `extraStepsAfter` moves the whole block, which is all a host needed while
+   * its steps were one group of questions. A venue's flow is not: the room and
+   * the date belong early, because everything after them is priced off them,
+   * while a review of what has been chosen can only be last. `"end"` puts it
+   * after every built-in step, which is where a checkout goes.
+   *
+   * Omitted, the step travels with the block, so existing hosts are unchanged.
+   */
+  after?: string;
   /** The name on the progress rail. */
   label: string;
   /** Page heading on this step. */
@@ -269,6 +281,23 @@ export interface EventCreateWizardProps {
    * as before. Opt-in, so no other host changes.
    */
   extraStepsAfter?: string;
+  /**
+   * Drop the arrangement step when it holds no decision.
+   *
+   * The step exists to name the commission a personal seller goes up under,
+   * and it is unconditional precisely so a seller with one package still sees
+   * what they are paid. A venue whose hosts hire a room has the opposite
+   * problem: the flow ends on a screen about ticket commission when the thing
+   * the host is about to owe money for is the room, and the arrangement was
+   * never theirs to pick.
+   *
+   * SELF-LIMITING, on purpose. It is honoured only while the seller has at
+   * most one package to go up under, because the wizard auto-selects a lone
+   * package and submits happily without the step. With two or more the step
+   * comes back whatever this says: hiding a real choice would leave `needsPackage`
+   * true forever and block the submit button with no way to satisfy it.
+   */
+  hideArrangementStep?: boolean;
   theme?: EventCreateWizardTheme;
   /**
    * Where portalled layers mount. "inline" (default) mounts them inside the
