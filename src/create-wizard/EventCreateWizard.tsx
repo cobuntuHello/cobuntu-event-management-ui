@@ -189,7 +189,7 @@ type InnerProps = Omit<EventCreateWizardProps, "initialDrafts" | "canCreateForCo
 };
 
 function WizardInner({
-  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep,
+  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep, disableNextOnInvalidExtraStep,
   isLeader: isLeaderHere, drafts: myDrafts, draftId, draftStepFromUrl,
   syncStepToUrl = true, onLocalResume,
 }: InnerProps) {
@@ -621,6 +621,13 @@ function WizardInner({
   }
 
   // Forward moves validate; back moves never do.
+  /*
+   * Is the host step on screen not yet answered? Read on every render rather
+   * than stored, because validate() is pure over the step's own value and a
+   * cached copy would lag a keystroke behind the button it disables.
+   */
+  const extraIncomplete = !!disableNextOnInvalidExtraStep && !!currentExtra && !!validateExtra(currentExtra.id);
+
   function goNext() {
     if (step === "details") {
       const v = validate(formDataRef.current);
@@ -1010,7 +1017,7 @@ function WizardInner({
               </WizardButton>
             )}
             {!onFinalStep && step !== "resume" && (
-              <WizardButton primary onClick={goNext} disabled={creating}>Next</WizardButton>
+              <WizardButton primary onClick={goNext} disabled={creating || extraIncomplete}>Next</WizardButton>
             )}
             {onFinalStep && submitActions.map((a) => (
               <WizardButton
@@ -1048,7 +1055,7 @@ function WizardInner({
           )}
           {!onFinalStep && step !== "resume" && (
             <div className="flex-1 min-w-0">
-              <WizardButton primary onClick={goNext} disabled={creating}>Next</WizardButton>
+              <WizardButton primary onClick={goNext} disabled={creating || extraIncomplete}>Next</WizardButton>
             </div>
           )}
           {onFinalStep && submitActions.map((a) => (

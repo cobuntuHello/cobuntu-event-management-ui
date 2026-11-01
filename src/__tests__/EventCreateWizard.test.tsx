@@ -370,6 +370,53 @@ describe("hideArrangementStep", () => {
   });
 });
 
+/**
+ * A compound step ("a day, a length and a start time") is better served by a
+ * button that is not ready yet than by one that can be pressed to be told the
+ * start times are missing while the start times fill the screen.
+ */
+describe("disableNextOnInvalidExtraStep", () => {
+  const extraSteps = [
+    {
+      id: "when", label: "When", title: "When is it?",
+      render: ({ value, onChange }: any) => (
+        <input aria-label="Day" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
+      ),
+      validate: (v: unknown) => (v ? null : "Pick a day."),
+    },
+  ];
+  const nextBtn = () => screen.getAllByRole("button").find((b) => b.textContent === "Next") as HTMLButtonElement;
+
+  it("greys Next out while the step is unanswered, and enables it once it is", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, extraStepsAfter: "details", disableNextOnInvalidExtraStep: true });
+    await screen.findByTestId("event-form");
+    // step one is a built-in: untouched by this flag
+    expect(nextBtn()).not.toBeDisabled();
+    press("Next");
+    await screen.findByLabelText("Day");
+    expect(nextBtn()).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Day"), { target: { value: "2026-11-25" } });
+    expect(nextBtn()).not.toBeDisabled();
+  });
+
+  it("leaves the built-in steps alone, so a details form never sits behind a dead button", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, extraStepsAfter: "details", disableNextOnInvalidExtraStep: true });
+    await screen.findByTestId("event-form");
+    expect(nextBtn()).not.toBeDisabled();
+  });
+
+  it("without the flag Next stays pressable and answers with an error, as before", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, extraStepsAfter: "details" });
+    await screen.findByTestId("event-form");
+    press("Next");
+    await screen.findByLabelText("Day");
+    expect(nextBtn()).not.toBeDisabled();
+    press("Next");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pick a day.");
+  });
+});
+
 describe("copy", () => {
   it("defaults to English without a host t", async () => {
     renderWizard({ initialDrafts: [], canCreateForCommunity: false });

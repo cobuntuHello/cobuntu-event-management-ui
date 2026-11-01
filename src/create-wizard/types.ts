@@ -298,6 +298,23 @@ export interface EventCreateWizardProps {
    * true forever and block the submit button with no way to satisfy it.
    */
   hideArrangementStep?: boolean;
+  /**
+   * Grey out Next while the host step on screen is invalid, instead of
+   * letting it be pressed and answering with an error.
+   *
+   * The default stays "press it and find out", which is right where the
+   * missing answer is one field among many and the error can point at it. It
+   * is wrong on a step that is ONE compound choice: a venue's date step is
+   * not valid until a day, a length and a start time are all in, and pressing
+   * Next to be told "pick a start time" when the start times are the thing
+   * filling the screen is a worse answer than the button simply not being
+   * ready yet.
+   *
+   * EXTRA STEPS ONLY. The built-in steps validate on leaving (a details form
+   * with thirty fields would sit behind a dead button with no clue which one
+   * is wrong), and this does not touch them.
+   */
+  disableNextOnInvalidExtraStep?: boolean;
   theme?: EventCreateWizardTheme;
   /**
    * Where portalled layers mount. "inline" (default) mounts them inside the
