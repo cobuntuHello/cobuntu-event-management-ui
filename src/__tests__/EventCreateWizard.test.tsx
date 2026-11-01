@@ -285,6 +285,91 @@ describe("extraStepsAfter", () => {
   });
 });
 
+/**
+ * A venue's steps do not all belong in one place: the room and the date come
+ * early because everything after is priced off them, while a review of what
+ * was chosen can only be last. `after` splits the block; `extraStepsAfter`
+ * still carries whatever does not name its own place.
+ */
+describe("per-step placement", () => {
+  const step = (id: string, label: string, after?: string) => ({ id, label, title: label, after, render: () => <div /> });
+
+  it("places a step after the one it names, and leaves the rest on the block anchor", async () => {
+    renderWizard({
+      initialDrafts: [], canCreateForCommunity: false, extraStepsAfter: "details",
+      extraSteps: [step("about-you", "About you"), step("review", "Review", "end")],
+    });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "About you", "Pricing", "Policies & access", "Arrangement", "Review"]);
+  });
+
+  it("'end' goes last even with no block anchor at all", async () => {
+    renderWizard({
+      initialDrafts: [], canCreateForCommunity: false,
+      extraSteps: [step("review", "Review", "end"), step("about-you", "About you")],
+    });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement", "About you", "Review"]);
+  });
+
+  it("pins to a named built-in step", async () => {
+    renderWizard({
+      initialDrafts: [], canCreateForCommunity: false,
+      extraSteps: [step("when", "When", "details")],
+    });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "When", "Pricing", "Policies & access", "Arrangement"]);
+  });
+
+  it("an `after` naming a step this flow does not have travels with the block instead of vanishing", async () => {
+    renderWizard({
+      initialDrafts: [], canCreateForCommunity: false, extraStepsAfter: "details",
+      extraSteps: [step("review", "Review", "nowhere")],
+    });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Review", "Pricing", "Policies & access", "Arrangement"]);
+  });
+});
+
+describe("hideArrangementStep", () => {
+  const extraSteps = [{ id: "review", label: "Review", title: "Review", after: "end", render: () => <div /> }];
+
+  it("drops the commission screen when there is nothing to choose", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, hideArrangementStep: true });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Review"]);
+  });
+
+  it("keeps it when a lone package is pre-selected, since the flag only removes a dead screen", async () => {
+    const tr = transport();
+    (tr.myPackages as any).mockResolvedValue([{ id: "p1", name: "Circle", rate: 20 }]);
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, hideArrangementStep: true, transport: tr });
+    await screen.findByTestId("event-form");
+    await waitFor(() => expect(tr.myPackages).toHaveBeenCalled());
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Review"]);
+  });
+
+  /*
+   * The one that matters. The wizard auto-selects a LONE package, so without
+   * the step `needsPackage` stays false and submit works. With two it stays
+   * true forever, and hiding the only screen that could satisfy it would
+   * disable the submit button with no way out. The step wins over the flag.
+   */
+  it("REFUSES to hide a real choice, because that would block submit with no way to satisfy it", async () => {
+    const tr = transport();
+    (tr.myPackages as any).mockResolvedValue([
+      { id: "p1", name: "Circle", rate: 20 },
+      { id: "p2", name: "Guest", rate: 30 },
+    ]);
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, hideArrangementStep: true, transport: tr });
+    await screen.findByTestId("event-form");
+    // walk() ADVANCES the wizard, so it is spent once: wait for the packages
+    // to land first, then walk exactly once.
+    await waitFor(() => expect(tr.myPackages).toHaveBeenCalled());
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement", "Review"]);
+  });
+});
+
 describe("copy", () => {
   it("defaults to English without a host t", async () => {
     renderWizard({ initialDrafts: [], canCreateForCommunity: false });
