@@ -189,7 +189,7 @@ type InnerProps = Omit<EventCreateWizardProps, "initialDrafts" | "canCreateForCo
 };
 
 function WizardInner({
-  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter,
+  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep,
   isLeader: isLeaderHere, drafts: myDrafts, draftId, draftStepFromUrl,
   syncStepToUrl = true, onLocalResume,
 }: InnerProps) {
@@ -225,11 +225,41 @@ function WizardInner({
   const extraLabels = useMemo(() => Object.fromEntries(extraSteps.map((s) => [s.id, s.label])), [extraSteps]);
   const [extraValues, setExtraValues] = useState<Record<string, unknown>>({});
   const [extraErrors, setExtraErrors] = useState<Record<string, boolean>>({});
-  // Default: after the last Cobuntu step. `extraStepsAfter` puts them after a named one.
-  const anchor = extraStepsAfter ? baseSteps.indexOf(extraStepsAfter as CreateStepId) : -1;
-  const flowSteps = (anchor >= 0
-    ? [...baseSteps.slice(0, anchor + 1), ...extraIds, ...baseSteps.slice(anchor + 1)]
-    : [...baseSteps, ...extraIds]) as CreateStepId[];
+  /*
+   * The arrangement step, dropped when the host asks and it holds no choice.
+   *
+   * Gated on `packages.length > 1` rather than on the flag alone: the wizard
+   * auto-selects a lone package, so removing the screen costs nothing, while
+   * removing a real choice would leave `needsPackage` true and the submit
+   * button permanently disabled. The step wins over the flag, every time.
+   */
+  const dropArrangement = hideArrangementStep && packages.length <= 1;
+  const placedSteps = dropArrangement ? baseSteps.filter((s) => s !== "listing") : baseSteps;
+
+  /*
+   * Where each host step goes. A step naming its own `after` is placed there;
+   * the rest travel together, after `extraStepsAfter` or at the very end.
+   * "end" is the one value that is not a step id, and means after all of them.
+   */
+  const pinned = new Map<string, string[]>();
+  const floating: string[] = [];
+  for (const s of extraSteps) {
+    if (!s.after) { floating.push(s.id); continue; }
+    const at = s.after === "end" ? "end" : s.after;
+    // An `after` naming a step this flow does not have would silently drop the
+    // step, so it falls back to travelling with the block.
+    if (at !== "end" && !placedSteps.includes(at as CreateStepId)) { floating.push(s.id); continue; }
+    pinned.set(at, [...(pinned.get(at) ?? []), s.id]);
+  }
+  const anchor = extraStepsAfter ? placedSteps.indexOf(extraStepsAfter as CreateStepId) : -1;
+  const flowSteps: CreateStepId[] = [];
+  placedSteps.forEach((s, i) => {
+    flowSteps.push(s);
+    for (const id of pinned.get(s) ?? []) flowSteps.push(id as CreateStepId);
+    if (i === anchor) for (const id of floating) flowSteps.push(id as CreateStepId);
+  });
+  if (anchor < 0) for (const id of floating) flowSteps.push(id as CreateStepId);
+  for (const id of pinned.get("end") ?? []) flowSteps.push(id as CreateStepId);
 
   /*
    * Null means "they have not moved yet", so the opening step is DERIVED: the
