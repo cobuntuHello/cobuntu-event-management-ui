@@ -646,18 +646,23 @@ function WizardInner({
       }
     }
     /*
-     * Hard requirement, 2026-10-31: an event needs at least one ticket tier
-     * to be listed, same rule as the product wizard. Checked on leaving
-     * Pricing ("commerce"), not on leaving Details — at that point the form
-     * hasn't shown Pricing yet, and `d.tiers` is still whatever untouched
-     * initial state the host passed in, so checking it there would trap
-     * every new event on step one.
+     * NO "add at least one tier" GATE HERE, on purpose. One used to sit on
+     * leaving Pricing and again at submit, but it contradicted the form it
+     * was gating: EventForm seeds a "Standard" tier so there is always
+     * something to configure, then deliberately DROPS it from what gets
+     * submitted if the host never touches it (no price, no capacity, no
+     * form, still named "Standard") — that is how a plain free RSVP event
+     * with no tier concept gets created. The backend agrees: `tiers.length
+     * === 0` is read throughout services/core as "this is a free event", not
+     * as a missing-input error (EventTierHelpers, capacityHelpers,
+     * InvitationService's `isFreeEvent`).
+     *
+     * So the gate was blocking a submission the rest of the stack was built
+     * to accept, on the strength of a seeded row the host could see on
+     * screen and had no reason to think needed touching. Removed rather than
+     * reworded: there is no "need a configured tier" rule to express here,
+     * because there isn't one.
      */
-    if (step === "commerce" && !formDataRef.current?.tiers?.length) {
-      setShowErrors(true);
-      setError(t("errNeedTier"));
-      return;
-    }
     if (currentExtra) {
       const v = validateExtra(currentExtra.id);
       if (v) { setExtraErrors((e) => ({ ...e, [currentExtra.id]: true })); setError(v); return; }
@@ -692,14 +697,6 @@ function WizardInner({
     if (v) {
       setShowErrors(true);
       if (d?.name?.trim()) setError(v);
-      return;
-    }
-    // Same hard requirement as above, re-checked at final submit in case a
-    // caller reaches handleSubmit without ever going through goNext's
-    // Pricing-step gate.
-    if (!d?.tiers?.length) {
-      setShowErrors(true);
-      setError(t("errNeedTier"));
       return;
     }
     for (const s of extraSteps) {
