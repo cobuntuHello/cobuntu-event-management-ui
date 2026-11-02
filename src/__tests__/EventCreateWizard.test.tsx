@@ -417,6 +417,36 @@ describe("disableNextOnInvalidExtraStep", () => {
   });
 });
 
+/**
+ * EventForm seeds a "Standard" tier so Pricing is never a blank screen, then
+ * deliberately drops it from what it emits if the host never touches it
+ * (fake({ tiers: [] }) is exactly that emission) -- that is how a plain free
+ * RSVP event with no tier concept gets created, and the backend treats
+ * `tiers.length === 0` as "this is a free event" throughout, not as missing
+ * input. An "add at least one tier" gate on top of that contradicted the
+ * form it was gating and trapped a host who had every reason to think the
+ * visible Standard row was enough.
+ */
+describe("a host who never touches the seeded Standard tier", () => {
+  it("is not blocked leaving Pricing", async () => {
+    h.fake = fake({ tiers: [] });
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement"]);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("can still create the event", async () => {
+    h.fake = fake({ tiers: [] });
+    const { tr } = renderWizard({ initialDrafts: [], canCreateForCommunity: false });
+    await screen.findByTestId("event-form");
+    walk();
+    press("Create");
+    await waitFor(() => expect(tr.createEvent).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
 describe("copy", () => {
   it("defaults to English without a host t", async () => {
     renderWizard({ initialDrafts: [], canCreateForCommunity: false });
