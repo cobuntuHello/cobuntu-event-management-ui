@@ -48,6 +48,15 @@ function stubGetRoutes(tiers: any[]) {
   ];
 }
 
+    /*
+     * No tile click here any more. The PriceEditModal redesign replaced the
+     * Level-2 TILE MENU with an inline edit screen (TierEditView): name,
+     * description and the whole pricing surface are on the tier screen
+     * itself, and only capacity / sales window / registration form drill into
+     * an Advanced sub-screen. These clicks navigated a menu that no longer
+     * exists, so the tests went red for a deliberate design change while the
+     * behaviour they assert was never broken.
+     */
 describe("PriceEditModal — notify-attendees prompt", () => {
   it("fires the prompt when an existing tier's name changes (the regression we're guarding)", async () => {
     const user = userEvent.setup();
@@ -60,8 +69,6 @@ describe("PriceEditModal — notify-attendees prompt", () => {
 
     // L1: tier row shows the name as static text. Click the row → L2 hub.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    // L2 hub → open the Details tile (name + capacity live there now).
-    await user.click(await screen.findByRole("button", { name: /Details/ }));
     const nameInput = (await screen.findByPlaceholderText(
       "Standard, VIP, Early-bird…",
     )) as HTMLInputElement;
@@ -99,7 +106,6 @@ describe("PriceEditModal — notify-attendees prompt", () => {
     // SectionCards are now fully clickable buttons with the section
     // heading as accessible name.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
 
     const priceInput = await screen.findByPlaceholderText("0.00") as HTMLInputElement;
     await user.clear(priceInput);
@@ -130,7 +136,6 @@ describe("PriceEditModal — notify-attendees prompt", () => {
 
     // L1 → click row → L2 hub → open Details (name + capacity live there).
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Details/ }));
 
     const capInput = await screen.findByPlaceholderText("Unlimited") as HTMLInputElement;
     await user.type(capInput, "50");
@@ -155,7 +160,6 @@ describe("PriceEditModal — capacity lock", () => {
     const user = userEvent.setup();
     // L1 → click tier row → L2 → click Basics card → L3 where price lives.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
 
     const priceInput = await screen.findByPlaceholderText("0.00");
     expect(priceInput).toBeDisabled();
@@ -246,7 +250,6 @@ describe("PriceEditModal — save flow correctness", () => {
     // Touch the tier in a non-material way so the prompt doesn't fire
     // (we want the simple save path).
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Details/ }));
     const capInput = await screen.findByPlaceholderText("Unlimited") as HTMLInputElement;
     await user.type(capInput, "50");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
@@ -385,8 +388,6 @@ describe("PriceEditModal — header breadcrumb + single title/subtitle", () => {
     expect(within(nav2).getByRole("button", { name: "Pricing tiers" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "GA", level: 3 })).toBeInTheDocument();
 
-    // L3 (Config step) — crumb trail [Pricing tiers › GA], title "Config".
-    await user.click(await screen.findByRole("button", { name: /Config/ }));
     const nav3 = await screen.findByRole("navigation", { name: "Breadcrumb" });
     expect(within(nav3).getByRole("button", { name: "Pricing tiers" })).toBeInTheDocument();
     expect(within(nav3).getByRole("button", { name: "GA" })).toBeInTheDocument();
@@ -402,7 +403,6 @@ describe("PriceEditModal — header breadcrumb + single title/subtitle", () => {
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Config/ }));
 
     // Crumb "GA" → back to the hub (Config tile visible again).
     const nav3 = await screen.findByRole("navigation", { name: "Breadcrumb" });
@@ -425,13 +425,10 @@ describe("PriceEditModal — header breadcrumb + single title/subtitle", () => {
 
     await user.click(await screen.findByRole("button", { name: /GA/ }));
 
-    // Details → Description field present.
-    await user.click(await screen.findByRole("button", { name: /Details/ }));
     expect(await screen.findByPlaceholderText("What's included")).toBeInTheDocument();
 
     // Back to hub → Pricing configuration → no Description field there.
     await user.click(screen.getByRole("button", { name: /^back$/i }));
-    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
     expect(screen.queryByPlaceholderText("What's included")).not.toBeInTheDocument();
   });
 });
