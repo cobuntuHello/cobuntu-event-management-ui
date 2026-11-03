@@ -13,7 +13,7 @@ import { useEventT, type NamespacedT } from "../../create-wizard/i18n";
 // keyboard-style event-update broadcasts have low pickup vs members
 // already in WhatsApp groups, so we're betting on integrating with
 // where the conversation already lives.
-export type ViewKey = "overview" | "ledger" | "details" | "pricing" | "hosts" | "listings" | "agenda" | "attendees" | "activity" | "updates";
+export type ViewKey = "overview" | "ledger" | "details" | "pricing" | "hosts" | "referrals" | "listings" | "agenda" | "attendees" | "activity" | "updates";
 
 interface Section {
   label: string;
@@ -86,6 +86,19 @@ const SECTIONS: Section[] = [
    * editing surfaces, not that it is adjacent to them.
    */
   { label: "Hosts", key: "hosts" },
+  /*
+   * Referrals sits between Hosts and Attendees.
+   *
+   * The strip reads as the life of an event, and these three are its people in
+   * order of how they touch it: Hosts RUN it, Referrals PROMOTE it, Attendees
+   * CAME to it. Same progression the product page uses (Collaborators,
+   * Referrals, Buyers), so an owner who learns one page can read the other.
+   *
+   * A host SLOT, like the ledger: it appears only where the host passes one.
+   * Listed HERE as well as in visibleViews -- the nav renders the
+   * intersection, so a key in one and not the other is silently dropped.
+   */
+  { label: "Referrals", key: "referrals" },
   { label: "Attendees", key: "attendees" },
   /*
    * "listings" is still a valid KEY, but no longer a TAB: Overview carries one
@@ -259,6 +272,7 @@ function sectionLabel(t: NamespacedT, key: ViewKey): string {
     case "details": return t("details");
     case "pricing": return t("pricing");
     case "hosts": return t("hosts");
+    case "referrals": return t("referrals");
     case "listings": return t("listings");
     case "agenda": return t("agenda");
     case "attendees": return t("attendees");

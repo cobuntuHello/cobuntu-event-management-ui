@@ -107,9 +107,28 @@ describe("the pricing tab", () => {
  */
 describe("the tab order", () => {
     it("reads as the life of an event", () => {
-        expect(SECTION_KEYS.slice(0, 7)).toEqual([
-            "overview", "details", "pricing", "hosts", "attendees", "agenda", "ledger",
+        /*
+         * Referrals joined between Hosts and Attendees (T-303). The three
+         * people tabs now run in the order they touch the event: Hosts RUN it,
+         * Referrals PROMOTE it, Attendees CAME to it -- the same progression
+         * the product manage page uses, so an owner who learns one strip can
+         * read the other.
+         */
+        expect(SECTION_KEYS.slice(0, 8)).toEqual([
+            "overview", "details", "pricing", "hosts", "referrals", "attendees", "agenda", "ledger",
         ]);
+    });
+
+    it("keeps the three people tabs together, uninterrupted by money", () => {
+        /*
+         * The RULE behind the list above, asserted separately so a future tab
+         * landing elsewhere in the strip cannot quietly split them. The
+         * product page has broken exactly this way before by pinning only a
+         * literal list.
+         */
+        const i = (k: string) => SECTION_KEYS.indexOf(k as never);
+        expect(i("referrals")).toBe(i("hosts") + 1);
+        expect(i("attendees")).toBe(i("referrals") + 1);
     });
 
     it("puts the ledger last of the seven, after the people and the plan", () => {
