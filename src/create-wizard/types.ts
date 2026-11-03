@@ -265,6 +265,15 @@ export interface EventCreateWizardCommunity {
   refundBands?: { days: number; pct: number }[] | null;
   /** Names the house in that statement, e.g. "TEJÁ's cancellation terms". */
   refundTitle?: string;
+  /**
+   * What a host reads on the ownership step when `ownershipMode="personalOnly"`
+   * (see EventCreateWizardProps). A venue that never offers community ownership
+   * still needs that first screen to say something — this is where it names
+   * whatever perk the host's own tier carries (a discount, free equipment,
+   * whatever the community decided), since the two-card choice it used to show
+   * instead is gone.
+   */
+  ownershipPerksNote?: React.ReactNode;
 }
 
 export interface EventCreateWizardProps {
@@ -274,6 +283,19 @@ export interface EventCreateWizardProps {
   transport: EventCreateWizardTransport;
   navigation: EventCreateWizardNavigation;
   copy?: EventCreateWizardCopy;
+  /**
+   * `"choice"` (default): a leader with permission sees the community-vs-
+   * personal toggle, as today.
+   *
+   * `"personalOnly"`: the ownership step still exists — a venue that never
+   * offers community ownership still gets to use its first screen — but shows
+   * ONE card, always "personal", with nothing to choose. The backend was
+   * already never offered anything but personal ownership for a host like
+   * this; what changes is the UI stops presenting a choice it would have
+   * refused. Pair with `community.ownershipPerksNote` so the screen says
+   * something rather than standing in for a removed control.
+   */
+  ownershipMode?: "choice" | "personalOnly";
   extraSteps?: EventCreateWizardExtraStep<any>[];
   /**
    * Where `extraSteps` go: right after this built-in step id (e.g. "details").

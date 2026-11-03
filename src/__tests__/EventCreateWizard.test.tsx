@@ -206,6 +206,37 @@ describe("transport", () => {
   });
 });
 
+describe("ownershipMode personalOnly", () => {
+  it("shows one card, no community option, and the perks note", async () => {
+    renderWizard({
+      canCreateForCommunity: true,
+      ownershipMode: "personalOnly",
+      community: {
+        tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true,
+        ownershipPerksNote: "20% off add-ons as a TEJÁ Circle member",
+      },
+    });
+    await screen.findByTestId("event-form");
+    expect(railLabel()).toBe("Who is hosting");
+    // The community-ownership card is gone entirely, not just unselected.
+    expect(screen.queryByText("Orbis")).toBeNull();
+    expect(screen.getByText("20% off add-ons as a TEJÁ Circle member")).toBeTruthy();
+  });
+
+  it("still creates with ownership personal, same as a non-leader", async () => {
+    const { tr, onDone } = renderWizard({
+      initialDrafts: [], canCreateForCommunity: true, ownershipMode: "personalOnly",
+    });
+    await screen.findByTestId("event-form");
+    walk();
+    press("Create & List");
+    await waitFor(() => expect(tr.createEvent).toHaveBeenCalledTimes(1));
+    expect((tr.createEvent as any).mock.calls[0][0]).toMatchObject({ ownership: "personal" });
+    await screen.findByRole("status");
+    expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ ownership: "personal" }));
+  });
+});
+
 describe("drafts without a host route", () => {
   it("resumes a draft in place from the Continue step", async () => {
     const getDraft = vi.fn(async () => ({ id: "d-1", name: "Half done", draftStep: "commerce", communityId: null }));
