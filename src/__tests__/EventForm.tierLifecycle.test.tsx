@@ -74,10 +74,11 @@ describe("EventForm — adding a ticket tier", () => {
     // Just the seeded "Standard" — the cancelled one left nothing behind.
     expect(tierRowNames()).toHaveLength(1);
 
-    // And the untouched seed is not submitted, so the event still creates as a
-    // plain free RSVP with no tiers (see submittableTiers in EventForm).
+    // And the seed itself is still submitted (it's what satisfies the
+    // min-one-tier requirement for an otherwise-untouched free event) — the
+    // cancelled attempt left no SECOND tier behind, not zero tiers total.
     const lastCall = onChange.mock.calls.at(-1)?.[0];
-    expect(lastCall?.tiers ?? []).toEqual([]);
+    expect(lastCall?.tiers).toHaveLength(1);
   });
 
   it("cancelling three times still leaves no tiers", async () => {
@@ -135,9 +136,13 @@ describe("EventForm — adding a ticket tier", () => {
  * a free event with limited spots or an application form was unreachable.
  * ProductForm has always seeded one; this is that parity.
  *
- * The half that is easy to regress is what gets SUBMITTED. An untouched seed
- * must not create a ticket tier — that would move every wizard-created event
- * off the tier-less RSVP path and start stamping a tierId on attendances.
+ * An untouched seed used to be dropped at submit on purpose — creating a
+ * ticket tier for a host who never opened it would move the event off a
+ * tier-less RSVP path (attendances with no tierId). That path is retired: at
+ * least one tier is now a hard requirement to publish (2026-10-31, same
+ * decision as products and courses), and the untouched seed is exactly what
+ * satisfies it for a plain free event. It is submitted now, same as every
+ * other tier.
  */
 describe("EventForm — the seeded Standard tier", () => {
   beforeEach(() => {
@@ -155,13 +160,13 @@ describe("EventForm — the seeded Standard tier", () => {
     expect(tierRowNames()[0]).toMatch(/Free/);
   });
 
-  it("does NOT submit the seed when the host never touches it", async () => {
-    // The load-bearing one. A plain free event must still create with zero
-    // tiers, exactly as it did before this row existed.
+  it("DOES submit the untouched seed — it's what satisfies the min-one-tier requirement", async () => {
     const onChange = vi.fn();
     renderWithConfig(<EventForm communityTag="c-1" onChange={onChange} />);
 
-    expect(onChange.mock.calls.at(-1)?.[0].tiers).toEqual([]);
+    const tiers = onChange.mock.calls.at(-1)?.[0].tiers;
+    expect(tiers).toHaveLength(1);
+    expect(tiers[0].name).toBe("Standard");
   });
 
   it("submits the seed once it carries a capacity", async () => {

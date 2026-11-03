@@ -837,29 +837,21 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   /**
    * What actually gets submitted.
    *
-   * The seeded "Standard" tier is an ENTRY POINT, not a decision: a host who
-   * never opens it wanted a plain free event, and creating a ticket tier for
-   * them would move the event off the tier-less RSVP path (attendances would
-   * start carrying a tierId). So an untouched seed is dropped and the event
-   * submits with no tiers — the same end state as before this row existed,
-   * and the same end state ProductForm produces for its own untouched seed.
+   * Used to drop an untouched "Standard" seed on the theory that opening it
+   * was a decision and never opening it meant "plain free event, no ticket
+   * tier at all" — a tier-less RSVP path distinct from a ticketed one
+   * (attendances with no tierId). That path is retired: at least one tier is
+   * now a hard requirement to publish an event (2026-10-31, same decision as
+   * products and courses — the backend backfilled a Standard tier onto every
+   * live tier-less event in prod rather than leave the RSVP path standing).
+   * The untouched seed is exactly what satisfies that requirement for a
+   * plain free event, so it is submitted now, same as every other tier —
+   * same fix, same reasoning as ProductForm's identical history.
    *
-   * "Touched" is deliberately wider than "charges money", which is the test
-   * ProductForm uses. Products drops a free tier even when it carries a
-   * capacity or a registration form, silently discarding both. Events can
-   * already ship a named free tier and that is worth keeping, so anything the
-   * host actually configured counts.
+   * Still memoised (now effectively `tiers` itself) so the emit effect below
+   * keeps a stable dependency rather than firing on every render.
    */
-  const submittableTiers = useMemo(() => tiers.filter((t) => {
-    const charges = !!t.price && parseFloat(t.price) > 0;
-    const configured = !!t.capacity || !!t.draftForm?.fields?.length;
-    const renamed = t.name.trim() !== "" && t.name.trim() !== "Standard";
-    return charges || configured || renamed;
-  // Memoised so the emit effect below has a stable dependency. Without it the
-  // effect fires on every render and the consumer's onChange runs each time
-  // (CreateEventClient setStates from it — React bails on an unchanged value,
-  // but relying on that bail-out for correctness is not worth it).
-  }), [tiers]);
+  const submittableTiers = useMemo(() => tiers, [tiers]);
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
