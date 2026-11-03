@@ -422,6 +422,20 @@ describe("the commission step", () => {
     await toCommissionStep();
     expect(screen.getByText(/has not published terms for your tier/)).toBeInTheDocument();
   });
+
+  it("shows Cobuntu's and Stripe's cuts even with no community package published", async () => {
+    // Regression: this step used to take a separate branch for the
+    // zero-packages case that rendered only the note above and never
+    // reached PackagePicker, so a host on a tier with no published terms
+    // saw nothing about what they would actually be charged.
+    await toCommissionStep({
+      community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.025 },
+    });
+    expect(screen.getByText("Card processing")).toBeInTheDocument();
+    expect(screen.getByText("Cobuntu")).toBeInTheDocument();
+    expect(screen.getByText("1.5% + €0.25")).toBeInTheDocument();
+    expect(screen.getByText("2.5% + €0.05")).toBeInTheDocument();
+  });
 });
 
 /**
