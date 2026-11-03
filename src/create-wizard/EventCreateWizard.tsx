@@ -941,9 +941,20 @@ function WizardInner({
             )}
           </div>
 
-      {/* The arrangement: the only part of the flow that decides what the host is PAID. */}
+      {/* The commission: informational only, same as product-management-ui's
+          wizard (cobuntu-product-management-ui#163) -- a plain header, never
+          a toggle; the breakdown below always renders once there is
+          something to show. */}
       <StepPane active={step === "listing"} direction={direction}>
         <div className="max-w-[560px]">
+          <div
+            className="mb-5 rounded-[var(--button-radius,0.75rem)] border px-4 py-3.5"
+            style={{ borderColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
+          >
+            <span className="block text-[14px] font-medium">{t("stepListingTitle")}</span>
+            <span className="mt-0.5 block text-[12.5px] opacity-60">{t("stepListingSubtitle", { community: communityName })}</span>
+          </div>
+
           {/* Empty is legitimate and has to SAY so: the community proposes the rate at review. */}
           {packages.length === 0 && (
             <p className="text-[13.5px] leading-relaxed opacity-65">
@@ -957,7 +968,22 @@ function WizardInner({
                 value={packageId}
                 onChange={setPackageId}
                 communityName={communityName}
-                platformFee={{ rate: 4, fixedCents: 30, processing: { rate: 1.5, fixedCents: 25 } }}
+                /*
+                 * `platformFeeRate` is Cobuntu's NET cut (0 for a premium
+                 * community), but `platformFee.rate` wants the ALL-IN gross
+                 * -- Cobuntu pays Stripe out of it, so processing rides ON
+                 * TOP of the net rate rather than replacing it. See
+                 * cobuntu-product-management-ui's identical comment for the
+                 * full reasoning (ProductCreateWizard.tsx's own listing
+                 * step). Falls back to 2.5% net (4% all-in, this call's
+                 * previous hardcoded total) only when an un-updated host
+                 * never supplies a real rate.
+                 */
+                platformFee={{
+                  rate: (platformFeeRate ?? 0.025) * 100 + 1.5,
+                  fixedCents: 30,
+                  processing: { rate: 1.5, fixedCents: 25 },
+                }}
               />
             </div>
           )}

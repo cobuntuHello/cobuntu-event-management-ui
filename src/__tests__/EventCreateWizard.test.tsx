@@ -253,7 +253,7 @@ describe("extra steps", () => {
     const { tr, onDone } = renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps });
     await screen.findByTestId("event-form");
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-label", "Step 1 of 5");
-    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement", "About you"]);
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Commission", "About you"]);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Tell us about you");
 
     press("Create");
@@ -275,13 +275,13 @@ describe("extraStepsAfter", () => {
   it("puts the extra steps right after the named step", async () => {
     renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, extraStepsAfter: "details" });
     await screen.findByTestId("event-form");
-    expect(walk()).toEqual(["Details", "About you", "Pricing", "Policies & access", "Arrangement"]);
+    expect(walk()).toEqual(["Details", "About you", "Pricing", "Policies & access", "Commission"]);
   });
 
   it("falls back to the end when the step is not in the flow", async () => {
     renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, extraStepsAfter: "nope" });
     await screen.findByTestId("event-form");
-    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement", "About you"]);
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Commission", "About you"]);
   });
 });
 
@@ -300,7 +300,7 @@ describe("per-step placement", () => {
       extraSteps: [step("about-you", "About you"), step("review", "Review", "end")],
     });
     await screen.findByTestId("event-form");
-    expect(walk()).toEqual(["Details", "About you", "Pricing", "Policies & access", "Arrangement", "Review"]);
+    expect(walk()).toEqual(["Details", "About you", "Pricing", "Policies & access", "Commission", "Review"]);
   });
 
   it("'end' goes last even with no block anchor at all", async () => {
@@ -309,7 +309,7 @@ describe("per-step placement", () => {
       extraSteps: [step("review", "Review", "end"), step("about-you", "About you")],
     });
     await screen.findByTestId("event-form");
-    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement", "About you", "Review"]);
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Commission", "About you", "Review"]);
   });
 
   it("pins to a named built-in step", async () => {
@@ -318,7 +318,7 @@ describe("per-step placement", () => {
       extraSteps: [step("when", "When", "details")],
     });
     await screen.findByTestId("event-form");
-    expect(walk()).toEqual(["Details", "When", "Pricing", "Policies & access", "Arrangement"]);
+    expect(walk()).toEqual(["Details", "When", "Pricing", "Policies & access", "Commission"]);
   });
 
   it("an `after` naming a step this flow does not have travels with the block instead of vanishing", async () => {
@@ -327,7 +327,7 @@ describe("per-step placement", () => {
       extraSteps: [step("review", "Review", "nowhere")],
     });
     await screen.findByTestId("event-form");
-    expect(walk()).toEqual(["Details", "Review", "Pricing", "Policies & access", "Arrangement"]);
+    expect(walk()).toEqual(["Details", "Review", "Pricing", "Policies & access", "Commission"]);
   });
 });
 
@@ -366,7 +366,61 @@ describe("hideArrangementStep", () => {
     // walk() ADVANCES the wizard, so it is spent once: wait for the packages
     // to land first, then walk exactly once.
     await waitFor(() => expect(tr.myPackages).toHaveBeenCalled());
-    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement", "Review"]);
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Commission", "Review"]);
+  });
+});
+
+describe("the commission step", () => {
+  async function toCommissionStep(over: Partial<EventCreateWizardProps> = {}) {
+    const utils = renderWizard({ initialDrafts: [], canCreateForCommunity: false, ...over });
+    await screen.findByTestId("event-form");
+    for (let i = 0; i < 10 && railLabel() !== "Commission"; i++) press("Next");
+    return utils;
+  }
+
+  it("has no toggle — the commission is always shown, never a decision", async () => {
+    await toCommissionStep({
+      transport: transport({ myPackages: vi.fn(async () => [{ id: "pk1", name: "Standard", description: null, rate: 10 }]) }),
+    });
+    await screen.findByText("Standard");
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+  });
+
+  // Multiple packages, so PackagePicker takes its split-breakdown path
+  // rather than the single-package combined sentence.
+  const twoPackages = vi.fn(async () => [
+    { id: "pk1", name: "Standard", description: null, rate: 10 },
+    { id: "pk2", name: "Featured", description: null, rate: 15 },
+  ]);
+
+  it("shows every community package, plus Cobuntu's and Stripe's cuts split apart", async () => {
+    await toCommissionStep({
+      transport: transport({ myPackages: twoPackages }),
+      community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.025 },
+    });
+    await screen.findByText("Standard");
+    expect(screen.getByText("Featured")).toBeInTheDocument();
+    expect(screen.getByText("10%")).toBeInTheDocument();
+    expect(screen.getByText("15%")).toBeInTheDocument();
+    expect(screen.getByText("Card processing")).toBeInTheDocument();
+    expect(screen.getByText("Cobuntu")).toBeInTheDocument();
+    // 2.5% platform rate, same 1.5%/€0.25 processing split PackagePicker always uses.
+    expect(screen.getByText("1.5% + €0.25")).toBeInTheDocument();
+    expect(screen.getByText("2.5% + €0.05")).toBeInTheDocument();
+  });
+
+  it("zeroes Cobuntu's cut when the host reports a premium community (platformFeeRate 0)", async () => {
+    await toCommissionStep({
+      transport: transport({ myPackages: twoPackages }),
+      community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0 },
+    });
+    await screen.findByText("Standard");
+    expect(screen.getByText("0% + €0.05")).toBeInTheDocument();
+  });
+
+  it("still shows the no-packages note when the community has published none", async () => {
+    await toCommissionStep();
+    expect(screen.getByText(/has not published terms for your tier/)).toBeInTheDocument();
   });
 });
 
@@ -432,7 +486,7 @@ describe("a host who never touches the seeded Standard tier", () => {
     h.fake = fake({ tiers: [] });
     renderWizard({ initialDrafts: [], canCreateForCommunity: false });
     await screen.findByTestId("event-form");
-    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Arrangement"]);
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Commission"]);
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
