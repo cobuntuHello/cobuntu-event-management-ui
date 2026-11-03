@@ -975,6 +975,7 @@ function WizardInner({
               onChange={setPackageId}
               communityName={communityName}
               emptyLabel={t("noPackagesNote", { community: communityName })}
+              approval={{ requiresApproval: memberRequireApproval, reviewerLabel: communityName }}
               /*
                * `platformFeeRate` is Cobuntu's NET cut (0 for a premium
                * community), but `platformFee.rate` wants the ALL-IN gross
