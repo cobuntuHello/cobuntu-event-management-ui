@@ -11,6 +11,7 @@ import { Collapse, Eyebrow, StepInput } from "../_primitives";
 import { MembersStep } from "./MembersStep";
 import { StripePayoutNotice, useStripeStatus } from "../../stripe-status";
 import type { MemberPricingRow, MemberPricingTierState } from "../member-pricing";
+import { useEventT } from "../../../create-wizard/i18n";
 
 export interface BasicsStepProps {
   t: DraftTier;
@@ -56,6 +57,8 @@ export function BasicsStep({
   showToast,
   draftMode,
 }: BasicsStepProps) {
+  // `t` is the tier draft here, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.basicsStep");
   const sym = getSymbol(t.currency);
   const locked = isTierLocked(t);
 
@@ -80,8 +83,8 @@ export function BasicsStep({
       {/* Pricing model — fixed vs PWYW. Above the price so the host picks
           the model before typing the amount. Locked once sales exist. */}
       <div>
-        <Eyebrow help="Fixed price charges everyone the same. Pay-what-you-want lets each buyer choose their amount at checkout (with an optional minimum).">
-          Pricing model
+        <Eyebrow help={tx("pricingModelHelp")}>
+          {tx("pricingModel")}
         </Eyebrow>
         <div className="grid grid-cols-2 gap-2 mt-1.5">
           <button
@@ -89,17 +92,17 @@ export function BasicsStep({
             onClick={() => !locked && onUpdate({ priceMode: "fixed" })}
             disabled={locked}
             className={`px-3 py-2 text-[13px] rounded-lg border transition-colors ${t.priceMode === "fixed" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"} ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-          >Fixed price</button>
+          >{tx("fixedPrice")}</button>
           <button
             type="button"
             onClick={() => !locked && onUpdate({ priceMode: "pwyw" })}
             disabled={locked}
             className={`px-3 py-2 text-[13px] rounded-lg border transition-colors ${t.priceMode === "pwyw" ? "border-zinc-900 bg-zinc-50 text-zinc-900 font-medium" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"} ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-          >Pay what you want</button>
+          >{tx("payWhatYouWant")}</button>
         </div>
         {t.priceMode === "pwyw" && (
           <p className="text-[11px] text-zinc-500 mt-1.5">
-            Buyer chooses the amount at checkout. The price below acts as a suggested default.
+            {tx("pwywHint")}
           </p>
         )}
       </div>
@@ -107,7 +110,7 @@ export function BasicsStep({
       {/* Price + Currency */}
       <div className="grid grid-cols-[1fr_120px] gap-2.5">
         <div>
-          <Eyebrow>{t.priceMode === "pwyw" ? "Suggested price" : "Price"}</Eyebrow>
+          <Eyebrow>{t.priceMode === "pwyw" ? tx("suggestedPrice") : tx("price")}</Eyebrow>
           <div className="mt-1">
             <StepInput
               type="number" min="0" step="0.01" value={t.price}
@@ -115,12 +118,12 @@ export function BasicsStep({
               placeholder="0.00"
               locked={locked}
               prefix={sym}
-              title={locked ? "Refund all sales first to change price" : undefined}
+              title={locked ? tx("priceLockedTitle") : undefined}
             />
           </div>
         </div>
         <div>
-          <Eyebrow>Currency</Eyebrow>
+          <Eyebrow>{tx("currency")}</Eyebrow>
           <Select value={t.currency} onValueChange={(v) => onUpdate({ currency: v })} disabled={locked}>
             <SelectTrigger className={`h-[38px] mt-1 text-[13px] ${locked ? "text-zinc-400 bg-zinc-50 cursor-not-allowed" : ""}`}><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -163,12 +166,12 @@ export function BasicsStep({
       {/* PWYW minimum — the floor under the buyer-chosen amount. */}
       <Collapse open={t.priceMode === "pwyw"}>
         <div>
-          <Eyebrow>Minimum amount (optional)</Eyebrow>
+          <Eyebrow>{tx("pwywMin")}</Eyebrow>
           <div className="mt-1 max-w-[220px]">
             <StepInput
               type="number" min="0" step="0.01" value={t.pwywMin}
               onChange={(e) => onUpdate({ pwywMin: e.target.value })}
-              placeholder="No minimum"
+              placeholder={tx("noMinimum")}
               locked={locked}
               prefix={sym}
             />
@@ -181,8 +184,8 @@ export function BasicsStep({
           runs Stripe in mode='payment' and a subscription tier would
           silently no-op. Marketplace products surface all three modes. */}
       <div>
-        <Eyebrow help="One-time charges the full price at checkout. Installment plan splits it into equal monthly charges you configure below.">
-          Billing mode
+        <Eyebrow help={tx("billingModeHelp")}>
+          {tx("billingMode")}
         </Eyebrow>
         <div className="mt-1.5">
           <BillingRadio
@@ -194,26 +197,26 @@ export function BasicsStep({
             options={[
               {
                 value: "ONE_TIME",
-                label: "One-time",
-                description: "Buyers pay the full price at checkout.",
+                label: tx("oneTime"),
+                description: tx("oneTimeDesc"),
               },
               {
                 value: "RECURRING",
-                label: "Recurring",
-                description: "Not available for events.",
+                label: tx("recurring"),
+                description: tx("recurringDesc"),
                 hidden: true,
               },
               {
                 value: "INSTALLMENT_PLAN",
-                label: "Installment plan",
-                description: "Buyers pay in equal monthly charges; configure the schedule below.",
+                label: tx("installmentPlan"),
+                description: tx("installmentPlanDesc"),
               },
             ]}
           />
         </div>
         {locked && (
           <p className="text-[11px] text-amber-600 mt-1.5">
-            Billing mode is locked while tickets are sold. Refund all sales first to change.
+            {tx("billingLocked")}
           </p>
         )}
       </div>
@@ -224,14 +227,14 @@ export function BasicsStep({
       <Collapse open={t.installmentEnabled}>
         <div className="space-y-2">
           <div>
-            <Eyebrow>Installment schedule</Eyebrow>
+            <Eyebrow>{tx("installmentSchedule")}</Eyebrow>
             <p className="text-[11px] text-zinc-500 mt-1">
-              The total below is charged in equal parts over the count and interval.
+              {tx("installmentScheduleHint")}
             </p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             <div>
-              <Eyebrow>Total ({sym})</Eyebrow>
+              <Eyebrow>{tx("installmentTotal", { symbol: sym })}</Eyebrow>
               <div className="mt-1">
                 <StepInput
                   type="number" min="0" step="0.01" value={t.installmentTotal}
@@ -242,7 +245,7 @@ export function BasicsStep({
               </div>
             </div>
             <div>
-              <Eyebrow>Charges</Eyebrow>
+              <Eyebrow>{tx("installmentCharges")}</Eyebrow>
               <div className="mt-1">
                 <StepInput
                   type="number" min="2" step="1" value={t.installmentCount}
@@ -253,7 +256,7 @@ export function BasicsStep({
               </div>
             </div>
             <div>
-              <Eyebrow>Every (months)</Eyebrow>
+              <Eyebrow>{tx("installmentEvery")}</Eyebrow>
               <div className="mt-1">
                 <StepInput
                   type="number" min="1" step="1" value={t.installmentInterval}
@@ -269,12 +272,17 @@ export function BasicsStep({
             && t.installmentCount
             && parseInt(t.installmentCount, 10) >= 2 && (
             <p className="text-[11px] text-zinc-500">
-              Buyer pays {sym}{(parseFloat(t.installmentTotal) / parseInt(t.installmentCount, 10)).toFixed(2)} every {t.installmentInterval || "1"} month{(t.installmentInterval || "1") !== "1" ? "s" : ""} for {t.installmentCount} charges.
+              {tx("installmentSummary", {
+                amount: `${sym}${(parseFloat(t.installmentTotal) / parseInt(t.installmentCount, 10)).toFixed(2)}`,
+                interval: t.installmentInterval || "1",
+                months: (t.installmentInterval || "1") !== "1" ? "other" : "one",
+                count: t.installmentCount,
+              })}
             </p>
           )}
           {locked && (
             <p className="text-[10px] text-amber-600">
-              Installment plan is locked while tickets are sold.
+              {tx("installmentLocked")}
             </p>
           )}
         </div>

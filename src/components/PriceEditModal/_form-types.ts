@@ -3,6 +3,8 @@
  * the standalone /form page that the redesign retires.
  */
 
+import { getEventT } from "../../create-wizard/i18n";
+
 export interface FormFieldOption {
   id: string;
   label: string;
@@ -58,8 +60,18 @@ export const FIELD_TYPES: ReadonlyArray<{
   { type: "RATING", label: "Rating", desc: "Star or number rating" },
 ];
 
+/**
+ * The type's label and description in the HOST's language.
+ *
+ * FIELD_TYPES keeps the English as the canonical list (order + defaults); the
+ * words come from the host translator, keyed by the type, so the field picker
+ * and the question rows read in the community's locale.
+ */
 export function fieldTypeMeta(type: FieldType | string) {
-  return FIELD_TYPES.find((t) => t.type === type);
+  const meta = FIELD_TYPES.find((ft) => ft.type === type);
+  if (!meta) return undefined;
+  const t = getEventT("eventsUi.manageUi.formFieldTypes");
+  return { ...meta, label: t(`label_${meta.type}`), desc: t(`desc_${meta.type}`) };
 }
 
 export function isSeparator(item: Item): item is Separator {
@@ -127,12 +139,12 @@ export function makeBlankField(type: FieldType): FormField {
   return {
     id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     type,
-    label: fieldTypeMeta(type)?.label || "Field",
+    label: fieldTypeMeta(type)?.label || getEventT("eventsUi.manageUi.formFieldTypes")("field"),
     required: type === "EMAIL",
     options: fieldHasOptions(type)
       ? [
-          { id: "opt-1", label: "Option 1" },
-          { id: "opt-2", label: "Option 2" },
+          { id: "opt-1", label: getEventT("eventsUi.manageUi.formFieldTypes")("optionN", { n: 1 }) },
+          { id: "opt-2", label: getEventT("eventsUi.manageUi.formFieldTypes")("optionN", { n: 2 }) },
         ]
       : undefined,
   };

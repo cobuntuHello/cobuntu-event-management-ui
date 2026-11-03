@@ -7,7 +7,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Calendar } from "./calendar";
 import { cn } from "./utils";
 import { format } from "date-fns";
-import { enUS } from "date-fns/locale";
+import { useEventT } from "../create-wizard/i18n";
+import { useDateFnsLocale } from "./date-locale";
 
 interface EventTimestampsProps {
   startDate: Date | null;
@@ -44,27 +45,27 @@ for (let h = 0; h < 24; h++) {
 }
 
 // Common timezones
-const TIMEZONES = [
-  { value: "Europe/Lisbon", label: "Lisbon", offset: "UTC+0/+1" },
-  { value: "Europe/London", label: "London", offset: "UTC+0/+1" },
-  { value: "Europe/Paris", label: "Paris", offset: "UTC+1/+2" },
-  { value: "Europe/Berlin", label: "Berlin", offset: "UTC+1/+2" },
-  { value: "Europe/Madrid", label: "Madrid", offset: "UTC+1/+2" },
-  { value: "Europe/Rome", label: "Rome", offset: "UTC+1/+2" },
-  { value: "America/New_York", label: "New York", offset: "UTC-5/-4" },
-  { value: "America/Chicago", label: "Chicago", offset: "UTC-6/-5" },
-  { value: "America/Denver", label: "Denver", offset: "UTC-7/-6" },
-  { value: "America/Los_Angeles", label: "Los Angeles", offset: "UTC-8/-7" },
-  { value: "America/Sao_Paulo", label: "São Paulo", offset: "UTC-3" },
-  { value: "Asia/Tokyo", label: "Tokyo", offset: "UTC+9" },
-  { value: "Asia/Shanghai", label: "Shanghai", offset: "UTC+8" },
-  { value: "Asia/Dubai", label: "Dubai", offset: "UTC+4" },
-  { value: "Asia/Singapore", label: "Singapore", offset: "UTC+8" },
-  { value: "Asia/Kolkata", label: "Kolkata", offset: "UTC+5:30" },
-  { value: "Australia/Sydney", label: "Sydney", offset: "UTC+10/+11" },
-  { value: "Pacific/Auckland", label: "Auckland", offset: "UTC+12/+13" },
-  { value: "Africa/Johannesburg", label: "Johannesburg", offset: "UTC+2" },
-  { value: "Africa/Lagos", label: "Lagos", offset: "UTC+1" },
+const TIMEZONE_OPTIONS = [
+  { value: "Europe/Lisbon", label: "Lisbon", labelKey: "tzLisbon", offset: "UTC+0/+1" },
+  { value: "Europe/London", label: "London", labelKey: "tzLondon", offset: "UTC+0/+1" },
+  { value: "Europe/Paris", label: "Paris", labelKey: "tzParis", offset: "UTC+1/+2" },
+  { value: "Europe/Berlin", label: "Berlin", labelKey: "tzBerlin", offset: "UTC+1/+2" },
+  { value: "Europe/Madrid", label: "Madrid", labelKey: "tzMadrid", offset: "UTC+1/+2" },
+  { value: "Europe/Rome", label: "Rome", labelKey: "tzRome", offset: "UTC+1/+2" },
+  { value: "America/New_York", label: "New York", labelKey: "tzNewYork", offset: "UTC-5/-4" },
+  { value: "America/Chicago", label: "Chicago", labelKey: "tzChicago", offset: "UTC-6/-5" },
+  { value: "America/Denver", label: "Denver", labelKey: "tzDenver", offset: "UTC-7/-6" },
+  { value: "America/Los_Angeles", label: "Los Angeles", labelKey: "tzLosAngeles", offset: "UTC-8/-7" },
+  { value: "America/Sao_Paulo", label: "São Paulo", labelKey: "tzSaoPaulo", offset: "UTC-3" },
+  { value: "Asia/Tokyo", label: "Tokyo", labelKey: "tzTokyo", offset: "UTC+9" },
+  { value: "Asia/Shanghai", label: "Shanghai", labelKey: "tzShanghai", offset: "UTC+8" },
+  { value: "Asia/Dubai", label: "Dubai", labelKey: "tzDubai", offset: "UTC+4" },
+  { value: "Asia/Singapore", label: "Singapore", labelKey: "tzSingapore", offset: "UTC+8" },
+  { value: "Asia/Kolkata", label: "Kolkata", labelKey: "tzKolkata", offset: "UTC+5:30" },
+  { value: "Australia/Sydney", label: "Sydney", labelKey: "tzSydney", offset: "UTC+10/+11" },
+  { value: "Pacific/Auckland", label: "Auckland", labelKey: "tzAuckland", offset: "UTC+12/+13" },
+  { value: "Africa/Johannesburg", label: "Johannesburg", labelKey: "tzJohannesburg", offset: "UTC+2" },
+  { value: "Africa/Lagos", label: "Lagos", labelKey: "tzLagos", offset: "UTC+1" },
 ];
 
 export function EventTimestamps({
@@ -78,6 +79,9 @@ export function EventTimestamps({
   const [isEndTimeOpen, setIsEndTimeOpen] = useState(false);
   const [isTimezoneOpen, setIsTimezoneOpen] = useState(false);
   const [timezoneSearch, setTimezoneSearch] = useState("");
+  const t = useEventT("eventsUi.manageUi.eventTimestamps");
+  const dateLocale = useDateFnsLocale();
+  const TIMEZONES = TIMEZONE_OPTIONS.map((tz) => ({ ...tz, label: t(tz.labelKey) }));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -109,8 +113,8 @@ export function EventTimestamps({
   }, [startDate, endDate, startTime, endTime, onEndDateChange, onEndTimeChange]);
 
   const formatDateDisplay = (date: Date | null) => {
-    if (!date) return "Select date";
-    return format(date, "EEE, d MMM", { locale: enUS });
+    if (!date) return t("selectDate");
+    return format(date, "EEE, d MMM", { locale: dateLocale });
   };
 
   /**
@@ -122,8 +126,8 @@ export function EventTimestamps({
    * to disambiguate on a form you're actively editing.
    */
   const formatDateDisplayCompact = (date: Date | null) => {
-    if (!date) return "Select";
-    return format(date, "d MMM", { locale: enUS });
+    if (!date) return t("select");
+    return format(date, "d MMM", { locale: dateLocale });
   };
 
   const getAvailableTimeOptions = (selectedDate: Date | null, isEnd: boolean = false) => {
@@ -132,8 +136,8 @@ export function EventTimestamps({
       const [sh, sm] = startTime.split(":").map(Number);
       minTime = sh * 60 + sm + 30;
     }
-    return TIME_OPTIONS.filter(t => {
-      const [h, m] = t.split(":").map(Number);
+    return TIME_OPTIONS.filter(opt => {
+      const [h, m] = opt.split(":").map(Number);
       return h * 60 + m > minTime;
     });
   };
@@ -167,7 +171,7 @@ export function EventTimestamps({
           {/* Start */}
           <div className="space-y-1">
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-sm font-medium text-zinc-700 w-9 sm:w-12 shrink-0">Start</span>
+              <span className="text-sm font-medium text-zinc-700 w-9 sm:w-12 shrink-0">{t("start")}</span>
               <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={disabled}
@@ -192,10 +196,10 @@ export function EventTimestamps({
                 </PopoverTrigger>
                 <PopoverContent className="w-32 p-0">
                   <div className="max-h-60 overflow-y-auto">
-                    {getAvailableTimeOptions(startDate).map(t => (
-                      <Button key={t} variant="ghost" className="w-full justify-start text-left font-normal h-8"
-                        onClick={() => { onStartTimeChange(t); setIsStartTimeOpen(false); }}>
-                        {t}
+                    {getAvailableTimeOptions(startDate).map(opt => (
+                      <Button key={opt} variant="ghost" className="w-full justify-start text-left font-normal h-8"
+                        onClick={() => { onStartTimeChange(opt); setIsStartTimeOpen(false); }}>
+                        {opt}
                       </Button>
                     ))}
                   </div>
@@ -210,7 +214,7 @@ export function EventTimestamps({
           {/* End */}
           <div className="space-y-1">
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-sm font-medium text-zinc-700 w-9 sm:w-12 shrink-0">End</span>
+              <span className="text-sm font-medium text-zinc-700 w-9 sm:w-12 shrink-0">{t("end")}</span>
               <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={disabled}
@@ -235,14 +239,14 @@ export function EventTimestamps({
                 </PopoverTrigger>
                 <PopoverContent className="w-32 p-0">
                   <div className="max-h-60 overflow-y-auto">
-                    {getAvailableTimeOptions(endDate, true).map(t => (
-                      <Button key={t} variant="ghost" className="w-full justify-start text-left font-normal h-8"
-                        onClick={() => { onEndTimeChange(t); setIsEndTimeOpen(false); }}>
-                        {t}
+                    {getAvailableTimeOptions(endDate, true).map(opt => (
+                      <Button key={opt} variant="ghost" className="w-full justify-start text-left font-normal h-8"
+                        onClick={() => { onEndTimeChange(opt); setIsEndTimeOpen(false); }}>
+                        {opt}
                       </Button>
                     ))}
                     {getAvailableTimeOptions(endDate, true).length === 0 && (
-                      <div className="p-2 text-sm text-zinc-400 text-center">No times available</div>
+                      <div className="p-2 text-sm text-zinc-400 text-center">{t("noTimes")}</div>
                     )}
                   </div>
                 </PopoverContent>
@@ -273,13 +277,13 @@ export function EventTimestamps({
             <div className="p-3 border-b border-zinc-100">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                <input type="text" placeholder="Search timezone..." value={timezoneSearch} onChange={e => setTimezoneSearch(e.target.value)}
+                <input type="text" placeholder={t("searchTimezone")} value={timezoneSearch} onChange={e => setTimezoneSearch(e.target.value)}
                   className="w-full pl-10 pr-3 py-2 bg-transparent border border-zinc-200 rounded-md focus:outline-none focus:border-zinc-400 text-sm" />
               </div>
             </div>
             <div className="p-2">
               <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
-                {timezoneSearch ? "Search Results" : "All Timezones"}
+                {timezoneSearch ? t("searchResults") : t("allTimezones")}
               </div>
               <div className="max-h-60 overflow-y-auto">
                 {filteredTimezones.map(tz => (
@@ -293,7 +297,7 @@ export function EventTimestamps({
                   </Button>
                 ))}
                 {filteredTimezones.length === 0 && (
-                  <div className="text-center py-4 text-zinc-400 text-sm">No timezones found</div>
+                  <div className="text-center py-4 text-zinc-400 text-sm">{t("noTimezones")}</div>
                 )}
               </div>
             </div>

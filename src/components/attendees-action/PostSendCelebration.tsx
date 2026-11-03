@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useEventT } from "../../create-wizard/i18n";
 
 /**
  * Stats + delivery status state shown after a successful Invite or Add.
@@ -49,6 +50,7 @@ export function PostSendCelebration({
     authHeaders,
     apiBaseUrl,
 }: Props) {
+    const tx = useEventT("eventsUi.manageUi.postSendCelebration");
     const [deliveries, setDeliveries] = useState(initialDeliveries);
     const [polling, setPolling] = useState(mode === "invite" && initialDeliveries.length > 0);
 
@@ -105,10 +107,10 @@ export function PostSendCelebration({
             <div className="px-5 sm:px-6 py-8 sm:py-12 flex flex-col items-center text-center">
                 <CheckBig />
                 <h3 className="text-lg font-semibold text-zinc-900 mt-4">
-                    {successCount} attendee{successCount === 1 ? "" : "s"} added
+                    {tx("attendeesAdded", { count: successCount })}
                 </h3>
                 <p className="text-sm text-zinc-500 mt-1 max-w-sm">
-                    Confirmation emails have been dispatched to anyone with an email address on file.
+                    {tx("confirmationsDispatched")}
                 </p>
             </div>
         );
@@ -119,10 +121,10 @@ export function PostSendCelebration({
             <div className="flex flex-col items-center text-center mb-6">
                 <CheckBig />
                 <h3 className="text-lg font-semibold text-zinc-900 mt-4">
-                    {successCount} invitation{successCount === 1 ? "" : "s"} sent
+                    {tx("invitationsSent", { count: successCount })}
                 </h3>
                 <p className="text-sm text-zinc-500 mt-1">
-                    {polling ? "Watching delivery — updates for 60 seconds." : "Snapshot frozen."}
+                    {polling ? tx("watching") : tx("frozen")}
                 </p>
             </div>
 
@@ -130,10 +132,10 @@ export function PostSendCelebration({
                 <>
                     {/* Aggregate bars */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
-                        <Stat label="Delivered" count={(counts.delivered || 0) + (counts.opened || 0)} total={deliveries.length} accent="emerald" />
-                        <Stat label="Queued" count={counts.queued || 0} total={deliveries.length} accent="zinc" />
-                        <Stat label="Bounced" count={counts.bounced || 0} total={deliveries.length} accent="red" />
-                        <Stat label="Failed" count={counts.failed || 0} total={deliveries.length} accent="red" />
+                        <Stat label={tx("statDelivered")} count={(counts.delivered || 0) + (counts.opened || 0)} total={deliveries.length} accent="emerald" />
+                        <Stat label={tx("statQueued")} count={counts.queued || 0} total={deliveries.length} accent="zinc" />
+                        <Stat label={tx("statBounced")} count={counts.bounced || 0} total={deliveries.length} accent="red" />
+                        <Stat label={tx("statFailed")} count={counts.failed || 0} total={deliveries.length} accent="red" />
                     </div>
 
                     {/* Per-recipient rows */}
@@ -150,7 +152,7 @@ export function PostSendCelebration({
                                 <span className={[
                                     "text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0",
                                     statusBadge(d.status),
-                                ].join(" ")}>{d.status}</span>
+                                ].join(" ")}>{tx(`status_${d.status}`)}</span>
                             </div>
                         ))}
                     </div>

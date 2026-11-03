@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useEventT } from "../../../create-wizard/i18n";
 
 /**
  * Inline, always-visible preview of the actual invitation email a host
@@ -55,6 +56,7 @@ export function InlineEmailPreview({
     apiBaseUrl,
     canCustomize,
 }: Props) {
+    const tx = useEventT("eventsUi.manageUi.inlineEmailPreview");
     const [html, setHtml] = useState<string | null>(null);
     const [isCustomized, setIsCustomized] = useState<boolean>(false);
     const [fetchKey, setFetchKey] = useState(0);
@@ -95,8 +97,8 @@ export function InlineEmailPreview({
     return (
         <div>
             <div className="flex items-baseline justify-between mb-2">
-                <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Email preview</p>
-                <p className="text-[11px] text-zinc-400">Recipient: {recipientName}</p>
+                <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{tx("emailPreview")}</p>
+                <p className="text-[11px] text-zinc-400">{tx("recipient", { name: recipientName })}</p>
             </div>
 
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 overflow-hidden">
@@ -106,7 +108,7 @@ export function InlineEmailPreview({
                     <span className="w-2 h-2 rounded-full bg-zinc-200" />
                     <span className="w-2 h-2 rounded-full bg-zinc-200" />
                     <span className="w-2 h-2 rounded-full bg-zinc-200" />
-                    <span className="ml-auto text-[10px] text-zinc-400 uppercase tracking-wider">Email</span>
+                    <span className="ml-auto text-[10px] text-zinc-400 uppercase tracking-wider">{tx("email")}</span>
                 </div>
                 {/* The actual rendered template. Comes from the BE preview
                     endpoint which renders against the community's actual
@@ -125,7 +127,7 @@ export function InlineEmailPreview({
                     <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isCustomized ? "bg-emerald-500" : "bg-zinc-300"}`} />
                         <p className="text-[11px] text-zinc-500 truncate">
-                            {isCustomized ? "Using your custom template" : "Using the default template"}
+                            {isCustomized ? tx("usingCustom") : tx("usingDefault")}
                         </p>
                     </div>
                     {canCustomize ? (
@@ -133,11 +135,11 @@ export function InlineEmailPreview({
                             href={customizeHref}
                             className="text-[12px] font-medium text-zinc-700 hover:text-zinc-900 cursor-pointer whitespace-nowrap"
                         >
-                            {isCustomized ? "Edit template →" : "Customize template →"}
+                            {isCustomized ? tx("editTemplate") : tx("customizeTemplate")}
                         </Link>
                     ) : (
                         <span className="text-[11px] text-zinc-400 whitespace-nowrap">
-                            Ask a community admin to customize
+                            {tx("askAdmin")}
                         </span>
                     )}
                 </div>

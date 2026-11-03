@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEventManagementConfig } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 import { HostChip, type Host } from "./HostChip";
 import { AddMemberAsHostModal } from "./AddMemberAsHostModal";
 import { ConfirmRemoveHostModal } from "./ConfirmRemoveHostModal";
@@ -89,6 +90,7 @@ export function HostsManagementSection({
     eligibleAttendees: eligibleAttendeesProp,
 }: HostsManagementSectionProps) {
     const config = useEventManagementConfig();
+    const tx = useEventT("eventsUi.manageUi.hostsManagementSection");
     const [hosts, setHosts] = useState<Host[]>([]);
     const [attendees, setAttendees] = useState<Attendee[]>([]);
     const [loading, setLoading] = useState(true);
@@ -123,7 +125,7 @@ export function HostsManagementSection({
                 fetch(`${config.apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/attendees`, { headers })
                     .catch(() => null),
             ]);
-            if (!hostsRes.ok) throw new Error("Failed to load hosts");
+            if (!hostsRes.ok) throw new Error(tx("failedToLoad"));
             const hostsData = await hostsRes.json();
             setHosts(Array.isArray(hostsData) ? hostsData : hostsData?.hosts || []);
             if (attendeesRes?.ok) {
@@ -132,11 +134,11 @@ export function HostsManagementSection({
                 setAttendees(raw);
             }
         } catch (e: any) {
-            setError(e?.message || "Failed to load hosts");
+            setError(e?.message || tx("failedToLoad"));
         } finally {
             setLoading(false);
         }
-    }, [event.id, config]);
+    }, [event.id, config, tx]);
 
     useEffect(() => {
         void refresh();
@@ -175,7 +177,7 @@ export function HostsManagementSection({
             .map(({ a, uid }) => ({
                 id: a.id,
                 userId: uid,
-                name: a.user?.name || "Unknown",
+                name: a.user?.name || tx("unknown"),
                 usertag: a.user?.usertag || undefined,
                 email: a.user?.email || undefined,
                 profileImage: a.user?.profileImage || undefined,
@@ -196,9 +198,9 @@ export function HostsManagementSection({
                 setHosts(before);
                 const body = await res.json().catch(() => null);
                 if (res.status === 403 && body?.code === "EVENT_CREATOR_IMMUTABLE") {
-                    setError("The event creator can't be removed because they receive the payments.");
+                    setError(tx("creatorImmutable"));
                 } else {
-                    setError(body?.error || body?.message || `Failed to remove host (${res.status})`);
+                    setError(body?.error || body?.message || tx("failedToRemoveStatus", { status: res.status }));
                 }
                 return;
             }
@@ -206,7 +208,7 @@ export function HostsManagementSection({
             void refresh();
         } catch (e: any) {
             setHosts(before);
-            setError(e?.message || "Failed to remove host");
+            setError(e?.message || tx("failedToRemove"));
         } finally {
             setRemoveSubmitting(false);
             setConfirmRemove(null);
@@ -220,10 +222,10 @@ export function HostsManagementSection({
             {/* Header — mirrors AttendeesAndInvitationsSection */}
             <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-4">
                 <div className="flex-1">
-                    <h2 className="text-[15px] font-semibold text-zinc-900">Hosts</h2>
+                    <h2 className="text-[15px] font-semibold text-zinc-900">{tx("title")}</h2>
                     <p className="text-[12px] text-zinc-400 mt-0.5">
-                        People who can manage this event.
-                        {isUserOwned && " The creator is immutable."}
+                        {tx("subtitle")}
+                        {isUserOwned && tx("creatorImmutableNote")}
                     </p>
                 </div>
                 {showActionButtons && (
@@ -233,14 +235,14 @@ export function HostsManagementSection({
                                 onClick={() => setPromoteOpen(true)}
                                 className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
                             >
-                                Promote attendee
+                                {tx("promoteAttendee")}
                             </button>
                         )}
                         <button
                             onClick={() => setAddOpen(true)}
                             className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
                         >
-                            Add member
+                            {tx("addMember")}
                         </button>
                     </div>
                 )}
@@ -259,15 +261,15 @@ export function HostsManagementSection({
                             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                         </svg>
                     }
-                    title="No hosts assigned"
+                    title={tx("emptyTitle")}
                     body={isUserOwned
-                        ? "This event needs a creator-host."
-                        : "Anyone with the manage-events role can still manage it."}
+                        ? tx("emptyBodyUserOwned")
+                        : tx("emptyBodyCommunity")}
                 />
             ) : (
                 <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100 overflow-hidden">
                     {loading ? (
-                        <p className="px-6 py-12 text-center text-[12px] text-zinc-400">Loading hosts…</p>
+                        <p className="px-6 py-12 text-center text-[12px] text-zinc-400">{tx("loading")}</p>
                     ) : (
                         <ul className="divide-y divide-zinc-100">
                             {hosts.map((h) => {

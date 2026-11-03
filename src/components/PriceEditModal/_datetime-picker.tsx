@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { LAYERS, usePortalTarget } from "@cobuntu/management-ui-shared";
+import { getEventT, useEventT } from "../../create-wizard/i18n";
 
 /**
  * Self-contained date + time picker for the tier auto-schedule window.
@@ -16,11 +17,16 @@ import { LAYERS, usePortalTarget } from "@cobuntu/management-ui-shared";
  * <select>). Value contract: ISO 8601 string when set, "" when cleared.
  */
 
-const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+/*
+ * Day initials and month names come from the host translator (keys day0..6,
+ * month0..11), so the calendar reads in the community's language. Functions
+ * rather than constants: the translator is only known at render time.
+ */
+const dayLabels = () => {
+  const t = getEventT("eventsUi.manageUi.dateTimePicker");
+  return [0, 1, 2, 3, 4, 5, 6].map((i) => t(`day${i}`));
+};
+const monthName = (m: number) => getEventT("eventsUi.manageUi.dateTimePicker")(`month${m}`);
 const MIN_STEPS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 const POP_H = 388;
 
@@ -29,7 +35,7 @@ function pad(n: number): string {
 }
 
 function fmtDisplay(d: Date): string {
-  return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}, ${d.getFullYear()} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${monthName(d.getMonth()).slice(0, 3)} ${d.getDate()}, ${d.getFullYear()} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export interface DateTimePickerProps {
@@ -43,9 +49,10 @@ export interface DateTimePickerProps {
 export function DateTimePicker({
   value,
   onChange,
-  placeholder = "Select date & time",
+  placeholder,
   ariaLabel,
 }: DateTimePickerProps) {
+  const t = useEventT("eventsUi.manageUi.dateTimePicker");
   const parsed = value ? new Date(value) : null;
   const valid = !!parsed && !Number.isNaN(parsed.getTime());
   const [open, setOpen] = React.useState(false);
@@ -138,13 +145,13 @@ export function DateTimePicker({
       >
         <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
         <span className={valid ? "text-zinc-900 truncate" : "text-zinc-400 truncate"}>
-          {valid ? fmtDisplay(parsed as Date) : placeholder}
+          {valid ? fmtDisplay(parsed as Date) : (placeholder ?? t("placeholder"))}
         </span>
         {valid && (
           <span
             role="button"
             tabIndex={0}
-            aria-label="Clear date"
+            aria-label={t("clearDate")}
             onClick={(e) => {
               e.stopPropagation();
               onChange("");
@@ -180,16 +187,16 @@ export function DateTimePicker({
               type="button"
               onClick={() => setView(month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 })}
               className="p-1 rounded hover:bg-zinc-100 cursor-pointer"
-              aria-label="Previous month"
+              aria-label={t("previousMonth")}
             >
               <ChevronLeft className="w-4 h-4 text-zinc-500" />
             </button>
-            <span className="text-[13px] font-semibold text-zinc-900">{MONTHS[month]} {year}</span>
+            <span className="text-[13px] font-semibold text-zinc-900">{monthName(month)} {year}</span>
             <button
               type="button"
               onClick={() => setView(month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 })}
               className="p-1 rounded hover:bg-zinc-100 cursor-pointer"
-              aria-label="Next month"
+              aria-label={t("nextMonth")}
             >
               <ChevronRight className="w-4 h-4 text-zinc-500" />
             </button>
@@ -197,7 +204,7 @@ export function DateTimePicker({
 
           {/* Day labels */}
           <div className="grid grid-cols-7 mb-1">
-            {DAY_LABELS.map((d, i) => (
+            {dayLabels().map((d, i) => (
               <div key={i} className="text-center text-[10px] font-medium text-zinc-400">{d}</div>
             ))}
           </div>
@@ -232,9 +239,9 @@ export function DateTimePicker({
               dropdown content takes LAYERS.popoverChild, which is above this
               popover for the same reason this popover is above the modal. */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-100">
-            <span className="text-[11px] text-zinc-400">Time</span>
+            <span className="text-[11px] text-zinc-400">{t("time")}</span>
             <Select value={String(hours)} onValueChange={(v) => setTime(parseInt(v, 10), minutes)}>
-              <SelectTrigger className="h-8 w-[60px] px-2 py-1 bg-white text-[12px]" aria-label="Hour">
+              <SelectTrigger className="h-8 w-[60px] px-2 py-1 bg-white text-[12px]" aria-label={t("hour")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent style={{ zIndex: LAYERS.popoverChild }}>
@@ -245,7 +252,7 @@ export function DateTimePicker({
             </Select>
             <span className="text-zinc-400">:</span>
             <Select value={String(minutes)} onValueChange={(v) => setTime(hours, parseInt(v, 10))}>
-              <SelectTrigger className="h-8 w-[60px] px-2 py-1 bg-white text-[12px]" aria-label="Minute">
+              <SelectTrigger className="h-8 w-[60px] px-2 py-1 bg-white text-[12px]" aria-label={t("minute")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent style={{ zIndex: LAYERS.popoverChild }}>
@@ -259,7 +266,7 @@ export function DateTimePicker({
               onClick={() => setOpen(false)}
               className="ml-auto text-[12px] font-medium text-zinc-900 hover:text-zinc-600 cursor-pointer"
             >
-              Done
+              {t("done")}
             </button>
           </div>
         </div>,

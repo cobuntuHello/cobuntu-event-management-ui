@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 export interface SlugEditModalProps {
   event: any;
@@ -23,6 +24,8 @@ export interface SlugEditModalProps {
 export function SlugEditModal({ event, communityTag, onClose, onSaved, showToast, onSlugChanged }: SlugEditModalProps) {
   const { apiBaseUrl } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
+  const t = useEventT("eventsUi.manageUi.slugEditModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
   const [slug, setSlug] = useState(event.slug || "");
   const [saving, setSaving] = useState(false);
 
@@ -39,15 +42,15 @@ export function SlugEditModal({ event, communityTag, onClose, onSaved, showToast
       if (res.ok) {
         const data = await res.json();
         const newSlug = data.slug || normalizedSlug;
-        showToast("Slug updated");
+        showToast(t("slugUpdated"));
         onSlugChanged?.(newSlug);
         onSaved();
       } else {
         const err = await res.json().catch(() => ({}));
-        showToast(err.error || "Failed to update slug");
+        showToast(err.error || t("failedToUpdateSlug"));
       }
     } catch {
-      showToast("Failed to update");
+      showToast(tc("failedToUpdate"));
     } finally {
       setSaving(false);
     }
@@ -55,8 +58,8 @@ export function SlugEditModal({ event, communityTag, onClose, onSaved, showToast
 
   return (
     <ModalShell onClose={onClose}>
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">Edit event slug</h3>
-      <p className="text-[12px] text-zinc-400 mb-4">URL-friendly identifier for your event.</p>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">{t("title")}</h3>
+      <p className="text-[12px] text-zinc-400 mb-4">{t("subtitle")}</p>
       <input
         type="text"
         value={slug}
@@ -65,13 +68,13 @@ export function SlugEditModal({ event, communityTag, onClose, onSaved, showToast
         className="w-full px-3 py-2.5 text-sm text-zinc-900 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 placeholder:text-zinc-400 font-mono"
       />
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button
           onClick={save}
           disabled={saving || !slug.trim()}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? tc("savingDots") : tc("save")}
         </button>
       </div>
     </ModalShell>

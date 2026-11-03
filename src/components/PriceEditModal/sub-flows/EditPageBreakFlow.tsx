@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { StepInput } from "../_primitives";
+import { useEventT } from "../../../create-wizard/i18n";
 
 export interface EditPageBreakFlowProps {
   /** Existing label when editing; empty when creating. */
@@ -28,6 +29,7 @@ export function EditPageBreakFlow({
   onBack,
 }: EditPageBreakFlowProps) {
   const [label, setLabel] = useState(initialLabel);
+  const t = useEventT("eventsUi.manageUi.formSubFlows");
 
   return (
     <div>
@@ -36,27 +38,27 @@ export function EditPageBreakFlow({
           type="button"
           onClick={onBack}
           className="p-1 -ml-1 text-zinc-500 hover:text-zinc-900 cursor-pointer rounded"
-          aria-label="Back to form fields"
+          aria-label={t("backToFields")}
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1 min-w-0">
           <h5 className="text-[13px] font-semibold text-zinc-900">
-            {isEdit ? "Edit page break" : "Add page break"}
+            {isEdit ? t("editPageBreak") : t("addPageBreak")}
           </h5>
           <p className="text-[11px] text-zinc-400">
-            Split the form into multiple pages.
+            {t("pageBreakHint")}
           </p>
         </div>
       </div>
 
       <div>
-        <label className="block text-[11px] font-medium text-zinc-600 mb-1">Page title (optional)</label>
+        <label className="block text-[11px] font-medium text-zinc-600 mb-1">{t("pageTitle")}</label>
         <StepInput
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="e.g. Tell us about your business"
+          placeholder={t("pageTitlePlaceholder")}
           autoFocus
         />
       </div>
@@ -68,7 +70,7 @@ export function EditPageBreakFlow({
             onClick={onDelete}
             className="px-3 py-1.5 text-[12px] font-medium text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
           >
-            Remove page break
+            {t("removePageBreak")}
           </button>
         ) : <span />}
         <button
@@ -76,7 +78,7 @@ export function EditPageBreakFlow({
           onClick={() => onSave(label)}
           className="px-3 py-1.5 text-[12px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
         >
-          {isEdit ? "Done" : "Add page break"}
+          {isEdit ? t("done") : t("addPageBreak")}
         </button>
       </div>
     </div>

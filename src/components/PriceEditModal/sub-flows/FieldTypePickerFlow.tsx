@@ -14,7 +14,8 @@ import {
   Calendar,
   Star,
 } from "lucide-react";
-import { FIELD_TYPES, type FieldType } from "../_form-types";
+import { FIELD_TYPES, fieldTypeMeta, type FieldType } from "../_form-types";
+import { useEventT } from "../../../create-wizard/i18n";
 
 const FIELD_ICONS: Record<FieldType, React.ComponentType<{ className?: string }>> = {
   SHORT_TEXT: Type,
@@ -45,6 +46,7 @@ export interface FieldTypePickerFlowProps {
  * own step - not be an expandable section."
  */
 export function FieldTypePickerFlow({ onPick, onBack }: FieldTypePickerFlowProps) {
+  const t = useEventT("eventsUi.manageUi.formSubFlows");
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
@@ -52,16 +54,17 @@ export function FieldTypePickerFlow({ onPick, onBack }: FieldTypePickerFlowProps
           type="button"
           onClick={onBack}
           className="p-1 -ml-1 text-zinc-500 hover:text-zinc-900 cursor-pointer rounded"
-          aria-label="Back to form fields"
+          aria-label={t("backToFields")}
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <h5 className="text-[13px] font-semibold text-zinc-900">Add a question</h5>
+        <h5 className="text-[13px] font-semibold text-zinc-900">{t("addAQuestion")}</h5>
       </div>
-      <p className="text-[12px] text-zinc-500 mb-3">Choose a field type.</p>
+      <p className="text-[12px] text-zinc-500 mb-3">{t("chooseFieldType")}</p>
       <div className="grid grid-cols-2 gap-2">
         {FIELD_TYPES.map((ft) => {
           const Icon = FIELD_ICONS[ft.type];
+          const meta = fieldTypeMeta(ft.type) ?? ft;
           return (
             <button
               key={ft.type}
@@ -73,8 +76,8 @@ export function FieldTypePickerFlow({ onPick, onBack }: FieldTypePickerFlowProps
                 <Icon className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-[12px] font-medium text-zinc-800">{ft.label}</p>
-                <p className="text-[10px] text-zinc-400 truncate">{ft.desc}</p>
+                <p className="text-[12px] font-medium text-zinc-800">{meta.label}</p>
+                <p className="text-[10px] text-zinc-400 truncate">{meta.desc}</p>
               </div>
             </button>
           );

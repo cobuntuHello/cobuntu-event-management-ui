@@ -33,7 +33,10 @@ describe("EventForm groups the options by ownership", () => {
     });
 
     it("says WHY the card is there", () => {
-        expect(form()).toMatch(/owns this event/);
+        // The sentence is copy now (host-translatable); the form asks for it by key.
+        expect(form()).toContain('tf("availableBecause"');
+        const messages = readFileSync(resolve(__dirname, "../i18n/messages/form.ts"), "utf8");
+        expect(messages).toMatch(/availableBecause: ".*owns this event/);
     });
 
     it("keeps Approval outside that gate", () => {
@@ -48,8 +51,10 @@ describe("EventForm groups the options by ownership", () => {
          */
         const src = form();
         const gateStart = src.indexOf("{!hideVisibility && (");
-        const gateEnd = src.indexOf("owns this event", gateStart);
-        const approvalIdx = src.indexOf(">Approval</p>");
+        const gateEnd = src.indexOf('tf("availableBecause"', gateStart);
+        const approvalIdx = src.indexOf('>{tf("approval")}</p>');
+        expect(gateEnd).toBeGreaterThan(gateStart);
+        expect(approvalIdx).toBeGreaterThan(-1);
         const insideGate = approvalIdx > gateStart && approvalIdx < gateEnd;
         expect(insideGate).toBe(false);
     });

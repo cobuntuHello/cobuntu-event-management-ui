@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useEventManagementConfig } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 /**
  * Soft threshold above which a large open chat gets noisy — we nudge the host
@@ -46,6 +47,8 @@ export function CreateGroupChatModal({
   // Large events default to announce-only — the host can still flip it.
   const [announceOnly, setAnnounceOnly] = useState(isLarge);
   const [saving, setSaving] = useState(false);
+  const t = useEventT("eventsUi.manageUi.createGroupChatModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
 
   async function execute() {
     setSaving(true);
@@ -60,13 +63,13 @@ export function CreateGroupChatModal({
       );
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        showToast(data.created === false ? "Group chat opened" : "Group chat created");
+        showToast(data.created === false ? t("opened") : t("created"));
         onCreated?.({ conversationId: data.conversationId, created: data.created });
       } else {
-        showToast("Failed to create group chat");
+        showToast(t("failed"));
       }
     } catch {
-      showToast("Failed to create group chat");
+      showToast(t("failed"));
     } finally {
       setSaving(false);
     }
@@ -74,11 +77,9 @@ export function CreateGroupChatModal({
 
   return (
     <ModalShell onClose={onClose}>
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">Create group chat</h3>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">{t("title")}</h3>
       <p className="text-[13px] text-zinc-500 mb-4">
-        Starts a group chat named &ldquo;{event.name || "this event"}&rdquo;. Everyone who joins
-        the event (by RSVP, ticket, or being added) is added to the chat
-        automatically. You and your co-hosts are admins.
+        {t("body", { name: event.name || t("thisEvent") })}
       </p>
 
       <div className="rounded-lg border border-zinc-200 divide-y divide-zinc-100 mb-4">
@@ -91,8 +92,8 @@ export function CreateGroupChatModal({
             {!announceOnly && <span className="w-2 h-2 rounded-full bg-zinc-900" />}
           </span>
           <span>
-            <span className="block text-[13px] font-medium text-zinc-900">Open chat</span>
-            <span className="block text-[12px] text-zinc-500">Everyone can post. Best for community and networking.</span>
+            <span className="block text-[13px] font-medium text-zinc-900">{t("openTitle")}</span>
+            <span className="block text-[12px] text-zinc-500">{t("openBody")}</span>
           </span>
         </button>
         <button
@@ -104,8 +105,8 @@ export function CreateGroupChatModal({
             {announceOnly && <span className="w-2 h-2 rounded-full bg-zinc-900" />}
           </span>
           <span>
-            <span className="block text-[13px] font-medium text-zinc-900">Announce only</span>
-            <span className="block text-[12px] text-zinc-500">Only hosts post; attendees read. Lower noise.</span>
+            <span className="block text-[13px] font-medium text-zinc-900">{t("announceTitle")}</span>
+            <span className="block text-[12px] text-zinc-500">{t("announceBody")}</span>
           </span>
         </button>
       </div>
@@ -113,17 +114,16 @@ export function CreateGroupChatModal({
       {isLarge && (
         <div className="rounded-lg bg-amber-50 border border-amber-100 p-3 mb-4">
           <p className="text-[12px] text-amber-800">
-            This event has {attendeeCount?.toLocaleString()} attendees. Large open chats get noisy fast,
-            so announce-only is recommended (you can change it later).
+            {t("largeNotice", { count: attendeeCount?.toLocaleString() ?? "" })}
           </p>
         </div>
       )}
 
       <div className="flex justify-end gap-2">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button onClick={execute} disabled={saving}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
-          {saving ? "Creating..." : "Create group chat"}
+          {saving ? t("creating") : t("title")}
         </button>
       </div>
     </ModalShell>

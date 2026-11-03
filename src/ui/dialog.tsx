@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "./utils";
 import { usePortalContainer } from "@cobuntu/management-ui-shared";
+import { useEventT } from "../create-wizard/i18n";
 
 
 const Dialog = DialogPrimitive.Root;
@@ -61,6 +62,7 @@ const DialogContent = React.forwardRef<
     scrollBody?: boolean;
   }
 >(({ className, children, hideClose, mobileDrawer, scrollBody, ...props }, ref) => {
+  const t = useEventT("eventsUi.manageUi.dialog");
   // Inside an embedding host's themed wrapper when it provides one.
   const portalContainer = usePortalContainer();
   return (
@@ -114,7 +116,7 @@ const DialogContent = React.forwardRef<
           className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-900 cursor-pointer"
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{t("close")}</span>
         </DialogPrimitive.Close>
       )}
     </DialogPrimitive.Content>

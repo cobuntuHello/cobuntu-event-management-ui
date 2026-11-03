@@ -1,6 +1,7 @@
 "use client";
 
 import { ModalShell } from "../ui/modal-shell";
+import { useEventT } from "../create-wizard/i18n";
 
 interface Props {
   event: any;
@@ -12,10 +13,12 @@ interface Props {
 
 export function DeleteModal({ event, isPaid, attendeeCount, onClose, onConfirm }: Props) {
   const startDate = event?.startDate ? new Date(event.startDate) : null;
+  const t = useEventT("eventsUi.manageUi.deleteModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
 
   return (
     <ModalShell onClose={onClose}>
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-3">Delete event</h3>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-3">{t("title")}</h3>
       <div className="space-y-2 mb-4">
         <div className="rounded-lg bg-zinc-50 p-3 flex gap-3">
           <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-zinc-200">
@@ -27,16 +30,16 @@ export function DeleteModal({ event, isPaid, attendeeCount, onClose, onConfirm }
           </div>
         </div>
         {attendeeCount > 0 && (
-          <WarnCard color="amber" title={`${attendeeCount} ${attendeeCount === 1 ? "person is" : "people are"} registered`} subtitle="Attendees will be notified about the cancellation." />
+          <WarnCard color="amber" title={t("registeredCount", { count: attendeeCount })} subtitle={t("attendeesNotified")} />
         )}
         {isPaid && (
-          <WarnCard color="blue" title="Automatic refunds" subtitle="All ticket purchases still in escrow will be automatically refunded." />
+          <WarnCard color="blue" title={t("autoRefundsTitle")} subtitle={t("autoRefundsBody")} />
         )}
-        <WarnCard color="red" title="This is permanent" subtitle="The event and all associated data will be permanently deleted." />
+        <WarnCard color="red" title={t("permanentTitle")} subtitle={t("permanentBody")} />
       </div>
       <div className="flex justify-end gap-2">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
-        <button onClick={onConfirm} className="px-4 py-2 text-[13px] font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer">Delete Event</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
+        <button onClick={onConfirm} className="px-4 py-2 text-[13px] font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer">{t("confirm")}</button>
       </div>
     </ModalShell>
   );

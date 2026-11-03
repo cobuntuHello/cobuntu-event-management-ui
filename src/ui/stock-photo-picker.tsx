@@ -12,6 +12,7 @@ import {
   type UnsplashPhoto,
 } from "@cobuntu/management-ui-shared";
 import { getEventManagementConfig } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 interface StockPhotoPickerProps {
   open: boolean;
@@ -48,6 +49,7 @@ export function StockPhotoPicker({ open, onOpenChange, onSelect }: StockPhotoPic
   const [searchQuery, setSearchQuery] = React.useState("");
   const [photos, setPhotos] = React.useState<UnsplashPhoto[]>([]);
   const [status, setStatus] = React.useState<Status>("loading");
+  const t = useEventT("eventsUi.manageUi.stockPhotoPicker");
 
   React.useEffect(() => {
     if (!open) return;
@@ -89,12 +91,12 @@ export function StockPhotoPicker({ open, onOpenChange, onSelect }: StockPhotoPic
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Choose Stock Photo</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col flex-1 min-h-0 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-            <Input type="text" placeholder="Search for photos..." value={searchQuery}
+            <Input type="text" placeholder={t("searchPlaceholder")} value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
@@ -114,17 +116,17 @@ export function StockPhotoPicker({ open, onOpenChange, onSelect }: StockPhotoPic
                   * them looking for a fault instead of at the upload button
                   * two inches away -- the thing that still works.
                   */}
-                <p className="mb-2 text-sm text-zinc-500">Stock photos aren&apos;t available right now</p>
+                <p className="mb-2 text-sm text-zinc-500">{t("unavailableTitle")}</p>
                 <p className="text-xs text-zinc-400">
-                  You can still upload your own image.
+                  {t("unavailableBody")}
                 </p>
               </div>
             ) : status === "error" ? (
-              <div className="flex flex-col items-center justify-center py-12"><p className="text-sm text-zinc-500">Failed to load photos. Please try again.</p></div>
+              <div className="flex flex-col items-center justify-center py-12"><p className="text-sm text-zinc-500">{t("loadFailed")}</p></div>
             ) : status === "loading" ? (
               <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
             ) : photos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12"><ImageIcon className="h-12 w-12 text-zinc-400 mb-4" /><p className="text-sm text-zinc-500">No photos found</p></div>
+              <div className="flex flex-col items-center justify-center py-12"><ImageIcon className="h-12 w-12 text-zinc-400 mb-4" /><p className="text-sm text-zinc-500">{t("noPhotos")}</p></div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {photos.map(photo => (
@@ -138,7 +140,7 @@ export function StockPhotoPicker({ open, onOpenChange, onSelect }: StockPhotoPic
                   <div key={photo.id} className="flex flex-col gap-1">
                     <button type="button" onClick={() => choose(photo)}
                       className="relative aspect-square rounded-lg overflow-hidden border border-zinc-200 hover:border-zinc-400 transition-colors group cursor-pointer">
-                      <img src={photo.urls.thumb} alt={photo.alt_description || "Stock photo"} className="w-full h-full object-cover" loading="lazy" />
+                      <img src={photo.urls.thumb} alt={photo.alt_description || t("stockPhotoAlt")} className="w-full h-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                     </button>
                     <p className="text-[10px] text-zinc-400 truncate">
@@ -155,7 +157,9 @@ export function StockPhotoPicker({ open, onOpenChange, onSelect }: StockPhotoPic
           {status === "ok" && photos.length > 0 && (
             <div className="pt-4 border-t border-zinc-100">
               <p className="text-xs text-zinc-400 text-center">
-                Powered by <a href={UNSPLASH_URL} target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:underline font-medium">Unsplash</a>
+                {t.rich("poweredBy", {
+                  link: (c) => <a href={UNSPLASH_URL} target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:underline font-medium">{c}</a>,
+                })}
               </p>
             </div>
           )}

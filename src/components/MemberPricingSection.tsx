@@ -7,6 +7,7 @@ import {
   type MemberPricingRow,
   type MemberPricingTierState,
 } from "./PriceEditModal/member-pricing";
+import { useEventT } from "../create-wizard/i18n";
 
 /**
  * Presentational member-pricing editor for a single (community-owned)
@@ -31,20 +32,21 @@ export interface MemberPricingSectionProps {
 }
 
 function Heading({ dirtyCount = 0 }: { dirtyCount?: number }) {
+  const t = useEventT("eventsUi.manageUi.memberPricingSection");
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-[12px] font-medium text-zinc-700">Member pricing</p>
+        <p className="text-[12px] font-medium text-zinc-700">{t("heading")}</p>
         <p className="text-[11px] text-zinc-500 mt-0.5">
-          Discount this tier for buyers in specific community segments.
+          {t("subheading")}
         </p>
       </div>
       {dirtyCount > 0 && (
         <span
           className="shrink-0 text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"
-          title="Unsaved member-pricing changes — commit by clicking Save."
+          title={t("unsavedTitle")}
         >
-          {dirtyCount} unsaved
+          {t("unsavedCount", { count: dirtyCount })}
         </span>
       )}
     </div>
@@ -56,11 +58,12 @@ export function MemberPricingSection({
   onRowChange,
   currencySymbol,
 }: MemberPricingSectionProps) {
+  const t = useEventT("eventsUi.manageUi.memberPricingSection");
   if (state.loading) {
     return (
       <div>
         <Heading />
-        <p className="text-[11px] text-zinc-400 mt-2">Loading member pricing…</p>
+        <p className="text-[11px] text-zinc-400 mt-2">{t("loading")}</p>
       </div>
     );
   }
@@ -83,7 +86,7 @@ export function MemberPricingSection({
         <Heading />
         <div className="mt-2 rounded-lg border border-dashed border-zinc-200 px-3 py-4 text-center">
           <p className="text-[11px] text-zinc-500">
-            No community segments yet. Create one to offer member-only pricing on this tier.
+            {t("noSegments")}
           </p>
         </div>
       </div>
@@ -103,31 +106,31 @@ export function MemberPricingSection({
                 checked={r.enabled}
                 onChange={(e) => onRowChange(idx, { enabled: e.target.checked })}
                 className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400 cursor-pointer"
-                aria-label={`Offer member pricing for ${r.segmentName}`}
+                aria-label={t("offerFor", { segment: r.segmentName })}
               />
               <span className="text-[13px] font-medium text-zinc-800 truncate">{r.segmentName}</span>
               <span className="ml-auto text-[11px] text-zinc-400 shrink-0">
-                {r.enabled ? r.mode.replace(/_/g, " ").toLowerCase() : "No override"}
+                {r.enabled ? t(`modeShort_${r.mode}`) : t("noOverride")}
               </span>
             </label>
 
             {r.enabled && (
               <div className="grid grid-cols-[1fr_110px_88px] gap-2 px-3 pb-3 -mt-0.5">
                 <div>
-                  <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-1">Discount</p>
+                  <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-1">{t("discount")}</p>
                   <Select value={r.mode} onValueChange={(v) => onRowChange(idx, { mode: v as MemberPricingMode })}>
                     <SelectTrigger className="h-9 text-[12px] bg-white"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="FREE">Free for these members</SelectItem>
-                      <SelectItem value="PERCENT_OFF">% off list price</SelectItem>
-                      <SelectItem value="FLAT_OFF">Flat amount off</SelectItem>
-                      <SelectItem value="FIXED_PRICE">Fixed price</SelectItem>
+                      <SelectItem value="FREE">{t("modeFree")}</SelectItem>
+                      <SelectItem value="PERCENT_OFF">{t("modePercentOff")}</SelectItem>
+                      <SelectItem value="FLAT_OFF">{t("modeFlatOff")}</SelectItem>
+                      <SelectItem value="FIXED_PRICE">{t("modeFixedPrice")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-1">
-                    {r.mode === "PERCENT_OFF" ? "Percent" : "Amount"}
+                    {r.mode === "PERCENT_OFF" ? t("percent") : t("amount")}
                   </p>
                   <input
                     type="number" min="0" step={r.mode === "PERCENT_OFF" ? "1" : "0.01"}
@@ -139,7 +142,7 @@ export function MemberPricingSection({
                   />
                 </div>
                 <div>
-                  <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-1" title="Higher priority wins when a buyer is in multiple matching segments">Priority</p>
+                  <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-1" title={t("priorityTitle")}>{t("priority")}</p>
                   <input
                     type="number" step="1" value={r.priority}
                     onChange={(e) => onRowChange(idx, { priority: e.target.value })}

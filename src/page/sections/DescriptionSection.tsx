@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MarkdownEditor } from "../../ui/markdown-editor";
 import { useUpdateEvent } from "../../config";
 import { useCanEdit } from "../../lib/manageAccess";
+import { useEventT } from "../../create-wizard/i18n";
 import { theme, muted } from "../../shared/theme";
 
 /**
@@ -39,6 +40,8 @@ interface Props {
 
 export function DescriptionSection({ event, communityTag, onSaved, showToast }: Props) {
     const updateEvent = useUpdateEvent();
+    const t = useEventT("eventsUi.manageUi.descriptionSection");
+    const tc = useEventT("eventsUi.manageUi.overviewCommon");
     /*
      * The package's own permission hook, not a prop. A carrying community's
      * leader can see a host's event and must not rewrite it — the same gate
@@ -74,10 +77,10 @@ export function DescriptionSection({ event, communityTag, onSaved, showToast }: 
         setSaving(true);
         try {
             await updateEvent(communityTag, event.id, { description: content.trim() || null });
-            showToast("Description updated");
+            showToast(t("updated"));
             onSaved();
         } catch (e: any) {
-            showToast(e?.message || "Failed to update description");
+            showToast(e?.message || t("failed"));
         } finally {
             setSaving(false);
         }
@@ -87,9 +90,9 @@ export function DescriptionSection({ event, communityTag, onSaved, showToast }: 
         <div>
             <div className="flex items-center justify-between gap-4 mb-3">
                 <div className="min-w-0">
-                    <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>Description</h2>
+                    <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>{t("title")}</h2>
                     <p className="text-[12px] mt-0.5" style={muted(0.5)}>
-                        What attendees read on the event page.
+                        {t("subtitle")}
                     </p>
                 </div>
                 {canEdit && (
@@ -100,7 +103,7 @@ export function DescriptionSection({ event, communityTag, onSaved, showToast }: 
                         className="shrink-0 px-4 py-2 text-[13px] font-medium disabled:opacity-30 cursor-pointer hover:opacity-90"
                         style={{ background: theme.brand, color: theme.onBrand, borderRadius: theme.buttonRadius }}
                     >
-                        {saving ? "Saving..." : "Save"}
+                        {saving ? tc("savingDots") : tc("save")}
                     </button>
                 )}
             </div>
@@ -119,7 +122,7 @@ export function DescriptionSection({ event, communityTag, onSaved, showToast }: 
                 <MarkdownEditor
                     value={content}
                     onChange={setContent}
-                    placeholder={canEdit ? "Describe your event..." : ""}
+                    placeholder={canEdit ? t("placeholder") : ""}
                     disabled={!canEdit}
                 />
             </div>

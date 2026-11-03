@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useUpdateEvent } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 /**
  * Edit `events.requiresApproval` — whether a registration lands as pending
@@ -28,6 +29,8 @@ interface Props {
 
 export function ApprovalEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
     const updateEvent = useUpdateEvent();
+    const t = useEventT("eventsUi.manageUi.approvalEditModal");
+    const tc = useEventT("eventsUi.manageUi.overviewCommon");
     const [value, setValue] = useState<boolean>(!!event.requiresApproval);
     const [saving, setSaving] = useState(false);
 
@@ -43,10 +46,10 @@ export function ApprovalEditModal({ event, communityTag, onClose, onSaved, showT
         setSaving(true);
         try {
             await updateEvent(communityTag, event.id, { requiresApproval: value });
-            showToast(value ? "Registrations now need approval" : "Registrations are now instant");
+            showToast(value ? t("nowNeedApproval") : t("nowInstant"));
             onSaved();
         } catch (e: any) {
-            showToast(e?.message || "Failed to update approval");
+            showToast(e?.message || t("failed"));
         } finally {
             setSaving(false);
         }
@@ -54,39 +57,38 @@ export function ApprovalEditModal({ event, communityTag, onClose, onSaved, showT
 
     return (
         <ModalShell onClose={onClose}>
-            <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">Approval</h3>
-            <p className="text-[12px] text-zinc-500 mb-4">What happens when someone registers.</p>
+            <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">{t("title")}</h3>
+            <p className="text-[12px] text-zinc-500 mb-4">{t("subtitle")}</p>
 
             <div className="space-y-2 mb-4">
                 <RadioRow
                     selected={!value}
                     onClick={() => setValue(false)}
-                    title="Confirm instantly"
-                    subtitle="Anyone who registers is in straight away."
+                    title={t("instantTitle")}
+                    subtitle={t("instantBody")}
                 />
                 <RadioRow
                     selected={value}
                     onClick={() => setValue(true)}
-                    title="Review each registration"
-                    subtitle="Registrations wait in Attendees until you approve them."
+                    title={t("reviewTitle")}
+                    subtitle={t("reviewBody")}
                 />
             </div>
 
             {willStrandPending && (
                 <p className="text-[12px] text-amber-600 mb-4 leading-snug">
-                    {pendingCount} {pendingCount === 1 ? "person is" : "people are"} already waiting. Turning this off
-                    does not admit them — decide on them in Attendees.
+                    {t("strandPending", { count: pendingCount })}
                 </p>
             )}
 
             <div className="flex justify-end gap-2">
-                <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+                <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
                 <button
                     onClick={save}
                     disabled={saving}
                     className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
                 >
-                    {saving ? "Saving..." : "Save"}
+                    {saving ? tc("savingDots") : tc("save")}
                 </button>
             </div>
         </ModalShell>

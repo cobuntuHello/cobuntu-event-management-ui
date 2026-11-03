@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useEventManagementConfig } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 /**
  * Paid-event revenue KPI tiles — Paid attendees / Revenue / Fees / Net.
@@ -35,6 +36,7 @@ interface SaleSummary {
 
 export function EventRevenueKPIs({ event, communityTag, refreshKey = 0 }: Props) {
     const config = useEventManagementConfig();
+    const tx = useEventT("eventsUi.manageUi.eventRevenueKPIs");
     const API = config.apiBaseUrl;
     const authHeaders = config.authHeaders;
 
@@ -86,7 +88,7 @@ export function EventRevenueKPIs({ event, communityTag, refreshKey = 0 }: Props)
 
     const fmtMoney = (cents: number) => {
         try {
-            return new Intl.NumberFormat("en-GB", {
+            return new Intl.NumberFormat(tx("numberLocale"), {
                 style: "currency",
                 currency: currency.toUpperCase(),
             }).format(cents / 100);
@@ -98,23 +100,23 @@ export function EventRevenueKPIs({ event, communityTag, refreshKey = 0 }: Props)
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
-                <p className="text-xs text-zinc-500">Paid attendees</p>
+                <p className="text-xs text-zinc-500">{tx("paidAttendees")}</p>
                 <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{paidCount}</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
-                <p className="text-xs text-zinc-500">Revenue</p>
+                <p className="text-xs text-zinc-500">{tx("revenue")}</p>
                 <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{fmtMoney(totalRevenue)}</p>
-                <p className="text-xs text-zinc-400 mt-1">{paidCount} transactions, gross</p>
+                <p className="text-xs text-zinc-400 mt-1">{tx("transactionsGross", { count: paidCount })}</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
-                <p className="text-xs text-zinc-500">Fees paid</p>
+                <p className="text-xs text-zinc-500">{tx("feesPaid")}</p>
                 <p className="text-xl sm:text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{fmtMoney(totalFees)}</p>
-                <p className="text-xs text-zinc-400 mt-1">Platform + Stripe</p>
+                <p className="text-xs text-zinc-400 mt-1">{tx("platformStripe")}</p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-5">
-                <p className="text-xs text-zinc-500">Net earnings</p>
+                <p className="text-xs text-zinc-500">{tx("netEarnings")}</p>
                 <p className="text-xl sm:text-2xl font-semibold text-emerald-600 mt-1 tabular-nums">{fmtMoney(totalNet)}</p>
-                <p className="text-xs text-zinc-400 mt-1">After all fees</p>
+                <p className="text-xs text-zinc-400 mt-1">{tx("afterAllFees")}</p>
             </div>
         </div>
     );

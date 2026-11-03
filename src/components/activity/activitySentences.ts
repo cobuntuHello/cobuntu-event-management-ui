@@ -14,12 +14,17 @@
  *      sentence so a future BE addition doesn't break the render.
  *   3. Sentences are intentionally short — long-form details live on
  *      the optional expandable payload (rendered by the consumer).
- *   4. No i18n for now — English only. Migration to a translation
- *      layer would only touch this file.
+ *   4. Every sentence goes through the host translator (getEventT, keys
+ *      under eventsUi.manageUi.activitySentences), so a pt-PT host reads
+ *      Portuguese. With no translator it renders the built-in English.
  *
  * Mirrors the BE write-site payload shapes documented in
  * services/core/src/domains/events/shared/services/EventAuditService.ts.
  */
+
+import { getEventT } from '../../create-wizard/i18n';
+
+const NS = 'eventsUi.manageUi.activitySentences';
 
 export interface ActivityEntryForRender {
     source: 'EVENT_AUDIT' | 'HOST_AUDIT' | 'SALE';
@@ -42,7 +47,7 @@ function actorName(entry: ActivityEntryForRender): string {
     return entry.actor?.name?.trim()
         || entry.actor?.usertag
         || str(entry.payload, 'buyerEmail')
-        || 'Someone';
+        || getEventT(NS)('someone');
 }
 
 /**
@@ -56,7 +61,7 @@ function amountLabel(payload: Record<string, unknown> | null): string | null {
     const amount = num(payload, 'amount');
     if (amount == null) return null;
     const currency = str(payload, 'currency') || 'EUR';
-    const symbol: Record<string, string> = { EUR: '\u20ac', USD: '$', GBP: '\u00a3', BRL: 'R$', JPY: '\u00a5' };
+    const symbol: Record<string, string> = { EUR: '€', USD: '$', GBP: '£', BRL: 'R$', JPY: '¥' };
     // JPY has no minor unit; dividing would be wrong.
     const major = currency === 'JPY' ? amount : amount / 100;
     return `${symbol[currency] || currency + ' '}${major.toFixed(currency === 'JPY' ? 0 : 2)}`;
@@ -82,16 +87,18 @@ function arr(payload: Record<string, unknown> | null, key: string): string[] {
 }
 
 function fieldsLabel(fields: string[]): string {
+    const t = getEventT(NS);
     if (fields.length === 0) return '';
-    if (fields.length === 1) return ` (${fields[0]})`;
-    if (fields.length === 2) return ` (${fields[0]} and ${fields[1]})`;
-    return ` (${fields.slice(0, -1).join(', ')}, and ${fields[fields.length - 1]})`;
+    if (fields.length === 1) return t('fieldsOne', { a: fields[0] });
+    if (fields.length === 2) return t('fieldsTwo', { a: fields[0], b: fields[1] });
+    return t('fieldsMany', { list: fields.slice(0, -1).join(', '), last: fields[fields.length - 1] });
 }
 
 function visibilityLabel(raw: unknown): string {
-    if (raw === 'MEMBERS_ONLY') return 'Members only';
-    if (raw === 'PUBLIC') return 'Public';
-    return String(raw ?? 'Unknown');
+    const t = getEventT(NS);
+    if (raw === 'MEMBERS_ONLY') return t('visibilityMembersOnly');
+    if (raw === 'PUBLIC') return t('visibilityPublic');
+    return raw == null ? t('visibilityUnknown') : String(raw);
 }
 
 export interface RenderedSentence {
@@ -105,153 +112,156 @@ export interface RenderedSentence {
 }
 
 export function renderActivitySentence(entry: ActivityEntryForRender): RenderedSentence {
+    const t = getEventT(NS);
     const actor = actorName(entry);
 
     // host_audits actions
     if (entry.source === 'HOST_AUDIT') {
-        const targetName = str(entry.payload, 'targetName') ?? str(entry.payload, 'targetUsertag') ?? 'a member';
+        const targetName = str(entry.payload, 'targetName') ?? str(entry.payload, 'targetUsertag') ?? t('aMember');
         switch (entry.action) {
             case 'ADDED':
-                return { text: `${actor} added ${targetName} as a host`, subjectName: targetName };
+                return { text: t('hostAdded', { actor, target: targetName }), subjectName: targetName };
             case 'PROMOTED_FROM_ATTENDEE':
-                return { text: `${actor} promoted ${targetName} from attendee to host`, subjectName: targetName };
+                return { text: t('hostPromoted', { actor, target: targetName }), subjectName: targetName };
             case 'REMOVED':
-                return { text: `${actor} removed ${targetName} as a host`, subjectName: targetName };
+                return { text: t('hostRemoved', { actor, target: targetName }), subjectName: targetName };
             case 'DEMOTED_TO_ATTENDEE':
-                return { text: `${actor} demoted ${targetName} from host back to attendee`, subjectName: targetName };
+                return { text: t('hostDemoted', { actor, target: targetName }), subjectName: targetName };
             default:
-                return { text: `${actor} updated hosts`, subjectName: targetName };
+                return { text: t('hostsUpdated', { actor }), subjectName: targetName };
         }
     }
 
     // event_audits actions
     switch (entry.action) {
         case 'EVENT_CREATED':
-            return { text: `${actor} created the event` };
+            return { text: t('eventCreated', { actor }) };
         case 'EVENT_UPDATED': {
             const fields = arr(entry.payload, 'fields');
-            return { text: `${actor} updated the event${fieldsLabel(fields)}` };
+            return { text: t('eventUpdatedFields', { actor, fields: fieldsLabel(fields) }) };
         }
         case 'EVENT_PUBLISHED': {
             const count = num(entry.payload, 'listingCount');
-            return { text: count != null && count > 0 ? `${actor} published the event in ${count} ${count === 1 ? 'community' : 'communities'}` : `${actor} published the event` };
+            return { text: count != null && count > 0 ? t('eventPublishedIn', { actor, count }) : t('eventPublished', { actor }) };
         }
         case 'EVENT_UNPUBLISHED': {
             const removed = num(entry.payload, 'removedAttendeeCount');
-            return { text: removed != null && removed > 0 ? `${actor} unpublished the event (${removed} ${removed === 1 ? 'attendee' : 'attendees'} removed)` : `${actor} unpublished the event` };
+            return { text: removed != null && removed > 0 ? t('eventUnpublishedRemoved', { actor, count: removed }) : t('eventUnpublished', { actor }) };
         }
         case 'EVENT_DELETED':
-            return { text: `${actor} deleted the event` };
+            return { text: t('eventDeleted', { actor }) };
         case 'EVENT_DUPLICATED': {
             const target = str(entry.payload, 'targetEventName');
-            return { text: target ? `${actor} duplicated the event as "${target}"` : `${actor} duplicated the event` };
+            return { text: target ? t('eventDuplicatedAs', { actor, target }) : t('eventDuplicated', { actor }) };
         }
 
         case 'VISIBILITY_UPDATED': {
             const to = entry.payload?.to;
-            return { text: `${actor} changed visibility to ${visibilityLabel(to)}` };
+            return { text: t('visibilityChanged', { actor, to: visibilityLabel(to) }) };
         }
         case 'ACCESSIBILITY_UPDATED': {
             const to = entry.payload?.to;
-            return { text: `${actor} changed access to ${visibilityLabel(to)}` };
+            return { text: t('accessChanged', { actor, to: visibilityLabel(to) }) };
         }
         case 'DISTRIBUTION_UPDATED': {
             const to = entry.payload?.to as Record<string, unknown> | undefined;
             const detailSource = to?.detailSource;
             const featured = to?.featured;
             const parts: string[] = [];
-            if (detailSource === 'EXTERNAL') parts.push('switched to a custom landing page');
-            else if (detailSource === 'NATIVE') parts.push('switched back to the Cobuntu landing page');
-            if (featured === true) parts.push('marked the event as Featured');
-            else if (featured === false) parts.push('removed the Featured badge');
-            const label = parts.length > 0 ? parts.join(' and ') : 'updated distribution';
-            return { text: `${actor} ${label}` };
+            if (detailSource === 'EXTERNAL') parts.push(t('distCustomLanding'));
+            else if (detailSource === 'NATIVE') parts.push(t('distNativeLanding'));
+            if (featured === true) parts.push(t('distFeatured'));
+            else if (featured === false) parts.push(t('distUnfeatured'));
+            const label = parts.length === 2
+                ? t('distJoin', { a: parts[0], b: parts[1] })
+                : parts.length === 1 ? parts[0] : t('distUpdated');
+            return { text: t('distribution', { actor, label }) };
         }
         case 'MEMBERSHIP_FUNNEL_UPDATED':
-            return { text: `${actor} updated the membership funnel` };
+            return { text: t('funnelUpdated', { actor }) };
         case 'REFUND_POLICY_UPDATED': {
             const to = entry.payload?.to as Record<string, unknown> | null | undefined;
-            if (to === null) return { text: `${actor} reset the refund policy to default` };
+            if (to === null) return { text: t('refundPolicyReset', { actor }) };
             const mode = to?.mode;
-            if (mode === 'extended') return { text: `${actor} switched the refund policy to Extended` };
-            if (mode === 'default') return { text: `${actor} switched the refund policy to Standard` };
-            return { text: `${actor} updated the refund policy` };
+            if (mode === 'extended') return { text: t('refundPolicyExtended', { actor }) };
+            if (mode === 'default') return { text: t('refundPolicyStandard', { actor }) };
+            return { text: t('refundPolicyUpdated', { actor }) };
         }
         case 'HOST_REFUND_BYPASS': {
             const amount = num(entry.payload, 'refundAmount');
-            const amountLabel = amount != null ? ` (€${(amount / 100).toFixed(2)})` : '';
-            return { text: `${actor} issued a refund past the standard window${amountLabel}` };
+            const amountLabel = amount != null ? t('bypassAmount', { amount: `€${(amount / 100).toFixed(2)}` }) : '';
+            return { text: t('refundBypass', { actor, amount: amountLabel }) };
         }
 
         case 'TIER_CREATED': {
             const tier = str(entry.payload, 'tierName');
-            return { text: tier ? `${actor} created the "${tier}" tier` : `${actor} created a tier`, subjectName: tier };
+            return { text: tier ? t('tierCreatedNamed', { actor, tier }) : t('tierCreated', { actor }), subjectName: tier };
         }
         case 'TIER_UPDATED': {
             const tier = str(entry.payload, 'tierName');
-            const fields = arr(entry.payload, 'fields');
-            return { text: `${actor} updated the ${tier ? `"${tier}" tier` : 'tier'}${fieldsLabel(fields)}`, subjectName: tier };
+            const fields = fieldsLabel(arr(entry.payload, 'fields'));
+            return { text: tier ? t('tierUpdatedNamed', { actor, tier, fields }) : t('tierUpdated', { actor, fields }), subjectName: tier };
         }
         case 'TIER_DELETED': {
             const tier = str(entry.payload, 'tierName');
-            return { text: tier ? `${actor} deleted the "${tier}" tier` : `${actor} deleted a tier`, subjectName: tier };
+            return { text: tier ? t('tierDeletedNamed', { actor, tier }) : t('tierDeleted', { actor }), subjectName: tier };
         }
         case 'TIER_SCHEDULED': {
             const tier = str(entry.payload, 'tierName');
-            return { text: `${actor} updated the ${tier ? `"${tier}" tier` : 'tier'}'s sales window`, subjectName: tier };
+            return { text: tier ? t('tierScheduledNamed', { actor, tier }) : t('tierScheduled', { actor }), subjectName: tier };
         }
 
         case 'AGENDA_ITEM_ADDED': {
             const title = str(entry.payload, 'title');
-            return { text: title ? `${actor} added "${title}" to the agenda` : `${actor} added an agenda item` };
+            return { text: title ? t('agendaAddedNamed', { actor, title }) : t('agendaAdded', { actor }) };
         }
         case 'AGENDA_ITEM_UPDATED': {
             const title = str(entry.payload, 'title');
-            return { text: title ? `${actor} updated the "${title}" agenda item` : `${actor} updated an agenda item` };
+            return { text: title ? t('agendaUpdatedNamed', { actor, title }) : t('agendaUpdated', { actor }) };
         }
         case 'AGENDA_ITEM_REMOVED': {
             const title = str(entry.payload, 'title');
-            return { text: title ? `${actor} removed "${title}" from the agenda` : `${actor} removed an agenda item` };
+            return { text: title ? t('agendaRemovedNamed', { actor, title }) : t('agendaRemoved', { actor }) };
         }
 
         case 'ATTENDEE_APPROVED': {
-            const name = str(entry.payload, 'attendeeName') ?? str(entry.payload, 'attendeeEmail') ?? 'an attendee';
+            const name = str(entry.payload, 'attendeeName') ?? str(entry.payload, 'attendeeEmail') ?? t('anAttendee');
             const tier = str(entry.payload, 'tierName');
             return {
-                text: tier ? `${actor} approved ${name} into the "${tier}" tier` : `${actor} approved ${name}`,
+                text: tier ? t('attendeeApprovedTier', { actor, name, tier }) : t('attendeeApproved', { actor, name }),
                 subjectName: name,
             };
         }
         case 'ATTENDEE_REJECTED': {
-            const name = str(entry.payload, 'attendeeName') ?? str(entry.payload, 'attendeeEmail') ?? 'an attendee';
-            return { text: `${actor} rejected ${name}'s registration`, subjectName: name };
+            const name = str(entry.payload, 'attendeeName') ?? str(entry.payload, 'attendeeEmail') ?? t('anAttendee');
+            return { text: t('attendeeRejected', { actor, name }), subjectName: name };
         }
         case 'ATTENDEE_REMOVED': {
-            const name = str(entry.payload, 'attendeeName') ?? str(entry.payload, 'attendeeEmail') ?? 'an attendee';
-            return { text: `${actor} removed ${name} from the event`, subjectName: name };
+            const name = str(entry.payload, 'attendeeName') ?? str(entry.payload, 'attendeeEmail') ?? t('anAttendee');
+            return { text: t('attendeeRemoved', { actor, name }), subjectName: name };
         }
         case 'ATTENDEES_BULK_APPROVED': {
             const count = num(entry.payload, 'count') ?? 0;
             const names = arr(entry.payload, 'attendeeNames');
-            if (count <= 0) return { text: `${actor} added attendees` };
-            if (names.length === 0) return { text: `${actor} added ${count} ${count === 1 ? 'attendee' : 'attendees'}` };
+            if (count <= 0) return { text: t('attendeesAdded', { actor }) };
+            if (names.length === 0) return { text: t('attendeesAddedCount', { actor, count }) };
             // Show up to 3 names inline, then "+ N more" if longer.
             const inline = names.slice(0, 3).join(', ');
             const remaining = count - Math.min(3, names.length);
-            return { text: remaining > 0 ? `${actor} added ${inline} + ${remaining} more` : `${actor} added ${inline}` };
+            return { text: remaining > 0 ? t('attendeesAddedNamesMore', { actor, names: inline, remaining }) : t('attendeesAddedNames', { actor, names: inline }) };
         }
         case 'ATTENDEES_BULK_REJECTED': {
             const count = num(entry.payload, 'count') ?? 0;
-            return { text: `${actor} rejected ${count} ${count === 1 ? 'registration' : 'registrations'}` };
+            return { text: t('registrationsRejected', { actor, count }) };
         }
 
         case 'INVITATIONS_SENT': {
             const count = num(entry.payload, 'count') ?? 0;
-            return { text: `${actor} invited ${count} ${count === 1 ? 'guest' : 'guests'}` };
+            return { text: t('guestsInvited', { actor, count }) };
         }
         case 'INVITATION_RESENT': {
             const email = str(entry.payload, 'invitedEmail');
-            return { text: email ? `${actor} resent the invitation to ${email}` : `${actor} resent an invitation` };
+            return { text: email ? t('invitationResentTo', { actor, email }) : t('invitationResent', { actor }) };
         }
 
         /*
@@ -266,40 +276,40 @@ export function renderActivitySentence(entry: ActivityEntryForRender): RenderedS
         case 'PURCHASED': {
             const money = amountLabel(entry.payload);
             const qty = num(entry.payload, 'quantity') ?? 1;
-            const tickets = qty === 1 ? 'a ticket' : `${qty} tickets`;
-            return { text: money ? `${actor} bought ${tickets} for ${money}` : `${actor} bought ${tickets}` };
+            return { text: money ? t('boughtFor', { actor, count: qty, money }) : t('bought', { actor, count: qty }) };
         }
         case 'PURCHASE_REFUNDED': {
             const money = amountLabel(entry.payload);
-            return { text: money ? `${actor} was refunded ${money}` : `${actor} was refunded` };
+            return { text: money ? t('refundedAmount', { actor, money }) : t('refunded', { actor }) };
         }
 
         default:
             // Unknown action — render a non-misleading fallback so the
             // feed keeps moving when a new enum value ships before the
             // FE ships its renderer.
-            return { text: `${actor} updated the event` };
+            return { text: t('eventUpdated', { actor }) };
     }
 }
 
 /**
  * Human-friendly "5 minutes ago" / "yesterday" / absolute-date label.
- * Pure function; no localisation. Mirrors the rough granularity of
- * Twitter/Slack timeline labels — exact ISO is on the title attr for
- * hover detail.
+ * Mirrors the rough granularity of Twitter/Slack timeline labels — exact
+ * ISO is on the title attr for hover detail. Words through the host
+ * translator; the absolute date already follows the browser locale.
  */
 export function formatRelativeTime(iso: string, now: Date): string {
     const t = new Date(iso).getTime();
     if (Number.isNaN(t)) return iso;
+    const tr = getEventT(NS);
     const deltaMs = now.getTime() - t;
     const sec = Math.floor(deltaMs / 1000);
-    if (sec < 60) return 'just now';
+    if (sec < 60) return tr('justNow');
     const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m ago`;
+    if (min < 60) return tr('minutesAgo', { count: min });
     const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}h ago`;
+    if (hr < 24) return tr('hoursAgo', { count: hr });
     const day = Math.floor(hr / 24);
-    if (day < 7) return `${day}d ago`;
+    if (day < 7) return tr('daysAgo', { count: day });
     // For older entries, drop relative + render the date — keeps the
     // feed scannable for long-running events.
     const d = new Date(iso);

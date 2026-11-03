@@ -7,6 +7,7 @@ import { EmptyState } from "@cobuntu/management-ui-shared";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { useCanEdit } from "../../lib/manageAccess";
 import { apiBase } from "../helpers";
+import { useEventT, getEventT } from "../../create-wizard/i18n";
 
 
 function authHeaders(): Record<string, string> {
@@ -57,10 +58,11 @@ function formatRelative(iso: string): string {
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-  if (diffH < 1) return "just now";
-  if (diffH < 24) return `${diffH}h ago`;
+  const t = getEventT("eventsUi.manageUi.updatesView");
+  if (diffH < 1) return t("justNow");
+  if (diffH < 24) return t("hoursAgo", { count: diffH });
   const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `${diffD}d ago`;
+  if (diffD < 7) return t("daysAgo", { count: diffD });
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
 }
 
@@ -73,6 +75,7 @@ interface Props {
 export function UpdatesView({ communityTag, eventId, showToast }: Props) {
   const { UserAvatar: ConfigAvatar } = useEventManagementConfig();
   const UserAvatar = ConfigAvatar ?? UserAvatarFallback;
+  const t = useEventT("eventsUi.manageUi.updatesView");
   const [broadcasts, setBroadcasts] = useState<BroadcastRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [composeOpen, setComposeOpenState] = useState(false);
@@ -103,22 +106,22 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
     try {
       const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/broadcasts/${id}`, { headers: authHeaders() });
       if (res.ok) setDetail(await res.json());
-      else showToast("Failed to load details");
-    } catch { showToast("Failed to load details"); }
+      else showToast(t("failedToLoadDetails"));
+    } catch { showToast(t("failedToLoadDetails")); }
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-zinc-900">Updates</h2>
-          <p className="text-[12px] text-zinc-400 mt-0.5">Send announcements to your attendees by email and WhatsApp.</p>
+          <h2 className="text-[15px] font-semibold text-zinc-900">{t("title")}</h2>
+          <p className="text-[12px] text-zinc-400 mt-0.5">{t("subtitle")}</p>
         </div>
         <button
           onClick={() => setComposeOpen(true)}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer flex items-center gap-1.5"
         >
-          <Send className="w-3.5 h-3.5" /> Send Update
+          <Send className="w-3.5 h-3.5" /> {t("sendUpdate")}
         </button>
       </div>
 
@@ -127,14 +130,14 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
       ) : broadcasts && broadcasts.length === 0 ? (
         <EmptyState
           icon={<Megaphone className="w-7 h-7" />}
-          title="No updates sent yet"
-          body="Send your first announcement to attendees."
+          title={t("emptyTitle")}
+          body={t("emptyBody")}
           action={
             <button
               onClick={() => setComposeOpen(true)}
               className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
             >
-              Send Update
+              {t("sendUpdate")}
             </button>
           }
         />
@@ -150,7 +153,7 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
                 <h3 className="text-[14px] font-medium text-zinc-900 truncate">{b.subject}</h3>
                 <p className="text-[12.5px] text-zinc-500 mt-1 line-clamp-2">{b.body}</p>
                 <div className="flex items-center gap-3 mt-2.5 text-[11.5px] text-zinc-400">
-                  <span>{b.recipientCount} recipient{b.recipientCount !== 1 ? "s" : ""}</span>
+                  <span>{t("recipients", { count: b.recipientCount })}</span>
                   <span>·</span>
                   <span>{b.sentBy?.name}</span>
                   <span>·</span>
@@ -168,7 +171,7 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
           communityTag={communityTag}
           eventId={eventId}
           onClose={() => setComposeOpen(false)}
-          onSent={() => { setComposeOpen(false); loadBroadcasts(); showToast("Update sent"); }}
+          onSent={() => { setComposeOpen(false); loadBroadcasts(); showToast(t("updateSent")); }}
           showToast={showToast}
         />
       )}
@@ -181,21 +184,23 @@ export function UpdatesView({ communityTag, eventId, showToast }: Props) {
 function ComposeUpdate({ communityTag, eventId, onClose, onSent, showToast }: {
   communityTag: string; eventId: string; onClose: () => void; onSent: () => void; showToast: (m: string) => void;
 }) {
+  const t = useEventT("eventsUi.manageUi.updatesView");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
 
   async function send() {
-    if (!subject.trim() || !body.trim()) { showToast("Subject and message are required"); return; }
+    if (!subject.trim() || !body.trim()) { showToast(t("required")); return; }
     setSending(true);
     try {
       const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/broadcasts`, {
         method: "POST", headers: jsonHeaders(),
         body: JSON.stringify({ subject: subject.trim(), body: body.trim() }),
       });
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || "Failed to send"); }
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || t("failedToSend")); }
       onSent();
-    } catch (e: any) { showToast(e.message || "Failed to send"); }
+    } catch (e: any) { showToast(e.message || t("failedToSend")); }
     finally { setSending(false); }
   }
 
@@ -203,7 +208,7 @@ function ComposeUpdate({ communityTag, eventId, onClose, onSent, showToast }: {
     <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-zinc-100">
-          <h2 className="text-[15px] font-semibold text-zinc-900">Send update</h2>
+          <h2 className="text-[15px] font-semibold text-zinc-900">{t("composeTitle")}</h2>
           <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-zinc-100 cursor-pointer">
             <X className="w-4 h-4 text-zinc-500" />
           </button>
@@ -211,22 +216,22 @@ function ComposeUpdate({ communityTag, eventId, onClose, onSent, showToast }: {
 
         <div className="p-5 space-y-4">
           <div>
-            <label className="text-[12px] font-medium text-zinc-700 block mb-1.5">Subject</label>
+            <label className="text-[12px] font-medium text-zinc-700 block mb-1.5">{t("subject")}</label>
             <input
               value={subject}
               onChange={e => setSubject(e.target.value)}
-              placeholder="e.g. Reminder: bring your laptop"
+              placeholder={t("subjectPlaceholder")}
               className="w-full px-3 py-2 text-[13px] text-zinc-900 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400"
               maxLength={150}
             />
           </div>
 
           <div>
-            <label className="text-[12px] font-medium text-zinc-700 block mb-1.5">Message</label>
+            <label className="text-[12px] font-medium text-zinc-700 block mb-1.5">{t("message")}</label>
             <textarea
               value={body}
               onChange={e => setBody(e.target.value)}
-              placeholder="Write your message to all approved attendees…"
+              placeholder={t("messagePlaceholder")}
               rows={7}
               maxLength={2000}
               className="w-full px-3 py-2 text-[13px] text-zinc-900 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-400 resize-none"
@@ -240,20 +245,20 @@ function ComposeUpdate({ communityTag, eventId, onClose, onSent, showToast }: {
               <MessageCircle className="w-3.5 h-3.5 text-zinc-500" />
             </div>
             <div className="flex-1">
-              <p className="text-[12px] text-zinc-700">Sent by email and WhatsApp</p>
-              <p className="text-[11px] text-zinc-500 mt-0.5">Goes to all approved attendees, based on their notification preferences.</p>
+              <p className="text-[12px] text-zinc-700">{t("channelsTitle")}</p>
+              <p className="text-[11px] text-zinc-500 mt-0.5">{t("channelsBody")}</p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 p-5 border-t border-zinc-100">
-          <button onClick={onClose} disabled={sending} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer disabled:opacity-50">Cancel</button>
+          <button onClick={onClose} disabled={sending} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer disabled:opacity-50">{tc("cancel")}</button>
           <button
             onClick={send}
             disabled={sending || !subject.trim() || !body.trim()}
             className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer flex items-center gap-1.5"
           >
-            <Send className="w-3.5 h-3.5" /> {sending ? "Sending…" : "Send"}
+            <Send className="w-3.5 h-3.5" /> {sending ? t("sending") : t("send")}
           </button>
         </div>
       </div>
@@ -266,13 +271,14 @@ function DetailDrawer({ detail, onClose }: { detail: BroadcastDetail; onClose: (
   // when the host app does not supply one.
   const { UserAvatar: ConfigAvatar } = useEventManagementConfig();
   const UserAvatar = ConfigAvatar ?? UserAvatarFallback;
+  const t = useEventT("eventsUi.manageUi.updatesView");
   const { stats } = detail;
   return (
     <div className="fixed inset-0 z-[120] bg-black/40 flex justify-end" onClick={onClose}>
       <div className="w-full max-w-xl bg-white h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-zinc-100 sticky top-0 bg-white z-10">
           <button onClick={onClose} className="flex items-center gap-1.5 text-[13px] text-zinc-500 hover:text-zinc-900 cursor-pointer">
-            <ChevronLeft className="w-4 h-4" /> Back
+            <ChevronLeft className="w-4 h-4" /> {t("back")}
           </button>
           <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-zinc-100 cursor-pointer">
             <X className="w-4 h-4 text-zinc-500" />
@@ -283,7 +289,7 @@ function DetailDrawer({ detail, onClose }: { detail: BroadcastDetail; onClose: (
           <div>
             <h2 className="text-[18px] font-semibold text-zinc-900">{detail.subject}</h2>
             <p className="text-[12px] text-zinc-500 mt-1">
-              Sent by {detail.sentBy?.name} · {formatRelative(detail.sentAt)}
+              {t("sentBy", { name: detail.sentBy?.name ?? "", when: formatRelative(detail.sentAt) })}
             </p>
           </div>
 
@@ -292,19 +298,19 @@ function DetailDrawer({ detail, onClose }: { detail: BroadcastDetail; onClose: (
           </div>
 
           <div className="grid grid-cols-4 gap-3">
-            <Stat label="Sent" value={stats.sent} />
-            <Stat label="Delivered" value={stats.delivered} />
-            <Stat label="Opened" value={stats.opened} />
-            <Stat label="Failed" value={stats.failed} accent={stats.failed > 0 ? "text-red-600" : ""} />
+            <Stat label={t("statSent")} value={stats.sent} />
+            <Stat label={t("statDelivered")} value={stats.delivered} />
+            <Stat label={t("statOpened")} value={stats.opened} />
+            <Stat label={t("statFailed")} value={stats.failed} accent={stats.failed > 0 ? "text-red-600" : ""} />
           </div>
 
           <div className="flex items-center gap-4 text-[12px] text-zinc-500">
-            <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {stats.byChannel.email} email</span>
-            <span className="flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> {stats.byChannel.whatsapp} WhatsApp</span>
+            <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {t("emailCount", { count: stats.byChannel.email })}</span>
+            <span className="flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> {t("whatsappCount", { count: stats.byChannel.whatsapp })}</span>
           </div>
 
           <div>
-            <h3 className="text-[12px] font-semibold text-zinc-700 uppercase tracking-wide mb-2">Recipients ({detail.recipients.length})</h3>
+            <h3 className="text-[12px] font-semibold text-zinc-700 uppercase tracking-wide mb-2">{t("recipientsHeading", { count: detail.recipients.length })}</h3>
             <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100">
               {detail.recipients.map((r, i) => (
                 <div key={i} className="flex items-center justify-between px-3 py-2.5">
@@ -314,7 +320,7 @@ function DetailDrawer({ detail, onClose }: { detail: BroadcastDetail; onClose: (
                       className="w-7 h-7 shrink-0"
                     />
                     <div className="min-w-0">
-                      <p className="text-[12.5px] text-zinc-900 truncate">{r.user?.name || "Unknown"}</p>
+                      <p className="text-[12.5px] text-zinc-900 truncate">{r.user?.name || t("unknown")}</p>
                       <p className="text-[11px] text-zinc-400 truncate">{r.user?.email}</p>
                     </div>
                   </div>
@@ -349,6 +355,14 @@ function Stat({ label, value, accent = "" }: { label: string; value: number; acc
 }
 
 function StatusBadge({ status }: { status: Recipient["status"] }) {
+  const t = useEventT("eventsUi.manageUi.updatesView");
+  const label =
+    status === "PENDING" ? t("statusPending")
+      : status === "SENT" ? t("statusSent")
+        : status === "DELIVERED" ? t("statusDelivered")
+          : status === "OPENED" ? t("statusOpened")
+            : status === "FAILED" ? t("statusFailed")
+              : status;
   const colors: Record<string, string> = {
     PENDING: "bg-zinc-100 text-zinc-600",
     SENT: "bg-blue-50 text-blue-700",
@@ -358,7 +372,7 @@ function StatusBadge({ status }: { status: Recipient["status"] }) {
   };
   return (
     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${colors[status] || "bg-zinc-100 text-zinc-600"}`}>
-      {status}
+      {label}
     </span>
   );
 }

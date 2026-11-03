@@ -3,6 +3,7 @@
 import { DonationsSection as SharedDonationsSection } from "@cobuntu/management-ui-shared";
 import type { DonationDraft } from "./types";
 import { getSymbol } from "./helpers";
+import { useEventT } from "../../create-wizard/i18n";
 
 export interface DonationsSectionProps {
   donation: DonationDraft;
@@ -21,5 +22,6 @@ export interface DonationsSectionProps {
  * this is an adapter and what the seams are.
  */
 export function DonationsSection(props: DonationsSectionProps) {
-  return <SharedDonationsSection {...props} symbolFor={getSymbol} tierNoun="ticket tier" />;
+  const t = useEventT("eventsUi.manageUi.donationsAdapter");
+  return <SharedDonationsSection {...props} symbolFor={getSymbol} tierNoun={t("tierNoun")} />;
 }

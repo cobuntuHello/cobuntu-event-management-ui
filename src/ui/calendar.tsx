@@ -3,12 +3,16 @@
 import * as React from "react";
 import { DayPicker } from "react-day-picker";
 import { cn } from "./utils";
+import { useDateFnsLocale } from "./date-locale";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+  // The host's language for month/weekday names; an explicit `locale` prop wins.
+  const locale = useDateFnsLocale();
   return (
     <DayPicker
+      locale={locale}
       showOutsideDays={showOutsideDays}
       className={cn("p-4", className)}
       classNames={{

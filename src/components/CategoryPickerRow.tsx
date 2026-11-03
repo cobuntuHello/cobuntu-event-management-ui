@@ -7,6 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { useEventT } from "../create-wizard/i18n";
 
 /**
  * Sub-categories carry the same icon fields as their parent — iconId
@@ -111,6 +112,7 @@ export interface CategoryPickerRowProps {
 export function CategoryPickerRow({
   categories, categoryId, subCategoryId, onChange, noun = "listing",
 }: CategoryPickerRowProps) {
+  const t = useEventT("eventsUi.manageUi.categoryPickerRow");
   const [open, setOpen] = useState(false);
   // Staged inside the dialog so Cancel actually cancels — committing on every
   // tap would make the row change under a user who then backs out.
@@ -180,13 +182,13 @@ export function CategoryPickerRow({
         )}
         <span className="flex-1 min-w-0">
           <span className={`block text-sm truncate ${summary ? "font-medium text-zinc-800" : "text-zinc-500"}`}>
-            {summary ? "Category" : "Choose a category"}
+            {summary ? t("category") : t("chooseCategory")}
           </span>
           {/* Subtitle in both states, matching the location/description rows
               on EventForm: unanswered says what the field is for, answered
               shows the actual selection. */}
           <span className="block text-[12.5px] text-zinc-500 truncate">
-            {summary || `Help people discover your ${noun}.`}
+            {summary || t("discoverHint", { noun })}
           </span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
@@ -195,10 +197,9 @@ export function CategoryPickerRow({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Category</DialogTitle>
+            <DialogTitle>{t("category")}</DialogTitle>
             <DialogDescription>
-              Choose where this {noun} belongs so people can find it. Your
-              community's admins decide the list.
+              {t("dialogDescription", { noun })}
             </DialogDescription>
           </DialogHeader>
 
@@ -227,7 +228,7 @@ export function CategoryPickerRow({
             {draftCat && draftSubs.length > 0 && (
               <div>
                 <p className="text-[12px] font-medium text-zinc-500 mb-2">
-                  Sub-category <span className="font-normal">· optional</span>
+                  {t("subCategory")} <span className="font-normal">{t("optional")}</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {draftSubs.map((s) => (
@@ -259,7 +260,7 @@ export function CategoryPickerRow({
               onClick={() => setOpen(false)}
               className="px-4 py-2 text-[13px] font-medium text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <Button
               type="button"
@@ -274,7 +275,7 @@ export function CategoryPickerRow({
                 setOpen(false);
               }}
             >
-              Done
+              {t("done")}
             </Button>
           </DialogFooter>
         </DialogContent>

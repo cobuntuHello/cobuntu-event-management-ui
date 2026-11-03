@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { setGoogleMapsApiKey } from "./lib/google-maps";
+import { WizardCopyProvider, useEventT, type WizardTranslate, type WizardTranslateRich } from "./create-wizard/i18n";
 
 /**
  * The auth-injection contract between the shared event-management UI and
@@ -100,6 +101,19 @@ export interface EventManagementConfig {
    */
   googleMapsApiKey?: string;
 
+  /**
+   * The host's translator, for every string the manage surface renders.
+   *
+   * Same contract as the create wizard's `copy.t`: components ask for FULLY
+   * QUALIFIED keys ("eventsUi.manageUi.agendaView.title"), so the community app
+   * passes next-intl's ROOT `useTranslations()` and every locale it ships
+   * works. Omitted, the package renders its built-in English
+   * (EVENT_MANAGEMENT_MESSAGES_EN), which is what a host without i18n wants.
+   */
+  t?: WizardTranslate;
+  /** `t.rich` for the few messages that carry <b>/<link> tags. Optional. */
+  rich?: WizardTranslateRich;
+
   UserAvatar?: React.ComponentType<{
     user: {
       name?: string | null;
@@ -153,7 +167,18 @@ export function EventManagementConfigProvider({
   // first render already sees it.
   currentConfig = value;
   if (value.googleMapsApiKey) setGoogleMapsApiKey(value.googleMapsApiKey);
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  /*
+   * Only a provider that BRINGS a translator installs one. The create wizard
+   * mounts this provider inside its own copy provider (which already carries
+   * the host's copy.t); an unconditional wrapper here would reset everything
+   * under it to English.
+   */
+  const copy = React.useMemo(
+    () => (value.t ? { t: value.t, rich: value.rich } : undefined),
+    [value.t, value.rich],
+  );
+  const inner = <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return copy ? <WizardCopyProvider copy={copy}>{inner}</WizardCopyProvider> : inner;
 }
 
 /**
@@ -197,6 +222,7 @@ export function useUpdateEvent(): (
 ) => Promise<any> {
   const { apiBaseUrl } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
+  const t = useEventT("eventsUi.manageUi.config");
   return React.useCallback(
     async (communityTag, eventId, body) => {
       const res = await fetch(
@@ -205,10 +231,10 @@ export function useUpdateEvent(): (
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to update");
+        throw new Error(err.error || t("failedToUpdate"));
       }
       return res.json();
     },
-    [apiBaseUrl, jsonHeaders],
+    [apiBaseUrl, jsonHeaders, t],
   );
 }

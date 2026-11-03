@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useEventT } from "../../create-wizard/i18n";
 import { fetchCommunityRoster, type PersonSearchResult } from "@cobuntu/management-ui-shared";
 
 /**
@@ -34,6 +35,7 @@ export function useGuestSuggestions(opts: {
     enabled: boolean;
 }): Array<{ label: string; people: PersonSearchResult[] }> {
     const { apiBaseUrl, communityTag, eventId, enabled } = opts;
+    const tx = useEventT("eventsUi.manageUi.guestSuggestions");
     const [rows, setRows] = useState<Array<{ label: string; people: PersonSearchResult[] }>>([]);
 
     useEffect(() => {
@@ -77,8 +79,8 @@ export function useGuestSuggestions(opts: {
             const next: Array<{ label: string; people: PersonSearchResult[] }> = [];
             const r = resolve(recent);
             const f = resolve(frequent);
-            if (r.length > 0) next.push({ label: "Recently invited", people: r });
-            if (f.length > 0) next.push({ label: "Frequent attendees", people: f });
+            if (r.length > 0) next.push({ label: tx("recentlyInvited"), people: r });
+            if (f.length > 0) next.push({ label: tx("frequentAttendees"), people: f });
             setRows(next);
         })();
 

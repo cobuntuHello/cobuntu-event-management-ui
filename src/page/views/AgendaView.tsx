@@ -8,6 +8,7 @@ import { EmptyState } from "@cobuntu/management-ui-shared";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { useCanEdit } from "../../lib/manageAccess";
 import { apiBase } from "../helpers";
+import { useEventT } from "../../create-wizard/i18n";
 
 
 interface AgendaItem {
@@ -111,6 +112,8 @@ interface Props {
 }
 
 export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
+  const tr = useEventT("eventsUi.manageUi.agendaView");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -199,8 +202,8 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
           const created = await res.json().catch(() => null);
           if (created?.id) setItems(prev => [...prev, created]);
           else await loadAgenda(); // fallback if response shape surprises us
-          showToast("Added"); resetForm();
-        } else showToast("Failed to add");
+          showToast(tr("added")); resetForm();
+        } else showToast(tr("failedToAdd"));
       } else {
         const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/agenda/${editingId}`, {
           method: "PUT", headers: { "Content-Type": "application/json", ...headers() }, body: JSON.stringify(body),
@@ -211,10 +214,10 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
           const updated = await res.json().catch(() => null);
           if (updated?.id) setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
           else await loadAgenda();
-          showToast("Updated"); resetForm();
-        } else showToast("Failed to update");
+          showToast(tr("updated")); resetForm();
+        } else showToast(tc("failedToUpdate"));
       }
-    } catch { showToast("Failed to save"); }
+    } catch { showToast(tr("failedToSave")); }
     finally { setSaving(false); }
   }
 
@@ -227,13 +230,13 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
       const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/agenda/${itemId}`, { method: "DELETE", headers: headers() });
       if (!res.ok) {
         setItems(prev);
-        showToast("Failed to remove");
+        showToast(tr("failedToRemove"));
         return;
       }
-      showToast("Removed");
+      showToast(tr("removed"));
     } catch {
       setItems(prev);
-      showToast("Failed to remove");
+      showToast(tr("failedToRemove"));
     }
   }
 
@@ -255,15 +258,15 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
 
   const InlineForm = (
     <div className="px-5 py-4 space-y-3" style={{ background: theme.insetBg }}>
-      <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Item title" autoFocus
+      <input value={title} onChange={e => setTitle(e.target.value)} placeholder={tr("itemTitle")} autoFocus
         className="w-full px-3 py-2 text-sm border focus:outline-none placeholder:opacity-40"
         style={{ color: theme.text, background: theme.cardBg, borderColor: theme.border, borderRadius: theme.buttonRadius }} />
-      <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional)" rows={2}
+      <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tr("descriptionPlaceholder")} rows={2}
         className="w-full px-3 py-2 text-sm border resize-none focus:outline-none placeholder:opacity-40"
         style={{ color: theme.text, background: theme.cardBg, borderColor: theme.border, borderRadius: theme.buttonRadius }} />
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <label className="text-[11px] mb-1 block" style={muted(0.5)}>Start</label>
+          <label className="text-[11px] mb-1 block" style={muted(0.5)}>{tr("start")}</label>
           <Select value={startTime} onValueChange={setStartTime}>
             <SelectTrigger className="w-full px-3 py-2 text-sm border focus:outline-none"
             style={{ color: theme.text, background: theme.cardBg, borderColor: theme.border, borderRadius: theme.buttonRadius }}>
@@ -275,7 +278,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
           </Select>
         </div>
         <div className="flex-1">
-          <label className="text-[11px] mb-1 block" style={muted(0.5)}>End</label>
+          <label className="text-[11px] mb-1 block" style={muted(0.5)}>{tr("end")}</label>
           <Select value={endTime} onValueChange={setEndTime}>
             <SelectTrigger className="w-full px-3 py-2 text-sm border focus:outline-none"
             style={{ color: theme.text, background: theme.cardBg, borderColor: theme.border, borderRadius: theme.buttonRadius }}>
@@ -289,11 +292,11 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
       </div>
       <div className="flex justify-end gap-2 pt-1">
         <button onClick={resetForm} className="px-3 py-1.5 text-[12px] cursor-pointer hover:opacity-70"
-          style={{ ...muted(0.6), borderRadius: theme.buttonRadius }}>Cancel</button>
+          style={{ ...muted(0.6), borderRadius: theme.buttonRadius }}>{tc("cancel")}</button>
         <button onClick={handleSave} disabled={saving || !title.trim()}
           className="px-3 py-1.5 text-[12px] font-medium disabled:opacity-40 cursor-pointer hover:opacity-90"
           style={{ background: theme.brand, color: theme.onBrand, borderRadius: theme.buttonRadius }}>
-          {saving ? "Saving..." : editingId === "new" ? "Add" : "Save"}
+          {saving ? tc("savingDots") : editingId === "new" ? tr("add") : tc("save")}
         </button>
       </div>
     </div>
@@ -303,12 +306,12 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>Manage Agenda</h2>
-          <p className="text-[12px] mt-0.5" style={muted(0.5)}>Plan the schedule of sessions, breaks, and activities attendees will see.</p>
+          <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>{tr("title")}</h2>
+          <p className="text-[12px] mt-0.5" style={muted(0.5)}>{tr("subtitle")}</p>
         </div>
         {editingId !== "new" && (
           <button onClick={openAdd} className="px-4 py-2 text-[13px] font-medium cursor-pointer hover:opacity-90"
-            style={{ background: theme.brand, color: theme.onBrand, borderRadius: theme.buttonRadius }}>Add Item</button>
+            style={{ background: theme.brand, color: theme.onBrand, borderRadius: theme.buttonRadius }}>{tr("addItem")}</button>
         )}
       </div>
 
@@ -368,27 +371,27 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
                   <div className="flex items-center gap-1 shrink-0">
                     <div className="flex items-center" style={{ background: theme.insetBg, border: `1px solid ${theme.borderSubtle}`, borderRadius: theme.buttonRadius }}>
                       <button onClick={() => handleMove(i, -1)} disabled={i === 0}
-                        aria-label="Move up"
+                        aria-label={tr("moveUp")}
                         className="w-7 h-7 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-opacity hover:opacity-100"
                         style={muted(0.6)}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="18 15 12 9 6 15"/></svg>
                       </button>
                       <div className="w-px h-4" style={{ background: theme.border }} />
                       <button onClick={() => handleMove(i, 1)} disabled={i === items.length - 1}
-                        aria-label="Move down"
+                        aria-label={tr("moveDown")}
                         className="w-7 h-7 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-opacity hover:opacity-100"
                         style={muted(0.6)}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
                       </button>
                     </div>
                     <button onClick={() => openEdit(item)}
-                      aria-label="Edit item"
+                      aria-label={tr("editItem")}
                       className="w-8 h-8 flex items-center justify-center cursor-pointer transition-opacity hover:opacity-100"
                       style={{ ...muted(0.6), background: theme.insetBg, border: `1px solid ${theme.borderSubtle}`, borderRadius: theme.buttonRadius }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                     </button>
                     <button onClick={() => handleDelete(item.id)}
-                      aria-label="Delete item"
+                      aria-label={tr("deleteItem")}
                       className="w-8 h-8 flex items-center justify-center text-red-500/70 hover:text-red-500 cursor-pointer transition-colors"
                       style={{ background: theme.insetBg, border: `1px solid ${theme.borderSubtle}`, borderRadius: theme.buttonRadius }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -401,8 +404,8 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
         ) : editingId !== "new" ? (
           <EmptyState
             icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
-            title="No agenda items yet"
-            body="Add schedule items to help attendees plan their time."
+            title={tr("emptyTitle")}
+            body={tr("emptyBody")}
           />
         ) : null}
       </div>

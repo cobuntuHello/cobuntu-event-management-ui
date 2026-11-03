@@ -6,6 +6,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { DraftTier } from "./types";
 import { getSymbol, isTierLocked } from "./helpers";
+import { useEventT } from "../../create-wizard/i18n";
 
 export interface TierRowProps {
   t: DraftTier & { _idx: number };
@@ -33,13 +34,15 @@ export function TierRow({
   dragAttributes,
   dragListeners,
 }: TierRowProps) {
+  // `t` is the tier draft here, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.tierRow");
   const sym = getSymbol(t.currency);
   const locked = isTierLocked(t);
   const capCap = t.capacity ? parseInt(t.capacity, 10) : null;
   const soldLabel = locked
     ? capCap != null
       ? `${t.salesCount}/${capCap}`
-      : `${t.salesCount} sold`
+      : tx("soldCount", { count: t.salesCount })
     : null;
 
   return (
@@ -59,7 +62,7 @@ export function TierRow({
         {dragListeners && (
           <button
             type="button"
-            aria-label="Drag to reorder"
+            aria-label={tx("dragToReorder")}
             className="p-1 -ml-2 -my-1 text-zinc-300 hover:text-zinc-600 cursor-grab active:cursor-grabbing shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
             {...dragAttributes}
             {...dragListeners}
@@ -73,7 +76,7 @@ export function TierRow({
         )}
         <div className="flex-1 min-w-0">
           <p className="text-[14px] font-semibold text-zinc-900 truncate">
-            {t.name || <span className="text-zinc-400 font-normal">Unnamed tier</span>}
+            {t.name || <span className="text-zinc-400 font-normal">{tx("unnamedTier")}</span>}
           </p>
         </div>
         {/* 2026-06-15 (feat/publish-validation-errors-and-refund-ux):
@@ -86,24 +89,24 @@ export function TierRow({
         {!t.publishedAt && (
           <span
             className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full shrink-0"
-            title="This tier is a draft — buyers can't see it until you publish it."
+            title={tx("draftTitle")}
           >
-            Draft
+            {tx("draft")}
           </span>
         )}
         {t.hasForm && (
           <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
-            Form Enabled
+            {tx("formEnabled")}
           </span>
         )}
         {t.priceMode === "pwyw" && (
           <span className="text-[10px] font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full shrink-0">
-            PWYW
+            {tx("pwyw")}
           </span>
         )}
         {t.installmentEnabled && (
           <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
-            Installments
+            {tx("installments")}
           </span>
         )}
         {soldLabel && (
@@ -112,7 +115,7 @@ export function TierRow({
           </span>
         )}
         <span className="text-[13px] font-semibold text-zinc-700 tabular-nums shrink-0">
-          {t.price && parseFloat(t.price) > 0 ? `${sym}${t.price}` : "Free"}
+          {t.price && parseFloat(t.price) > 0 ? `${sym}${t.price}` : tx("free")}
         </span>
         {/* Chevron is a decorative affordance only — the whole row is the
             click target (onSelect). Delete + Duplicate moved to the L2

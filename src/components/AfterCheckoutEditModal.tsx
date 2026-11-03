@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 export interface AfterCheckoutEditModalProps {
   event: any;
@@ -34,6 +35,8 @@ export function AfterCheckoutEditModal({
 }: AfterCheckoutEditModalProps) {
   const { apiBaseUrl } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
+  const t = useEventT("eventsUi.manageUi.afterCheckoutEditModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
 
   const [mode, setMode] = useState<Mode>(
     event.afterCheckoutMode === "MEMBERSHIP_UPSELL" || event.afterCheckoutMode === "EXTERNAL"
@@ -66,8 +69,8 @@ export function AfterCheckoutEditModal({
   const segmentValid = mode !== "MEMBERSHIP_UPSELL" || !!segmentId;
 
   async function save() {
-    if (!urlValid) { showToast("Post-checkout URL must be a valid https:// URL"); return; }
-    if (!segmentValid) { showToast("Choose a membership tier to promote"); return; }
+    if (!urlValid) { showToast(t("urlInvalidToast")); return; }
+    if (!segmentValid) { showToast(t("chooseTierToast")); return; }
     setSaving(true);
     try {
       const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/after-checkout`, {
@@ -82,14 +85,14 @@ export function AfterCheckoutEditModal({
         }),
       });
       if (res.ok) {
-        showToast("After checkout updated");
+        showToast(t("updated"));
         onSaved();
       } else {
         const err = await res.json().catch(() => ({}));
-        showToast(err.error || "Failed to update after checkout");
+        showToast(err.error || t("failed"));
       }
     } catch {
-      showToast("Failed to update");
+      showToast(tc("failedToUpdate"));
     } finally {
       setSaving(false);
     }
@@ -99,16 +102,16 @@ export function AfterCheckoutEditModal({
 
   return (
     <ModalShell onClose={onClose} width="w-full sm:w-[560px]">
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">After checkout</h3>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">{t("title")}</h3>
       <p className="text-[12px] text-zinc-400 mb-4">
-        What a buyer sees after paying for this event. This is the page after payment, not the event page.
+        {t("subtitle")}
       </p>
 
-      <div role="radiogroup" aria-label="After checkout" className="grid grid-cols-1 gap-2">
+      <div role="radiogroup" aria-label={t("title")} className="grid grid-cols-1 gap-2">
         {([
-          { v: "NATIVE", title: "Normal confirmation", description: "The standard Cobuntu confirmation with the ticket, receipt, and downloads." },
-          { v: "MEMBERSHIP_UPSELL", title: "Membership upsell", description: "Offer the buyer a community membership after their ticket. Only shown to people who aren't already members." },
-          { v: "EXTERNAL", title: "External redirect", description: "Send the buyer to your own post-checkout page." },
+          { v: "NATIVE", title: t("nativeTitle"), description: t("nativeBody") },
+          { v: "MEMBERSHIP_UPSELL", title: t("upsellTitle"), description: t("upsellBody") },
+          { v: "EXTERNAL", title: t("externalTitle"), description: t("externalBody") },
         ] as const).map((opt) => (
           <label
             key={opt.v}
@@ -130,19 +133,19 @@ export function AfterCheckoutEditModal({
 
       {mode === "MEMBERSHIP_UPSELL" && (
         <div className="mt-4 space-y-2 border-t border-zinc-100 pt-4">
-          <label className="block text-[12px] font-medium text-zinc-700">Promoted membership tier</label>
+          <label className="block text-[12px] font-medium text-zinc-700">{t("promotedTier")}</label>
           <select value={segmentId} onChange={(e) => setSegmentId(e.target.value)} className={input}>
-            <option value="">Choose a tier…</option>
+            <option value="">{t("chooseTier")}</option>
             {segments.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Headline (optional)" maxLength={140} className={input} />
-          <input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder="Button label (optional)" maxLength={40} className={input} />
+          <input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder={t("headlinePlaceholder")} maxLength={140} className={input} />
+          <input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder={t("ctaPlaceholder")} maxLength={40} className={input} />
         </div>
       )}
 
       {mode === "EXTERNAL" && (
         <div className="mt-4 border-t border-zinc-100 pt-4">
-          <label className="block text-[12px] font-medium text-zinc-700 mb-1.5">Post-checkout URL</label>
+          <label className="block text-[12px] font-medium text-zinc-700 mb-1.5">{t("urlLabel")}</label>
           <input
             type="url"
             value={postCheckoutUrl}
@@ -152,18 +155,18 @@ export function AfterCheckoutEditModal({
               postCheckoutUrl && !urlValid ? "border-red-300 focus:border-red-400" : "border-zinc-200 focus:border-zinc-400"
             }`}
           />
-          {postCheckoutUrl && !urlValid && <p className="text-[11px] text-red-600 mt-1">Must be a valid https:// URL.</p>}
+          {postCheckoutUrl && !urlValid && <p className="text-[11px] text-red-600 mt-1">{t("urlInvalid")}</p>}
         </div>
       )}
 
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button
           onClick={save}
           disabled={saving || !urlValid || !segmentValid}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? tc("savingDots") : tc("save")}
         </button>
       </div>
     </ModalShell>

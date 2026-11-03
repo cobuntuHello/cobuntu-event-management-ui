@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 import { tierAccessSummary, toTierAccessValue, fetchMembershipTiers } from "@cobuntu/management-ui-shared";
 import { ViewabilityEditModal } from "./ViewabilityEditModal";
 import { AccessibilityEditModal } from "./AccessibilityEditModal";
@@ -102,11 +103,12 @@ export function SettingsDrawer({
      */
     const [fetchedTiers, setFetchedTiers] = useState<{ id: string; name: string }[]>([]);
     const { apiBaseUrl } = useEventManagementConfig();
+    const t = useEventT("eventsUi.manageUi.settingsDrawer");
     useEffect(() => {
         if (membershipTiersProp || !isOpen || !communityTag) return;
         let cancelled = false;
-        fetchMembershipTiers(apiBaseUrl, communityTag).then((t) => {
-            if (!cancelled) setFetchedTiers(t);
+        fetchMembershipTiers(apiBaseUrl, communityTag).then((tiers) => {
+            if (!cancelled) setFetchedTiers(tiers);
         });
         return () => { cancelled = true; };
     }, [membershipTiersProp, isOpen, communityTag, apiBaseUrl]);
@@ -282,14 +284,14 @@ export function SettingsDrawer({
                     <button
                         onClick={handleClose}
                         className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center cursor-pointer shrink-0"
-                        aria-label="Close settings"
+                        aria-label={t("closeSettings")}
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
                             <polyline points="13 17 18 12 13 7" />
                             <polyline points="6 17 11 12 6 7" />
                         </svg>
                     </button>
-                    <h2 className="text-base font-semibold text-zinc-900">Settings</h2>
+                    <h2 className="text-base font-semibold text-zinc-900">{t("title")}</h2>
                 </div>
 
                 {/* Past-event note. Access / Featured can still be
@@ -299,7 +301,7 @@ export function SettingsDrawer({
                 {isPast && (
                     <div className="px-5 py-2.5 bg-zinc-50 border-b border-zinc-100 shrink-0">
                         <p className="text-[11px] text-zinc-500 leading-snug">
-                            Event has ended. Access and Featured no longer affect new registrations — only Visibility and a custom landing URL still apply.
+                            {t("pastNote")}
                         </p>
                     </div>
                 )}
@@ -313,12 +315,12 @@ export function SettingsDrawer({
                         are the HOST's own and stay on both ownership kinds. */}
                     {isCommunityOwned && (
                         <p className="px-6 pt-4 pb-1 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-                            Community access
+                            {t("communityAccess")}
                         </p>
                     )}
                     {isCommunityOwned && (
                     <SettingsRow
-                        label="Visibility"
+                        label={t("visibility")}
                         summary={tierAccessSummary(toTierAccessValue(event.viewability ?? "PUBLIC", viewTierIds), membershipTiers)}
                         onClick={() => openModal("viewability")}
                         icon={
@@ -331,7 +333,7 @@ export function SettingsDrawer({
                     )}
                     {isCommunityOwned && (
                     <SettingsRow
-                        label="Access"
+                        label={t("access")}
                         summary={tierAccessSummary(toTierAccessValue(event.accessibility ?? "PUBLIC", buyTierIds), membershipTiers)}
                         onClick={() => openModal("accessibility")}
                         icon={
@@ -344,10 +346,10 @@ export function SettingsDrawer({
                     )}
                     {isCommunityOwned && (
                     <SettingsRow
-                        label="Distribution"
+                        label={t("distribution")}
                         summary={
-                            (event.detailSource === "EXTERNAL" ? "Custom landing page" : "Cobuntu event page") +
-                            (event.featured ? " · ⭐ Featured" : "")
+                            (event.detailSource === "EXTERNAL" ? t("customLanding") : t("cobuntuPage")) +
+                            (event.featured ? ` · ${t("featured")}` : "")
                         }
                         onClick={() => openModal("distribution")}
                         icon={
@@ -362,11 +364,11 @@ export function SettingsDrawer({
                     )}
                     {!hideAfterCheckout && (
                         <SettingsRow
-                            label="After checkout"
+                            label={t("afterCheckout")}
                             summary={
-                                event.afterCheckoutMode === "MEMBERSHIP_UPSELL" ? "Membership upsell"
-                                    : event.afterCheckoutMode === "EXTERNAL" ? "External redirect"
-                                        : "Normal confirmation"
+                                event.afterCheckoutMode === "MEMBERSHIP_UPSELL" ? t("upsell")
+                                    : event.afterCheckoutMode === "EXTERNAL" ? t("externalRedirect")
+                                        : t("normalConfirmation")
                             }
                             onClick={() => openModal("after-checkout")}
                             icon={
@@ -378,11 +380,11 @@ export function SettingsDrawer({
                         />
                     )}
                     <p className="px-6 pt-4 pb-1 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-                        Your settings
+                        {t("yourSettings")}
                     </p>
                     <SettingsRow
-                        label="Approval"
-                        summary={event.requiresApproval ? "You review each registration" : "Registrations confirm instantly"}
+                        label={t("approval")}
+                        summary={event.requiresApproval ? t("approvalReview") : t("approvalInstant")}
                         onClick={() => openModal("approval")}
                         icon={
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
@@ -404,7 +406,7 @@ export function SettingsDrawer({
                       */}
                     {isCommunityOwned && (
                         <SettingsRow
-                            label="Refund policy"
+                            label={t("refundPolicy")}
                             summary={refundPolicySummary(event.refundPolicy)}
                             onClick={() => openModal("refund-policy")}
                             icon={

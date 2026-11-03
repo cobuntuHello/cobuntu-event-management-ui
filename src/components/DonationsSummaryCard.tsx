@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getEventManagementConfig } from "../config";
 import { apiBase } from "../page/helpers";
+import { useEventT } from "../create-wizard/i18n";
 
 
 interface SummaryResponse {
@@ -39,6 +40,7 @@ type Props = BaseProps & (
  */
 export function DonationsSummaryCard(props: Props) {
     const { communityTag } = props;
+    const t = useEventT("eventsUi.manageUi.donationsSummaryCard");
     const [data, setData] = useState<SummaryResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [hidden, setHidden] = useState(false);
@@ -81,7 +83,7 @@ export function DonationsSummaryCard(props: Props) {
         <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">Donations</p>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">{t("heading")}</p>
                     {loading ? (
                         <div className="mt-2 space-y-2">
                             <div className="h-7 w-32 rounded bg-zinc-100 animate-pulse" />
@@ -93,13 +95,13 @@ export function DonationsSummaryCard(props: Props) {
                                 {formatAmount(data.total, data.currency)}
                             </p>
                             <p className="mt-1 text-[13px] text-zinc-500">
-                                across {data.count} donation{data.count === 1 ? "" : "s"}
+                                {t("acrossCount", { count: data.count })}
                             </p>
                         </>
                     ) : (
                         <>
                             <p className="mt-1 text-2xl font-semibold text-zinc-300 tabular-nums">—</p>
-                            <p className="mt-1 text-[13px] text-zinc-500">No donations yet</p>
+                            <p className="mt-1 text-[13px] text-zinc-500">{t("empty")}</p>
                         </>
                     )}
                 </div>

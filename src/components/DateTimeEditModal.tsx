@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { EventTimestamps } from "../ui/event-timestamps";
 import { useUpdateEvent } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 /**
  * Event times are stored UTC with the intended wall-clock timezone alongside
@@ -120,6 +121,8 @@ interface Props {
 
 export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
   const updateEvent = useUpdateEvent();
+  const t = useEventT("eventsUi.manageUi.dateTimeEditModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
   const tz = event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Both halves of the picker are seeded in the EVENT's zone, not the browser's
@@ -142,7 +145,7 @@ export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showT
         endDate: endDateUTC,
         timezone,
       });
-      showToast("Date updated");
+      showToast(t("updated"));
       onSaved();
     } catch (err: any) {
       showToast(err.message);
@@ -153,7 +156,7 @@ export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showT
 
   return (
     <ModalShell onClose={onClose} width="w-full sm:w-[540px]">
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Edit date & time</h3>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">{t("title")}</h3>
       <EventTimestamps
         startDate={startDate}
         endDate={endDate}
@@ -167,13 +170,13 @@ export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showT
         onTimezoneChange={setTimezone}
       />
       <div className="flex justify-end gap-2 mt-5">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button
           onClick={save}
           disabled={saving || !startDate || !endDate}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? tc("savingDots") : tc("save")}
         </button>
       </div>
     </ModalShell>

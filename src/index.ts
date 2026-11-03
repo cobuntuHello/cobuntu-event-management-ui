@@ -286,3 +286,11 @@ export {
 // hosts without Tailwind: "@cobuntu/event-management-ui/dist/event-wizard.css";
 // theme variables: "@cobuntu/event-management-ui/create-wizard/theme.css".
 export * from "./create-wizard";
+
+/*
+ * Copy for everything outside the wizard (manage page, modals, form, pricing,
+ * attendees, hosts, listings, activity). The host passes its translator as
+ * EventManagementConfig.t; these are the English defaults and the key list a
+ * host's own parity test can check its message files against.
+ */
+export { EVENT_MANAGEMENT_MESSAGES_EN, flattenMessageKeys, useEventT, getEventT } from "./i18n";

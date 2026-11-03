@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 
 type FormField = {
@@ -48,6 +49,7 @@ interface Props {
 
 export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPromoteToHost }: Props) {
   const config = useEventManagementConfig();
+  const tx = useEventT("eventsUi.manageUi.attendeeDetailDrawer");
   // Pkg-portable avatar rendering: consumer can inject its own via
   // config.UserAvatar; otherwise the minimal initials fallback ships
   // with the pkg.
@@ -94,9 +96,11 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
     : status === "CANCELLED" ? "bg-zinc-100 text-zinc-500 border-zinc-200"
     : "bg-emerald-50 text-emerald-600 border-emerald-100";
   const statusLabel =
-    status === "APPROVED" ? "Confirmed"
-    : status === "PENDING_PAYMENT" ? "Payment pending (legacy)"
-    : status === "CANCELLED" ? "Cancelled"
+    status === "APPROVED" ? tx("statusConfirmed")
+    : status === "PENDING_PAYMENT" ? tx("statusPaymentPendingLegacy")
+    : status === "CANCELLED" ? tx("statusCancelled")
+    : status === "REJECTED" ? tx("statusRejected")
+    : status === "PENDING" ? tx("statusPending")
     : status.charAt(0) + status.slice(1).toLowerCase();
 
   return createPortal(
@@ -113,7 +117,7 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
           <button
             onClick={handleClose}
             className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center cursor-pointer shrink-0"
-            aria-label="Close drawer"
+            aria-label={tx("closeDrawer")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
               <polyline points="13 17 18 12 13 7" />
@@ -132,9 +136,9 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-semibold text-zinc-900 truncate">{attendee.name || "Unknown"}</h2>
+              <h2 className="text-sm font-semibold text-zinc-900 truncate">{attendee.name || tx("unknown")}</h2>
               {attendee.type === "guest" && (
-                <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>
+                <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">{tx("guest")}</span>
               )}
             </div>
             {attendee.usertag && <p className="text-[11px] text-zinc-400 truncate">@{attendee.usertag}</p>}
@@ -148,9 +152,9 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
         <div className="flex-1 overflow-y-auto">
           {/* Contact + registration meta */}
           <div className="px-5 pt-5">
-            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-3">Contact</p>
+            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-3">{tx("contact")}</p>
             <div className="rounded-xl border border-zinc-200 divide-y divide-zinc-100">
-              <InfoRow label="Email">
+              <InfoRow label={tx("email")}>
                 {attendee.email ? (
                   <a href={`mailto:${attendee.email}`} className="text-sm text-blue-600 hover:underline truncate block">
                     {attendee.email}
@@ -160,7 +164,7 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
                 )}
               </InfoRow>
               {phoneFromForm && (
-                <InfoRow label="Phone">
+                <InfoRow label={tx("phone")}>
                   <a
                     href={`tel:${phoneFromForm.replace(/[^\d+]/g, "")}`}
                     className="text-sm text-blue-600 hover:underline"
@@ -170,14 +174,14 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
                 </InfoRow>
               )}
               {attendee.tier?.name && (
-                <InfoRow label="Tier">
+                <InfoRow label={tx("tier")}>
                   <span className="text-sm font-medium text-zinc-900">{attendee.tier.name}</span>
                 </InfoRow>
               )}
               {attendee.createdAt && (
-                <InfoRow label="Registered">
+                <InfoRow label={tx("registered")}>
                   <span className="text-sm text-zinc-700">
-                    {new Date(attendee.createdAt).toLocaleDateString("en-GB", {
+                    {new Date(attendee.createdAt).toLocaleDateString(tx("dateLocale"), {
                       day: "numeric", month: "short", year: "numeric",
                     })}
                   </span>
@@ -191,10 +195,10 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
               server-side in normalizeAttendees). */}
           {attendee.internalNote && (
             <div className="px-5 pt-6">
-              <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-3">Internal note</p>
+              <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-3">{tx("internalNote")}</p>
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
                 <p className="text-sm text-zinc-800 whitespace-pre-wrap break-words">{attendee.internalNote}</p>
-                <p className="text-[11px] text-zinc-400 mt-2">Only hosts can see this — never shown to the attendee.</p>
+                <p className="text-[11px] text-zinc-400 mt-2">{tx("internalNoteHint")}</p>
               </div>
             </div>
           )}
@@ -202,7 +206,7 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
           {/* Form answers */}
           {hasAnswers && (
             <div className="px-5 pt-6 pb-6">
-              <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-3">Form answers</p>
+              <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-3">{tx("formAnswers")}</p>
               <div className="rounded-xl border border-zinc-200 divide-y divide-zinc-100">
                 {fields.map((f) => {
                   const v = answers[f.id];
@@ -221,8 +225,8 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
             <div className="px-5 pt-6 pb-6">
               <p className="text-[12px] text-zinc-400 text-center py-6">
                 {attendee.type === "guest" || attendee.formAnswers === null
-                  ? "No form answers — this attendee was added directly or no form was attached to their tier."
-                  : "No form answers."}
+                  ? tx("noFormAnswersDirect")
+                  : tx("noFormAnswers")}
               </p>
             </div>
           )}
@@ -241,10 +245,10 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
               className="w-full px-4 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer flex items-center justify-center gap-2"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M20 21a8 8 0 1 0-16 0"/><path d="m17 8 2 2 4-4"/></svg>
-              Promote to host
+              {tx("promoteToHost")}
             </button>
             <p className="text-[11px] text-zinc-400 text-center mt-2">
-              They stay registered. Their payment is kept on file.
+              {tx("promoteHint")}
             </p>
           </div>
         )}

@@ -14,6 +14,7 @@ import { EventActivityTab } from "../components/activity/EventActivityTab";
 import { getEventManagementConfig } from "../config";
 import { EventManageHeader, type EventManageHeaderProps } from "./EventManageHeader";
 import { ManageAccessProvider } from "../lib/manageAccess";
+import { getEventT } from "../create-wizard/i18n";
 
 /**
  * THE event manage page. One implementation, both apps.
@@ -361,9 +362,10 @@ export function EventManagePage({
  * actual answer is "this already happened".
  */
 export function endedNoticeCopy(): { title: string; body: string } {
+  const t = getEventT("eventsUi.manageUi.readOnlyNotice");
   return {
-    title: "This event has ended.",
-    body: "It is kept here as a record, so its details and pricing can no longer be changed. Attendees, the ledger and the agenda are still here to read.",
+    title: t("endedTitle"),
+    body: t("endedBody"),
   };
 }
 
@@ -388,24 +390,25 @@ export function readOnlyNoticeCopy(event: any, isModerator?: boolean): { title: 
     event?.hosts?.find((h: any) => h.role === "CREATOR")?.user?.name
     || event?.hosts?.[0]?.user?.name
     || null;
+  const t = getEventT("eventsUi.manageUi.readOnlyNotice");
 
   if (isModerator) {
     return {
-      title: "You're viewing this in oversight mode.",
-      body: "Editing is restricted to the event's own host and community leaders, by design -- not a permission you're missing.",
+      title: t("moderatorTitle"),
+      body: t("moderatorBody"),
     };
   }
 
   if (event?.communityId) {
     return {
-      title: "Your community owns this event.",
-      body: "You do not have permission to change it. A community leader with event permissions can edit it, or grant you that permission.",
+      title: t("communityOwnsTitle"),
+      body: t("communityOwnsBody"),
     };
   }
 
   return {
-    title: ownerName ? `${ownerName} runs this event.` : "This event belongs to its host.",
-    body: "Your community carries it, so you manage the listing: the terms, the commission, and whether it stays on your shelf. Ask the host through the listing conversation to change the event itself.",
+    title: ownerName ? t("hostRunsTitle", { name: ownerName }) : t("belongsToHostTitle"),
+    body: t("carriedBody"),
   };
 }
 
@@ -446,7 +449,7 @@ export function readOnlyOwner(event: any): {
     const community = owning?.community ?? null;
     return {
       kind: "community",
-      name: community?.name || "Your community",
+      name: community?.name || getEventT("eventsUi.manageUi.readOnlyNotice")("yourCommunity"),
       imageUrl: community?.iconUrl ?? null,
     };
   }
@@ -456,7 +459,7 @@ export function readOnlyOwner(event: any): {
   if (!user) return null;
   return {
     kind: "person",
-    name: user.name || user.usertag || "the host",
+    name: user.name || user.usertag || getEventT("eventsUi.manageUi.readOnlyNotice")("theHost"),
     imageUrl: user.profileImage ?? null,
   };
 }

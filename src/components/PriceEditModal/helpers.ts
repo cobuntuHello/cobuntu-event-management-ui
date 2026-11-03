@@ -13,6 +13,14 @@ import {
   type DonationDraft,
   type DraftTier,
 } from "./types";
+import { getEventT } from "../../create-wizard/i18n";
+
+/*
+ * These helpers run outside components (validation in the save loop, blank-row
+ * builders), so they read the host translator through getEventT rather than a
+ * hook. The English defaults are byte-identical to the strings they replaced.
+ */
+const tr = () => getEventT("eventsUi.manageUi.pricingHelpers");
 
 /**
  * Turns a failed tier/donation save's JSON body into a message, with a
@@ -40,8 +48,8 @@ export function describeSaveError(
 ): string {
   if (e?.code === "STRIPE_NOT_CONNECTED") {
     return isPersonalEvent
-      ? "Connect your own Stripe account before setting a price or enabling donations — it's where this event's payouts go."
-      : "This community hasn't connected a Stripe account yet, so it can't be paid out to. Ask a community leader to connect one before setting a price or enabling donations.";
+      ? tr()("stripeNotConnectedPersonal")
+      : tr()("stripeNotConnectedCommunity");
   }
   return e?.error || fallback;
 }
@@ -82,7 +90,7 @@ function newLocalId(): string {
 export function blankTier(currency = "EUR", indexHint = 1): DraftTier {
   return {
     localId: newLocalId(),
-    name: indexHint === 1 ? "Standard" : `Tier ${indexHint}`,
+    name: indexHint === 1 ? tr()("defaultTierName") : tr()("tierN", { n: indexHint }),
     description: "",
     price: "",
     currency,
@@ -146,20 +154,20 @@ export function loadDonationFromEvent(event: { donationConfig?: unknown; currenc
  *  otherwise. Called per-tier in the global save loop; surfacing the
  *  first failure stops the loop. */
 export function validateTier(t: DraftTier): string | null {
-  if (!t.name.trim()) return "Tier name is required";
+  if (!t.name.trim()) return tr()("tierNameRequired");
   if (t.name.length > TIER_NAME_MAX) {
-    return `Tier name must be ${TIER_NAME_MAX} characters or fewer.`;
+    return tr()("tierNameTooLong", { max: TIER_NAME_MAX });
   }
   if (t.description.length > TIER_DESCRIPTION_MAX) {
-    return `Description for "${t.name}" must be ${TIER_DESCRIPTION_MAX} characters or fewer.`;
+    return tr()("descriptionTooLong", { name: t.name, max: TIER_DESCRIPTION_MAX });
   }
   if (t.price === "" || isNaN(parseFloat(t.price))) {
-    return `Price required for "${t.name}"`;
+    return tr()("priceRequired", { name: t.name });
   }
   if (t.priceMode === "pwyw" && t.pwywMin.trim()) {
     const min = parseFloat(t.pwywMin);
     if (isNaN(min) || min < 0) {
-      return `Minimum amount for "${t.name}" must be a non-negative number.`;
+      return tr()("pwywMinInvalid", { name: t.name });
     }
   }
   if (t.installmentEnabled) {
@@ -167,13 +175,13 @@ export function validateTier(t: DraftTier): string | null {
     const count = parseInt(t.installmentCount, 10);
     const interval = parseInt(t.installmentInterval, 10);
     if (isNaN(total) || total <= 0) {
-      return `Installment total for "${t.name}" must be a positive number.`;
+      return tr()("installmentTotalInvalid", { name: t.name });
     }
     if (isNaN(count) || count < 2) {
-      return `Installment count for "${t.name}" must be at least 2.`;
+      return tr()("installmentCountInvalid", { name: t.name });
     }
     if (isNaN(interval) || interval < 1) {
-      return `Installment interval for "${t.name}" must be at least 1 month.`;
+      return tr()("installmentIntervalInvalid", { name: t.name });
     }
   }
   // Auto-schedule sales window. Enabling it with no bounds at all is a
@@ -182,13 +190,13 @@ export function validateTier(t: DraftTier): string | null {
   // close must be strictly after open.
   if (t.autoScheduleEnabled) {
     if (!t.salesStartAt && !t.salesEndAt) {
-      return `Set a sales-open or sales-close date for "${t.name}", or turn off auto-schedule.`;
+      return tr()("scheduleNoDates", { name: t.name });
     }
     if (t.salesStartAt && t.salesEndAt) {
       const start = new Date(t.salesStartAt).getTime();
       const end = new Date(t.salesEndAt).getTime();
       if (Number.isFinite(start) && Number.isFinite(end) && end <= start) {
-        return `Sales close must be after sales open for "${t.name}".`;
+        return tr()("scheduleCloseBeforeOpen", { name: t.name });
       }
     }
   }
@@ -200,22 +208,22 @@ export function validateDonation(d: DonationDraft): string | null {
   if (d.mode === "fixed") {
     const trimmed = d.amounts.map((a) => a.trim());
     const hasBlank = trimmed.some((a) => a === "");
-    if (hasBlank) return "Fill in or remove blank donation amounts.";
+    if (hasBlank) return tr()("donationBlankAmounts");
     const invalid = trimmed.find((a) => {
       const n = parseFloat(a);
       return isNaN(n) || n <= 0;
     });
     if (invalid !== undefined) {
-      return `Donation amount "${invalid}" must be a positive number.`;
+      return tr()("donationAmountInvalid", { amount: invalid });
     }
     if (trimmed.length === 0) {
-      return "At least one donation amount is required when fixed mode is enabled.";
+      return tr()("donationAmountsRequired");
     }
   }
   if (d.mode === "pwyw" && d.minAmount.trim()) {
     const n = parseFloat(d.minAmount);
     if (isNaN(n) || n < 0) {
-      return "Minimum donation must be a non-negative number.";
+      return tr()("donationMinInvalid");
     }
   }
   return null;
