@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { EVENT_WIZARD_MESSAGES_EN } from "./messages.en";
+import { EVENT_MANAGEMENT_MESSAGES_EN } from "../i18n/messages.en";
 
 /**
  * Copy for EventCreateWizard.
@@ -186,8 +187,21 @@ interface Resolved {
   rich: WizardTranslateRich;
 }
 
+/*
+ * The built-in English covers the WHOLE package, not just the wizard.
+ *
+ * The wizard renders EventForm and the pricing modal, and the manage page
+ * renders the same components through this same context. So the fallback tree
+ * is the wizard's messages plus the manage surface's, and one host translator
+ * (copy.t here, EventManagementConfig.t on the manage page) reaches all of it.
+ */
+const DEFAULT_MESSAGES_EN = deepMerge(
+  EVENT_WIZARD_MESSAGES_EN as unknown as Record<string, unknown>,
+  EVENT_MANAGEMENT_MESSAGES_EN,
+);
+
 function resolve(copy: EventCreateWizardCopy | undefined): Resolved {
-  const t = copy?.t ?? createWizardTranslator(deepMerge(EVENT_WIZARD_MESSAGES_EN, copy?.messages), copy?.locale);
+  const t = copy?.t ?? createWizardTranslator(deepMerge(DEFAULT_MESSAGES_EN, copy?.messages), copy?.locale);
   const rich: WizardTranslateRich = copy?.rich ?? ((key, values = {}) => {
     const plain: WizardTranslationValues = {};
     const tags: Record<string, (c: React.ReactNode) => React.ReactNode> = {};
@@ -200,7 +214,20 @@ function resolve(copy: EventCreateWizardCopy | undefined): Resolved {
   return { t, rich };
 }
 
-const CopyContext = React.createContext<Resolved>(resolve(undefined));
+const DEFAULT_RESOLVED = resolve(undefined);
+const CopyContext = React.createContext<Resolved>(DEFAULT_RESOLVED);
+
+/*
+ * The same translator, reachable without a hook -- the copy counterpart of
+ * getEventManagementConfig(). A handful of plain helpers (date formatting,
+ * validation messages, option lists built outside a component) produce
+ * user-visible text and are called from many places; threading `t` through
+ * every caller would change a dozen signatures for no behavioural gain.
+ *
+ * Mirrored during render, so a helper called by a child's first render already
+ * sees the host's translator. Components still read the CONTEXT.
+ */
+let currentResolved: Resolved = DEFAULT_RESOLVED;
 
 export function WizardCopyProvider({ copy, children }: { copy?: EventCreateWizardCopy; children: React.ReactNode }) {
   const t = copy?.t;
@@ -208,7 +235,16 @@ export function WizardCopyProvider({ copy, children }: { copy?: EventCreateWizar
   const messages = copy?.messages;
   const locale = copy?.locale;
   const value = React.useMemo(() => resolve({ t, rich, messages, locale }), [t, rich, messages, locale]);
+  currentResolved = value;
   return <CopyContext.Provider value={value}>{children}</CopyContext.Provider>;
+}
+
+/** Non-hook, namespaced translator for module-level helpers. See currentResolved. */
+export function getEventT(namespace: string): NamespacedT {
+  const { t, rich } = currentResolved;
+  const fn = ((key: string, values?: WizardTranslationValues) => t(`${namespace}.${key}`, values)) as NamespacedT;
+  fn.rich = (key, values) => rich(`${namespace}.${key}`, values);
+  return fn;
 }
 
 export interface NamespacedT {
@@ -216,7 +252,12 @@ export interface NamespacedT {
   rich: (key: string, values?: WizardRichValues) => React.ReactNode;
 }
 
-/** Namespaced view, so lifted components read `t("events")` as they did. */
+/**
+ * Namespaced view, so lifted components read `t("events")` as they did.
+ *
+ * Also the hook every manage-surface component uses (exported as useEventT):
+ * `const t = useEventT("eventsUi.manageUi.agendaView")`.
+ */
 export function useWizardT(namespace: string): NamespacedT {
   const { t, rich } = React.useContext(CopyContext);
   return React.useMemo(() => {
@@ -225,3 +266,6 @@ export function useWizardT(namespace: string): NamespacedT {
     return fn;
   }, [t, rich, namespace]);
 }
+
+/** The package-wide name for useWizardT. */
+export const useEventT = useWizardT;
