@@ -189,7 +189,7 @@ type InnerProps = Omit<EventCreateWizardProps, "initialDrafts" | "canCreateForCo
 };
 
 function WizardInner({
-  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep, disableNextOnInvalidExtraStep,
+  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep, disableNextOnInvalidExtraStep, ownershipMode = "choice",
   isLeader: isLeaderHere, drafts: myDrafts, draftId, draftStepFromUrl,
   syncStepToUrl = true, onLocalResume,
 }: InnerProps) {
@@ -203,7 +203,7 @@ function WizardInner({
    * backend refuses community ownership for a non-leader whatever is sent).
    */
   const [ownership, setOwnership] = useState<"community" | "personal">("community");
-  const effectiveOwnership: "community" | "personal" = isLeaderHere ? ownership : "personal";
+  const effectiveOwnership: "community" | "personal" = ownershipMode === "personalOnly" ? "personal" : (isLeaderHere ? ownership : "personal");
 
   /*
    * The arrangements this member may host under. Empty is never an error: the
@@ -899,6 +899,9 @@ function WizardInner({
                 viewer={viewer}
                 disabled={creating}
                 platformFeeRate={platformFeeRate}
+                {...(ownershipMode === "personalOnly"
+                  ? { singleOption: "personal" as const, perksNote: community.ownershipPerksNote }
+                  : {})}
               />
             </StepPane>
 

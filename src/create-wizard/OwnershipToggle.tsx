@@ -27,6 +27,8 @@ export function OwnershipToggle({
   disabled,
   platformFeeRate,
   copyNamespace = "eventsUi.ownership",
+  singleOption,
+  perksNote,
 }: {
   value: EventOwnership;
   onChange: (next: EventOwnership) => void;
@@ -37,6 +39,13 @@ export function OwnershipToggle({
   /** What Cobuntu charges this community for events (0..1); undefined names the fee without a number. */
   platformFeeRate?: number;
   copyNamespace?: string;
+  /**
+   * Shows only this card, with nothing to choose between — for a venue that
+   * never offers the other kind of ownership (EventCreateWizardProps.ownershipMode).
+   */
+  singleOption?: EventOwnership;
+  /** Appended to the single card's own facts, below the built-in ones. */
+  perksNote?: ReactNode;
 }) {
   const t = useWizardT(copyNamespace);
   const rich = (key: string, values?: Record<string, string>) =>
@@ -75,20 +84,22 @@ export function OwnershipToggle({
     },
   ];
 
+  const shown = singleOption ? options.filter((o) => o.key === singleOption) : options;
+
   return (
     // `md:`, not a container query: there is no @container ancestor to measure.
-    <div className="grid gap-3 md:grid-cols-2" role="radiogroup">
-      {options.map((opt) => {
-        const active = value === opt.key;
+    <div className={`grid gap-3 ${singleOption ? "" : "md:grid-cols-2"}`} role={singleOption ? undefined : "radiogroup"}>
+      {shown.map((opt) => {
+        // With a single option there is nothing to choose, so the card always
+        // reads as decided rather than as an unclicked radio — same visual
+        // state a real choice lands on once picked.
+        const active = singleOption ? true : value === opt.key;
+        const Tag = singleOption ? "div" : "button";
         return (
-          <button
+          <Tag
             key={opt.key}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            disabled={disabled}
-            onClick={() => onChange(opt.key)}
-            className="flex flex-col rounded-[var(--button-radius,0.75rem)] border p-5 text-left transition-colors duration-150 disabled:opacity-50 cursor-pointer"
+            {...(singleOption ? {} : { type: "button", role: "radio", "aria-checked": active, disabled, onClick: () => onChange(opt.key) })}
+            className={`flex flex-col rounded-[var(--button-radius,0.75rem)] border p-5 text-left transition-colors duration-150 disabled:opacity-50 ${singleOption ? "" : "cursor-pointer"}`}
             style={{
               color: active ? "var(--brand-contrast, #fff)" : "var(--text-color)",
               background: active ? "var(--brand-color, #18181b)" : "transparent",
@@ -117,7 +128,7 @@ export function OwnershipToggle({
                 <span
                   key={i}
                   className="block py-2.5"
-                  style={i < opt.facts.length - 1 ? {
+                  style={i < opt.facts.length - 1 || (singleOption && perksNote) ? {
                     borderBottom: active
                       ? "1px solid color-mix(in srgb, var(--brand-contrast, #fff) 18%, transparent)"
                       : "1px solid color-mix(in srgb, currentColor 9%, transparent)",
@@ -126,8 +137,9 @@ export function OwnershipToggle({
                   {fact}
                 </span>
               ))}
+              {singleOption && perksNote ? <span className="block py-2.5">{perksNote}</span> : null}
             </span>
-          </button>
+          </Tag>
         );
       })}
     </div>
