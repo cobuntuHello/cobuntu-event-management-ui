@@ -67,6 +67,15 @@ function stubLoadRoutes() {
   ];
 }
 
+    /*
+     * No tile click here any more. The PriceEditModal redesign replaced the
+     * Level-2 TILE MENU with an inline edit screen (TierEditView): name,
+     * description and the whole pricing surface are on the tier screen
+     * itself, and only capacity / sales window / registration form drill into
+     * an Advanced sub-screen. These clicks navigated a menu that no longer
+     * exists, so the tests went red for a deliberate design change while the
+     * behaviour they assert was never broken.
+     */
 describe("PriceEditModal — Member Pricing round-trip", () => {
   it("keeps Save ENABLED when the community has no segments (regression: was permanently disabled)", async () => {
     // Prod bug (same as the product modal): with showMemberPricing + a saved
@@ -107,8 +116,6 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     await user.click(await screen.findByRole("button", { name: /GA/ }));
 
     // 3. Click the Member pricing SectionCard (whole card is clickable
-    //    in the new UX — no inline Edit buttons).
-    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
 
     // 4. Wait for the section to load and toggle a row dirty.
     const vipsCheckbox = await screen.findByLabelText(
@@ -166,7 +173,6 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
 
     // L1 → click row → L2 → click Member pricing card → L3.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
 
     // Toggle VIPs on
     const vipsCheckbox = await screen.findByLabelText(
@@ -177,7 +183,6 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
 
     // Exit step via footer Back, then re-enter via the Member pricing card.
     await user.click(screen.getByRole("button", { name: /^Back$/ }));
-    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
 
     // The same checkbox is still checked — modal-level state survived.
     const vipsAfter = await screen.findByLabelText(
@@ -206,7 +211,6 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
 
     // L1 → click row → L2 → Member pricing card → L3 → toggle → dirty.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
-    await user.click(await screen.findByRole("button", { name: /Pricing configuration/ }));
 
     await user.click(
       await screen.findByLabelText(/Offer member pricing for VIPs/),
