@@ -66,6 +66,8 @@ export function visibleViews(opts: {
    * tested on its own, away from any rendered tree.
    */
   hasLedger?: boolean;
+  /** The host passed a Referrals slot, so the tab can appear. */
+  hasReferrals?: boolean;
 }): ViewKey[] {
   /*
    * "details" MUST be here, not only in the nav's SECTIONS list. SectionsNav
@@ -82,6 +84,8 @@ export function visibleViews(opts: {
     "overview", "details", "pricing",
     // After Details, always. The nav's SECTIONS array is what orders it.
     ...(opts.hasLedger ? (["ledger"] as ViewKey[]) : []),
+    // Host slot, same rule as the ledger: listed HERE as well as in SECTIONS.
+    ...(opts.hasReferrals ? (["referrals"] as ViewKey[]) : []),
     "attendees", "hosts", "agenda",
   ];
   const isHost = !!opts.viewerUserId
@@ -106,6 +110,8 @@ export interface EventManagePageProps {
    * pin shows one tab fewer, not a tab opening onto nothing.
    */
   ledgerSlot?: React.ReactNode;
+  /** The Referrals tab. A slot like the ledger: the host fetches and renders it. */
+  referralsSlot?: React.ReactNode;
   communityTag: string;
   /** Slug or id, whichever the host app routes on. */
   eventId: string;
@@ -155,6 +161,7 @@ export interface EventManagePageProps {
 export function EventManagePage({
   overviewSlot,
   ledgerSlot,
+  referralsSlot,
   communityTag,
   eventId,
   event,
@@ -178,8 +185,8 @@ export function EventManagePage({
   getEventManagementConfig();
 
   const allowed = React.useMemo(
-    () => visibleViews({ event, viewerUserId, forceModerator, hasLedger: !!ledgerSlot }),
-    [event, viewerUserId, forceModerator, ledgerSlot],
+    () => visibleViews({ event, viewerUserId, forceModerator, hasLedger: !!ledgerSlot, hasReferrals: !!referralsSlot }),
+    [event, viewerUserId, forceModerator, ledgerSlot, referralsSlot],
   );
 
   // A ?view= the viewer may not use falls back rather than rendering an empty
@@ -254,6 +261,11 @@ export function EventManagePage({
     case "ledger":
       /* A slot, like the Overview -- the host fetches it. */
       content = ledgerSlot ?? null;
+      break;
+
+    case "referrals":
+      /* A slot too: the host owns the API client and the clipboard. */
+      content = referralsSlot ?? null;
       break;
 
     case "overview":

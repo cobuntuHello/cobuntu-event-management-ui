@@ -260,6 +260,7 @@ export const OVERVIEW_MESSAGES_EN = {
         details: "Details",
         pricing: "Pricing",
         hosts: "Hosts",
+        referrals: "Referrals",
         listings: "Listings",
         agenda: "Agenda",
         attendees: "Attendees",
