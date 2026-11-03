@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { ArrowLeft, Trash2, Plus } from "lucide-react";
 import { fieldHasOptions, fieldTypeMeta, type FormField } from "../_form-types";
 import { StepInput } from "../_primitives";
+import { useEventT } from "../../../create-wizard/i18n";
 
 export interface EditFieldFlowProps {
   field: FormField;
@@ -29,13 +30,14 @@ export function EditFieldFlow({
   onBack,
 }: EditFieldFlowProps) {
   const [draft, setDraft] = useState<FormField>(field);
+  const t = useEventT("eventsUi.manageUi.formSubFlows");
   const meta = fieldTypeMeta(draft.type);
   const showsOptions = fieldHasOptions(draft.type);
   const labelId = useId();
   const descriptionId = useId();
 
   function addOption() {
-    const next = [...(draft.options || []), { id: `opt-${Date.now()}`, label: `Option ${(draft.options?.length || 0) + 1}` }];
+    const next = [...(draft.options || []), { id: `opt-${Date.now()}`, label: t("optionN", { n: (draft.options?.length || 0) + 1 }) }];
     setDraft({ ...draft, options: next });
   }
   function updateOption(idx: number, label: string) {
@@ -55,13 +57,13 @@ export function EditFieldFlow({
           type="button"
           onClick={onBack}
           className="p-1 -ml-1 text-zinc-500 hover:text-zinc-900 cursor-pointer rounded"
-          aria-label="Back to form fields"
+          aria-label={t("backToFields")}
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1 min-w-0">
           <h5 className="text-[13px] font-semibold text-zinc-900">
-            {isNew ? "New question" : "Edit question"}
+            {isNew ? t("newQuestion") : t("editQuestion")}
           </h5>
           <p className="text-[11px] text-zinc-400">{meta?.label || draft.type}</p>
         </div>
@@ -69,30 +71,30 @@ export function EditFieldFlow({
 
       <div className="space-y-3">
         <div>
-          <label htmlFor={labelId} className="block text-[11px] font-medium text-zinc-600 mb-1">Label</label>
+          <label htmlFor={labelId} className="block text-[11px] font-medium text-zinc-600 mb-1">{t("label")}</label>
           <StepInput
             id={labelId}
             type="text"
             value={draft.label}
             onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-            placeholder="What should the question read?"
+            placeholder={t("labelPlaceholder")}
             autoFocus
           />
         </div>
 
         <div>
-          <label htmlFor={descriptionId} className="block text-[11px] font-medium text-zinc-600 mb-1">Help text (optional)</label>
+          <label htmlFor={descriptionId} className="block text-[11px] font-medium text-zinc-600 mb-1">{t("helpText")}</label>
           <StepInput
             id={descriptionId}
             type="text"
             value={draft.description || ""}
             onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            placeholder="Shown below the field"
+            placeholder={t("helpTextPlaceholder")}
           />
         </div>
 
         <label className="flex items-center justify-between py-1 cursor-pointer">
-          <span className="text-[12px] font-medium text-zinc-700">Required</span>
+          <span className="text-[12px] font-medium text-zinc-700">{t("required")}</span>
           <button
             type="button"
             onClick={(e) => {
@@ -100,7 +102,7 @@ export function EditFieldFlow({
               setDraft({ ...draft, required: !draft.required });
             }}
             aria-pressed={draft.required}
-            aria-label="Toggle required"
+            aria-label={t("toggleRequired")}
             className={`w-10 h-[22px] rounded-full relative transition-colors cursor-pointer ${draft.required ? "bg-zinc-900" : "bg-zinc-200"}`}
           >
             <span
@@ -112,7 +114,7 @@ export function EditFieldFlow({
 
         {showsOptions && (
           <div>
-            <label className="block text-[11px] font-medium text-zinc-600 mb-1.5">Options</label>
+            <label className="block text-[11px] font-medium text-zinc-600 mb-1.5">{t("options")}</label>
             <div className="space-y-1.5">
               {(draft.options || []).map((opt, oi) => (
                 <div key={opt.id} className="flex items-center gap-2">
@@ -127,7 +129,7 @@ export function EditFieldFlow({
                       type="button"
                       onClick={() => removeOption(oi)}
                       className="p-1 text-zinc-300 hover:text-red-500 cursor-pointer"
-                      aria-label="Remove option"
+                      aria-label={t("removeOption")}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -139,7 +141,7 @@ export function EditFieldFlow({
                 onClick={addOption}
                 className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-zinc-500 hover:text-zinc-700 cursor-pointer"
               >
-                <Plus className="w-3 h-3" /> Add option
+                <Plus className="w-3 h-3" /> {t("addOption")}
               </button>
             </div>
           </div>
@@ -153,7 +155,7 @@ export function EditFieldFlow({
             onClick={onDelete}
             className="px-3 py-1.5 text-[12px] font-medium text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
           >
-            Remove
+            {t("remove")}
           </button>
         ) : <span />}
         <button
@@ -161,7 +163,7 @@ export function EditFieldFlow({
           onClick={() => onSave(draft)}
           className="px-3 py-1.5 text-[12px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
         >
-          {isNew ? "Add question" : "Done"}
+          {isNew ? t("addQuestion") : t("done")}
         </button>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import { Input } from "./input";
 import { cn } from "./utils";
 import { useEventManagementConfig, type EventManagementConfig } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 function getTagColor(name: string): { bg: string; text: string } {
   let hash = 0;
@@ -62,8 +63,10 @@ async function createTag(config: EventManagementConfig, name: string): Promise<T
 }
 
 export const EventTags = React.forwardRef<HTMLInputElement, EventTagsProps>(
-  ({ selectedTags, onTagsChange, placeholder = "Add tags...", disabled = false }, ref) => {
+  ({ selectedTags, onTagsChange, placeholder: placeholderProp, disabled = false }, ref) => {
     const config = useEventManagementConfig();
+    const tt = useEventT("eventsUi.manageUi.eventTags");
+    const placeholder = placeholderProp ?? tt("addTagsPlaceholder");
     const [inputValue, setInputValue] = useState("");
     const [suggestions, setSuggestions] = useState<Tag[]>([]);
     const [isOpen, setIsOpen] = useState(false);

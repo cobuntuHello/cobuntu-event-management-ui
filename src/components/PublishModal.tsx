@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useEventManagementConfig } from "../config";
+import { missingRequirementLabel } from "../page/helpers";
+import { useEventT } from "../create-wizard/i18n";
 
 interface Props {
   event: any;
@@ -19,6 +21,8 @@ interface Props {
 export function PublishModal({ event, communityTag, isPublished, isPaid, attendeeCount, missingRequirements, onClose, onDone, showToast }: Props) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const [saving, setSaving] = useState(false);
+  const t = useEventT("eventsUi.manageUi.publishModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
 
   async function execute() {
     const endpoint = isPublished ? "unpublish" : "publish";
@@ -28,7 +32,7 @@ export function PublishModal({ event, communityTag, isPublished, isPaid, attende
         method: "POST",
         headers: authHeaders(),
       });
-      if (res.ok) { showToast(isPublished ? "Unpublished" : "Published"); onDone(); }
+      if (res.ok) { showToast(isPublished ? t("unpublished") : t("published")); onDone(); }
       else {
         const err = await res.json().catch(() => ({}));
         // 2026-06-15: surface the BE's detailed validation list when
@@ -40,37 +44,37 @@ export function PublishModal({ event, communityTag, isPublished, isPaid, attende
         // ticket tier — publish at least one tier before listing" saw
         // only "Cannot publish event" with no idea what to fix.
         const details: string[] = Array.isArray(err.validationErrors) ? err.validationErrors : [];
-        const baseMsg = err.error || `Failed to ${endpoint}`;
+        const baseMsg = err.error || (isPublished ? t("failedToUnpublish") : t("failedToPublish"));
         showToast(details.length > 0 ? `${baseMsg}: ${details.join(" · ")}` : baseMsg);
       }
-    } catch { showToast(`Failed to ${isPublished ? "unpublish" : "publish"}`); }
+    } catch { showToast(isPublished ? t("failedToUnpublish") : t("failedToPublish")); }
     finally { setSaving(false); }
   }
 
   if (isPublished) {
     return (
       <ModalShell onClose={onClose}>
-        <h3 className="text-[15px] font-semibold text-zinc-900 mb-3">Unpublish event</h3>
+        <h3 className="text-[15px] font-semibold text-zinc-900 mb-3">{t("unpublishTitle")}</h3>
         <div className="space-y-2 mb-4">
           <WarningCard color="amber"
             icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
-            title="Event will be hidden" subtitle="It will no longer be visible to the public." />
+            title={t("hiddenTitle")} subtitle={t("hiddenBody")} />
           {attendeeCount > 0 && (
             <WarningCard color="amber"
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>}
-              title={`${attendeeCount} attendee${attendeeCount !== 1 ? "s" : ""} registered`} subtitle="Attendees will be notified about the change." />
+              title={t("attendeesRegistered", { count: attendeeCount })} subtitle={t("attendeesNotified")} />
           )}
           {isPaid && (
             <WarningCard color="blue"
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/></svg>}
-              title="Automatic refunds" subtitle="Ticket purchases in escrow will be refunded." />
+              title={t("autoRefundsTitle")} subtitle={t("autoRefundsBody")} />
           )}
         </div>
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
           <button onClick={execute} disabled={saving}
             className="px-4 py-2 text-[13px] font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-30 cursor-pointer">
-            {saving ? "Unpublishing..." : "Unpublish"}
+            {saving ? t("unpublishing") : t("unpublish")}
           </button>
         </div>
       </ModalShell>
@@ -79,23 +83,23 @@ export function PublishModal({ event, communityTag, isPublished, isPaid, attende
 
   return (
     <ModalShell onClose={onClose}>
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-3">Publish event</h3>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-3">{t("publishTitle")}</h3>
       {missingRequirements.length > 0 ? (
         <div className="rounded-lg bg-red-50 p-3 mb-4">
-          <p className="text-sm font-medium text-red-600 mb-1">Cannot publish yet</p>
-          <p className="text-xs text-red-500">You must {missingRequirements.join(", ")} before publishing.</p>
+          <p className="text-sm font-medium text-red-600 mb-1">{t("cannotPublishYet")}</p>
+          <p className="text-xs text-red-500">{t("mustBefore", { requirements: missingRequirements.map(missingRequirementLabel).join(", ") })}</p>
         </div>
       ) : (
         <div className="rounded-lg bg-emerald-50 p-3 mb-4">
-          <p className="text-sm font-medium text-emerald-700">Ready to publish</p>
-          <p className="text-xs text-emerald-600 mt-0.5">Your event will be visible to the public.</p>
+          <p className="text-sm font-medium text-emerald-700">{t("readyTitle")}</p>
+          <p className="text-xs text-emerald-600 mt-0.5">{t("readyBody")}</p>
         </div>
       )}
       <div className="flex justify-end gap-2">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button onClick={execute} disabled={saving || missingRequirements.length > 0}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
-          {saving ? "Publishing..." : "Publish"}
+          {saving ? t("publishing") : t("publish")}
         </button>
       </div>
     </ModalShell>

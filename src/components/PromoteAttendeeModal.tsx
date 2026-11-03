@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useEventManagementConfig } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 import { UserAvatarFallback } from "../ui/user-avatar-fallback";
 import { AttendeesActionModalShell } from "./attendees-action/AttendeesActionModalShell";
 
@@ -90,6 +91,7 @@ export function PromoteAttendeeModal({
     onPromoted,
 }: PromoteAttendeeModalProps) {
     const config = useEventManagementConfig();
+    const tx = useEventT("eventsUi.manageUi.promoteAttendeeModal");
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
     const [picked, setPicked] = useState<Attendee | null>(null);
     const [query, setQuery] = useState("");
@@ -117,7 +119,7 @@ export function PromoteAttendeeModal({
         if (!picked) return;
         const userId = resolvedUserId(picked);
         if (!userId) {
-            setError("This attendee has no linked user account yet.");
+            setError(tx("errNoUser"));
             return;
         }
         setSubmitting(true);
@@ -130,33 +132,33 @@ export function PromoteAttendeeModal({
             });
             if (!res.ok) {
                 if (res.status === 409) {
-                    setError("This person is already a host.");
+                    setError(tx("errAlreadyHost"));
                 } else if (res.status === 403) {
-                    setError("Only the event creator can promote attendees to host.");
+                    setError(tx("errOnlyCreator"));
                 } else {
                     const body = await res.json().catch(() => null);
-                    setError(body?.message || `Failed (${res.status})`);
+                    setError(body?.message || tx("errFailed", { status: res.status }));
                 }
                 return;
             }
             onPromoted(picked);
             onClose();
         } catch (e: any) {
-            setError(e?.message || "Network error");
+            setError(e?.message || tx("errNetwork"));
         } finally {
             setSubmitting(false);
         }
     }
 
     const subtitle = picked
-        ? "They'll be listed as a host. Their existing registration and payment stay on file."
-        : "Pick a paid attendee. Their registration stays in place; they'll be added as a host.";
+        ? tx("subtitlePicked")
+        : tx("subtitlePick");
 
     return (
         <AttendeesActionModalShell
             isOpen={open}
             onClose={onClose}
-            title="Promote to host"
+            title={tx("title")}
             subtitle={subtitle}
             unsavedCount={picked && !preselected ? 1 : 0}
             footer={
@@ -169,7 +171,7 @@ export function PromoteAttendeeModal({
                                     disabled={submitting}
                                     className="hidden sm:inline-flex px-4 py-2.5 text-[13px] text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer disabled:opacity-50"
                                 >
-                                    Back
+                                    {tx("back")}
                                 </button>
                             ) : (
                                 <button
@@ -177,7 +179,7 @@ export function PromoteAttendeeModal({
                                     disabled={submitting}
                                     className="hidden sm:inline-flex px-4 py-2.5 text-[13px] text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer disabled:opacity-50"
                                 >
-                                    Cancel
+                                    {tx("cancel")}
                                 </button>
                             )}
                             <button
@@ -185,21 +187,21 @@ export function PromoteAttendeeModal({
                                 disabled={submitting}
                                 className="flex-1 sm:flex-none px-5 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                             >
-                                {submitting ? "Promoting…" : "Promote to host"}
+                                {submitting ? tx("promoting") : tx("promote")}
                             </button>
                         </>
                     ) : (
                         <>
                             <span className="text-[13px] text-zinc-500 hidden sm:inline">
                                 {eligibleAttendees.length === 0
-                                    ? "No eligible attendees yet"
-                                    : `${eligibleAttendees.length} eligible`}
+                                    ? tx("noEligible")
+                                    : tx("eligibleCount", { count: eligibleAttendees.length })}
                             </span>
                             <button
                                 onClick={onClose}
                                 className="px-4 py-2.5 text-[13px] text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer ml-auto"
                             >
-                                Cancel
+                                {tx("cancel")}
                             </button>
                         </>
                     )}
@@ -222,7 +224,7 @@ export function PromoteAttendeeModal({
                                 className="w-12 h-12"
                             />
                             <div className="min-w-0 flex-1">
-                                <p className="text-[14px] font-semibold text-zinc-900 truncate">{picked.name || "Unknown"}</p>
+                                <p className="text-[14px] font-semibold text-zinc-900 truncate">{picked.name || tx("unknown")}</p>
                                 {picked.usertag && <p className="text-[12px] text-zinc-500 truncate">@{picked.usertag}</p>}
                                 {picked.tier?.name && (
                                     <span className="inline-block mt-1.5 text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-100 text-zinc-600">
@@ -233,11 +235,11 @@ export function PromoteAttendeeModal({
                         </div>
 
                         <div className="rounded-xl bg-zinc-50 border border-zinc-100 p-3 text-[12px] text-zinc-600 leading-relaxed">
-                            <p className="font-medium text-zinc-800 mb-1">What happens next</p>
+                            <p className="font-medium text-zinc-800 mb-1">{tx("whatNext")}</p>
                             <ul className="space-y-1 list-disc list-inside [&>li]:pl-0">
-                                <li>They appear in the hosts list and can manage the event.</li>
-                                <li>Their existing registration is unchanged.</li>
-                                <li>Any payment they made stays on file.</li>
+                                <li>{tx("next1")}</li>
+                                <li>{tx("next2")}</li>
+                                <li>{tx("next3")}</li>
                             </ul>
                         </div>
 
@@ -256,7 +258,7 @@ export function PromoteAttendeeModal({
                             <input
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Search by name, handle, or email"
+                                placeholder={tx("searchPlaceholder")}
                                 className="flex-1 min-w-0 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none bg-transparent"
                             />
                         </div>
@@ -264,7 +266,7 @@ export function PromoteAttendeeModal({
                         <div className="rounded-xl border border-zinc-100 divide-y divide-zinc-100 max-h-[380px] overflow-y-auto">
                             {filtered.length === 0 ? (
                                 <p className="px-4 py-8 text-center text-[12px] text-zinc-400">
-                                    {eligibleAttendees.length === 0 ? "No paid attendees yet." : "No matches."}
+                                    {eligibleAttendees.length === 0 ? tx("noPaidAttendees") : tx("noMatches")}
                                 </p>
                             ) : (
                                 filtered.map((a) => (
@@ -284,7 +286,7 @@ export function PromoteAttendeeModal({
                                             className="w-8 h-8 shrink-0"
                                         />
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-[13px] font-medium text-zinc-900 truncate">{a.name || "Unknown"}</p>
+                                            <p className="text-[13px] font-medium text-zinc-900 truncate">{a.name || tx("unknown")}</p>
                                             {a.usertag ? (
                                                 <p className="text-[11px] text-zinc-400 truncate">@{a.usertag}</p>
                                             ) : a.email ? (

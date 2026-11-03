@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getEventManagementConfig } from "../config";
+import { getEventT } from "../create-wizard/i18n";
 
 /**
  * Where the API lives, asked of the HOST at call time.
@@ -51,7 +52,7 @@ export async function updateEvent(communityTag: string, eventId: string, body: R
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to update");
+    throw new Error(err.error || getEventT("eventsUi.manageUi.config")("failedToUpdate"));
   }
   return res.json();
 }
@@ -139,6 +140,35 @@ export function getEventStatus(event: any) {
   }
 
   return { startDate, endDate, isPast, isLive, isPaid, attendeeCount, isPublished, missingRequirements };
+}
+
+/*
+ * The missingRequirements entries above are IDENTIFIERS as well as English:
+ * EventCard maps them to the edit modal that fixes each, and tests pin them.
+ * So they stay English in the data, and this turns one into the host's
+ * language at the moment it is displayed. Unknown entries pass through.
+ */
+const REQUIREMENT_KEYS: Record<string, string> = {
+  "add a title": "addTitle",
+  "fix the end date, which is before the start": "fixEndDate",
+  "publish at least one ticket tier": "publishTier",
+  "set a valid start date": "setStartDate",
+  "set a valid end date": "setEndDate",
+  "add a location": "addLocation",
+};
+
+export function missingRequirementLabel(req: string): string {
+  const key = REQUIREMENT_KEYS[req];
+  if (!key) return req;
+  const t = getEventT("eventsUi.manageUi.publishRequirements");
+  switch (key) {
+    case "addTitle": return t("addTitle");
+    case "fixEndDate": return t("fixEndDate");
+    case "publishTier": return t("publishTier");
+    case "setStartDate": return t("setStartDate");
+    case "setEndDate": return t("setEndDate");
+    default: return t("addLocation");
+  }
 }
 
 export const CURRENCIES = [

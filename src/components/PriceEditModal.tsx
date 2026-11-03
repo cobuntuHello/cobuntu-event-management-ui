@@ -42,7 +42,8 @@ import {
 } from "./PriceEditModal/helpers";
 import { SortableTierRow } from "./PriceEditModal/TierRow";
 import { Switch, StepFade } from "./PriceEditModal/_primitives";
-import { STEP_TITLES, STEP_SUBTITLES, type StepId } from "./PriceEditModal/steps";
+import { type StepId } from "./PriceEditModal/steps";
+import { useEventT } from "../create-wizard/i18n";
 import { TierEditView } from "./PriceEditModal/TierEditView";
 import { StepView } from "./PriceEditModal/StepView";
 import { FooterSlotContext } from "./PriceEditModal/footer-slot";
@@ -180,6 +181,8 @@ export function PriceEditModal({
   openTierLocalId,
   openNewTier,
 }: PriceEditModalProps) {
+  // `t` names a tier draft throughout this file, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.priceEditModal");
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   // Same ownership test PricingView already uses for `showMemberPricing`
@@ -448,7 +451,7 @@ export function PriceEditModal({
         } catch (e: any) {
           setMemberPricingByTier((prev) => {
             const next = new Map(prev);
-            next.set(tierId, { loading: false, error: e?.message || "Failed to load", rows: [] as never[] });
+            next.set(tierId, { loading: false, error: e?.message || tx("failedToLoad"), rows: [] as never[] });
             return next;
           });
         }
@@ -488,12 +491,12 @@ export function PriceEditModal({
       );
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
-        throw new Error(e.error || "Failed to update publish state");
+        throw new Error(e.error || tx("failedToUpdatePublish"));
       }
-      showToast(nextPublishedAt ? "Tier published" : "Tier unpublished");
+      showToast(nextPublishedAt ? tx("tierPublished") : tx("tierUnpublished"));
     } catch (e: any) {
       updateDraft(idx, { publishedAt: prevPublishedAt }); // revert optimistic flip
-      showToast(e.message || "Failed to update publish state");
+      showToast(e.message || tx("failedToUpdatePublish"));
     } finally {
       setPublishToggling(false);
     }
@@ -523,7 +526,7 @@ export function PriceEditModal({
         ...src,
         localId: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `local-${Math.random().toString(36).slice(2)}`,
         id: undefined,         // new tier — Save will POST a fresh row
-        name: `${src.name || "Tier"} (copy)`,
+        name: tx("copyName", { name: src.name || tx("tierFallback") }),
         // Form will be cloned server-side on Save via copyFormFromTierId.
         // Mirror the source's hasForm/fieldCount so the user sees the form
         // pill on the copy immediately — saves a confused "is the form
@@ -589,10 +592,10 @@ export function PriceEditModal({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to save new order");
+        throw new Error(err.error || tx("failedToSaveOrder"));
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to save new order");
+      showToast(err.message || tx("failedToSaveOrder"));
       setDrafts(previousDrafts);   // revert on error
     }
   }
@@ -664,7 +667,7 @@ export function PriceEditModal({
       setConfirmState("success");
       setTimeout(() => setConfirmState("hidden"), 1500);
     } catch (e: any) {
-      setConfirmError(e?.message || "Failed to save");
+      setConfirmError(e?.message || tx("failedToSave"));
       setConfirmState("error");
       setTimeout(() => setConfirmState("hidden"), 2000);
     }
@@ -722,7 +725,7 @@ export function PriceEditModal({
           return { ...d, draftMemberPricing: memberPricing.length ? memberPricing : null };
         });
         onDraftCommit?.({ tiers: foldedDrafts, donation });
-        if (!opts.suppressFinalToast) showToast("Pricing saved");
+        if (!opts.suppressFinalToast) showToast(tx("pricingSaved"));
         onSavedPending = true;
       } else {
 
@@ -732,15 +735,15 @@ export function PriceEditModal({
       for (const t of drafts) {
         if (t.deleted && t.id) {
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "DELETE", headers: authHeaders() });
-          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Failed to delete "${t.name}"`); }
+          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || tx("failedToDeleteTier", { name: t.name })); }
         } else if (t.id) {
           const body = buildTierBody(t, { notifyAttendees });
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body) });
-          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(describeSaveError(e, `Failed to update "${t.name}"`, isPersonalEvent)); }
+          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(describeSaveError(e, tx("failedToUpdateTier", { name: t.name }), isPersonalEvent)); }
         } else if (!t.deleted) {
           const body = buildTierBody(t);
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
-          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(describeSaveError(e, `Failed to create "${t.name}"`, isPersonalEvent)); }
+          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(describeSaveError(e, tx("failedToCreateTier", { name: t.name }), isPersonalEvent)); }
         }
       }
 
@@ -770,7 +773,7 @@ export function PriceEditModal({
             );
             if (!res.ok) {
               const e = await res.json().catch(() => ({}));
-              throw new Error(e.error || `Failed to remove override for ${r.segmentName}`);
+              throw new Error(e.error || tx("failedToRemoveOverride", { segment: r.segmentName }));
             }
             continue;
           }
@@ -784,7 +787,7 @@ export function PriceEditModal({
             );
             if (!res.ok) {
               const e = await res.json().catch(() => ({}));
-              throw new Error(e.error || `Failed to save override for ${r.segmentName}`);
+              throw new Error(e.error || tx("failedToSaveOverride", { segment: r.segmentName }));
             }
           }
         }
@@ -813,18 +816,18 @@ export function PriceEditModal({
         });
         if (!res.ok) {
           const e = await res.json().catch(() => ({}));
-          throw new Error(describeSaveError(e, "Failed to save donation settings", isPersonalEvent));
+          throw new Error(describeSaveError(e, tx("failedToSaveDonations"), isPersonalEvent));
         }
       }
 
-      if (!opts.suppressFinalToast) showToast("Pricing updated");
+      if (!opts.suppressFinalToast) showToast(tx("pricingUpdated"));
       onSavedPending = true;
       }
     } catch (e: any) {
       // When the caller is the confirm modal it wants the exception so it
       // can switch into its error state. The plain Save button path catches
       // it here and surfaces a toast — same behavior as before.
-      const msg = e?.message || "Failed to save";
+      const msg = e?.message || tx("failedToSave");
       // The confirm-modal caller wants the exception so it can switch into
       // its own error state; it renders the message itself, so setting ours
       // too would double-report.
@@ -877,23 +880,23 @@ export function PriceEditModal({
   //                   subtitle "Choose what to configure".
   //   L3 (step):      breadcrumb [Pricing tiers › {tier}] · title =
   //                   STEP_TITLES[step] · subtitle = STEP_SUBTITLES[step].
-  const tierName = activeDraft?.name?.trim() || "Untitled tier";
+  const tierName = activeDraft?.name?.trim() || tx("untitledTier");
   const title =
     activeDraft && activeStep
-      ? STEP_TITLES[activeStep]
+      ? tx(`stepTitle_${activeStep}`)
       : activeDraft
         ? tierName
         : isEmpty
-          ? "Add pricing"
+          ? tx("addPricing")
           : visible.length === 1
-            ? "Edit pricing"
-            : "Pricing tiers";
+            ? tx("editPricing")
+            : tx("pricingTiers");
   const subtitle =
     activeDraft && activeStep
-      ? STEP_SUBTITLES[activeStep]
+      ? tx(`stepSubtitle_${activeStep}`)
       : activeDraft
-        ? "Buyers pick one tier at checkout."
-        : "Tickets, donations, and per-tier registration forms.";
+        ? tx("tierSubtitle")
+        : tx("listSubtitle");
 
   // Breadcrumb segments — each is clickable except the last (current
   // level). L1 has none. Clicking a crumb pops navigation back to it.
@@ -904,7 +907,7 @@ export function PriceEditModal({
     // crumb is the tier name (back to the edit screen).
     if (!openedDirect) {
       crumbs.push({
-        label: "Pricing tiers",
+        label: tx("pricingTiers"),
         onClick: () => {
           setActiveStep(null);
           setActiveTier(null);
@@ -929,7 +932,7 @@ export function PriceEditModal({
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close"
+        aria-label={tx("close")}
         className="absolute -top-1 -right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 hover:bg-zinc-200 transition-colors cursor-pointer"
       >
         <X className="h-[18px] w-[18px]" />
@@ -937,7 +940,7 @@ export function PriceEditModal({
       {/* ─── Header ─── ONE breadcrumb + ONE title + ONE subtitle. */}
       <div className="shrink-0 mb-4 pr-9">
         {crumbs.length > 0 && (
-          <nav className="flex items-center flex-wrap gap-1 mb-1.5 text-[12px]" aria-label="Breadcrumb">
+          <nav className="flex items-center flex-wrap gap-1 mb-1.5 text-[12px]" aria-label={tx("breadcrumb")}>
             {crumbs.map((c, i) => (
               <span key={i} className="flex items-center gap-1">
                 {i > 0 && <span className="text-zinc-300" aria-hidden>›</span>}
@@ -973,7 +976,7 @@ export function PriceEditModal({
           each navigation re-mounts and animates in (see StepFade). */}
       <StepFade stepKey={`${activeTier ?? "list"}:${activeStep ?? "hub"}:${loading ? "loading" : "ready"}`}>
       {loading ? (
-        <div className="py-12 text-center text-[13px] text-zinc-400">Loading…</div>
+        <div className="py-12 text-center text-[13px] text-zinc-400">{tx("loading")}</div>
       ) : activeDraft && activeStep ? (
         // Level 3: step takeover. Hides everything else — siblings,
         // Add Tier, Donations are all gone. Footer Back returns to L2.
@@ -1055,7 +1058,7 @@ export function PriceEditModal({
             }}
             className="w-full flex items-center justify-center gap-1.5 py-3 text-[12px] font-medium text-zinc-500 border border-dashed border-zinc-300 rounded-xl hover:border-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" /> Add tier
+            <Plus className="w-3.5 h-3.5" /> {tx("addTier")}
           </button>
 
           {/* Whole-listing divider — separates the per-tier rows above from
@@ -1065,7 +1068,7 @@ export function PriceEditModal({
               so it only lives here on the list, never inside a tier editor). */}
           <div className="flex items-center gap-2 pt-2">
             <div className="h-px flex-1 bg-zinc-100" />
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Whole listing</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">{tx("wholeListing")}</span>
             <div className="h-px flex-1 bg-zinc-100" />
           </div>
 
@@ -1115,7 +1118,7 @@ export function PriceEditModal({
               onClick={() => (openedDirect ? onClose() : setActiveTier(null))}
               className="px-4 py-2 text-[13px] font-medium text-zinc-600 rounded-lg hover:bg-zinc-100 cursor-pointer"
             >
-              {openedDirect ? "Cancel" : "Back"}
+              {openedDirect ? tx("cancel") : tx("back")}
             </button>
             {/* Delete is ALWAYS shown (no hiding features without
                 explanation). When it can't proceed it says why via a toast
@@ -1126,11 +1129,11 @@ export function PriceEditModal({
               type="button"
               onClick={() => {
                 if (isTierLocked(activeDraft)) {
-                  showToast("Refund all sales before deleting this tier.");
+                  showToast(tx("refundBeforeDelete"));
                   return;
                 }
                 if (visible.length <= 1) {
-                  showToast("An event needs at least one tier — add another before deleting this one.");
+                  showToast(tx("needOneTier"));
                   return;
                 }
                 const idx = activeIdx();
@@ -1141,7 +1144,7 @@ export function PriceEditModal({
               }}
               className="px-4 py-2 text-[13px] font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer transition-colors"
             >
-              Delete
+              {tx("delete")}
             </button>
             {activeDraft.id && (
               <button
@@ -1152,7 +1155,7 @@ export function PriceEditModal({
                 }}
                 className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer transition-colors"
               >
-                Duplicate
+                {tx("duplicate")}
               </button>
             )}
           </>
@@ -1162,7 +1165,7 @@ export function PriceEditModal({
             onClick={onClose}
             className="px-4 py-2 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer"
           >
-            Cancel
+            {tx("cancel")}
           </button>
         )}
         <div className="flex-1" />
@@ -1180,7 +1183,7 @@ export function PriceEditModal({
             onClick={() => setActiveStep(null)}
             className="px-4 py-2 text-[13px] font-medium text-zinc-700 bg-zinc-100 rounded-lg hover:bg-zinc-200 cursor-pointer transition-colors"
           >
-            Back
+            {tx("back")}
           </button>
         )}
         {/* The Publish switch used to sit here, left of Save, as a bare
@@ -1193,10 +1196,10 @@ export function PriceEditModal({
           type="button"
           onClick={onSaveClicked}
           disabled={saving || loading || memberPricingPending}
-          title={memberPricingPending ? "Loading member pricing…" : undefined}
+          title={memberPricingPending ? tx("loadingMemberPricing") : undefined}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? tx("saving") : tx("save")}
         </button>
       </div>
       </div>
@@ -1221,17 +1224,17 @@ export function PriceEditModal({
       <div className="fixed inset-0 z-[120] bg-black/30 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-xl w-[calc(100vw-2rem)] md:w-[400px] p-6">
           {confirmState === "options" && (<>
-            <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">Update ticket pricing?</h3>
-            <p className="text-[13px] text-zinc-500 mb-4">A ticket name or price changed. Email enrolled attendees so they see the update?</p>
+            <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">{tx("confirmTitle")}</h3>
+            <p className="text-[13px] text-zinc-500 mb-4">{tx("confirmBody")}</p>
             <div className="flex flex-col gap-3">
-              <button onClick={() => handleConfirmNotify(true)} className="w-full px-4 py-3 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer">Yes, notify attendees</button>
-              <button onClick={() => handleConfirmNotify(false)} className="w-full px-4 py-3 text-[13px] font-medium border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 cursor-pointer">Yes, do not notify attendees</button>
-              <button onClick={() => setConfirmState("hidden")} className="w-full px-4 py-3 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-50 cursor-pointer">No, cancel</button>
+              <button onClick={() => handleConfirmNotify(true)} className="w-full px-4 py-3 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer">{tx("confirmNotify")}</button>
+              <button onClick={() => handleConfirmNotify(false)} className="w-full px-4 py-3 text-[13px] font-medium border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 cursor-pointer">{tx("confirmNoNotify")}</button>
+              <button onClick={() => setConfirmState("hidden")} className="w-full px-4 py-3 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-50 cursor-pointer">{tx("confirmCancel")}</button>
             </div>
           </>)}
-          {confirmState === "loading" && (<div className="py-8 flex flex-col items-center gap-3"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400 animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><p className="text-sm text-zinc-500">Updating pricing...</p></div>)}
-          {confirmState === "success" && (<div className="py-8 flex flex-col items-center gap-3"><div className="h-16 w-16 rounded-full bg-emerald-50 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500"><polyline points="20 6 9 17 4 12"/></svg></div><h3 className="text-[15px] font-semibold text-zinc-900">Pricing Updated!</h3><p className="text-sm text-zinc-500">Changes saved successfully</p></div>)}
-          {confirmState === "error" && (<div className="py-8 flex flex-col items-center gap-3"><div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><h3 className="text-[15px] font-semibold text-zinc-900">Update Failed</h3><p className="text-sm text-zinc-500">{confirmError}</p></div>)}
+          {confirmState === "loading" && (<div className="py-8 flex flex-col items-center gap-3"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400 animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><p className="text-sm text-zinc-500">{tx("updating")}</p></div>)}
+          {confirmState === "success" && (<div className="py-8 flex flex-col items-center gap-3"><div className="h-16 w-16 rounded-full bg-emerald-50 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500"><polyline points="20 6 9 17 4 12"/></svg></div><h3 className="text-[15px] font-semibold text-zinc-900">{tx("updatedTitle")}</h3><p className="text-sm text-zinc-500">{tx("updatedBody")}</p></div>)}
+          {confirmState === "error" && (<div className="py-8 flex flex-col items-center gap-3"><div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><h3 className="text-[15px] font-semibold text-zinc-900">{tx("updateFailed")}</h3><p className="text-sm text-zinc-500">{confirmError}</p></div>)}
         </div>
       </div>,
       document.body,

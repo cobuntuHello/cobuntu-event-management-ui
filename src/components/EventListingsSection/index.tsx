@@ -28,6 +28,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useEventManagementConfig, useJsonHeaders } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 
 interface Listing {
   id: string;
@@ -79,6 +80,7 @@ export function EventListingsSection({
 }: EventListingsSectionProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
+  const tx = useEventT("eventsUi.manageUi.eventListingsSection");
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,13 +116,13 @@ export function EventListingsSection({
         method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ isHidden }),
       });
       if (res.ok) {
-        showToast(isHidden ? "Listing hidden" : "Listing visible");
+        showToast(isHidden ? tx("toastHidden") : tx("toastVisible"));
         refresh();
       } else {
         const err = await res.json().catch(() => ({}));
-        showToast(err.details?.join(". ") || err.error || (isHidden ? "Failed to hide" : "Failed to show"));
+        showToast(err.details?.join(". ") || err.error || (isHidden ? tx("failedToHide") : tx("failedToShow")));
       }
-    } catch { showToast(isHidden ? "Failed to hide" : "Failed to show"); }
+    } catch { showToast(isHidden ? tx("failedToHide") : tx("failedToShow")); }
     finally { setRowSaving(null); }
   }
 
@@ -134,10 +136,10 @@ export function EventListingsSection({
         method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ status: "CANCELLED" }),
       });
       if (res.ok) {
-        showToast(action.kind === "withdraw" ? "Submission withdrawn" : "Listing removed");
+        showToast(action.kind === "withdraw" ? tx("toastWithdrawn") : tx("toastRemoved"));
         refresh();
-      } else { showToast(action.kind === "withdraw" ? "Failed to withdraw" : "Failed to remove"); }
-    } catch { showToast(action.kind === "withdraw" ? "Failed to withdraw" : "Failed to remove"); }
+      } else { showToast(action.kind === "withdraw" ? tx("failedToWithdraw") : tx("failedToRemove")); }
+    } catch { showToast(action.kind === "withdraw" ? tx("failedToWithdraw") : tx("failedToRemove")); }
     finally { setRowSaving(null); }
   }
 
@@ -158,9 +160,9 @@ export function EventListingsSection({
         method: "POST", headers: jsonHeaders(),
         body: JSON.stringify({ eventId: event.id, communityTag: c.communityTag }),
       });
-      if (res.ok) { showToast("Added to " + c.communityName); refresh(); setShowAddModal(false); }
-      else { const err = await res.json().catch(() => ({})); showToast(err.error || "Failed to list"); }
-    } catch { showToast("Failed to list"); }
+      if (res.ok) { showToast(tx("toastAddedTo", { community: c.communityName })); refresh(); setShowAddModal(false); }
+      else { const err = await res.json().catch(() => ({})); showToast(err.error || tx("failedToList")); }
+    } catch { showToast(tx("failedToList")); }
     finally { setAddSaving(false); }
   }
 
@@ -178,35 +180,35 @@ export function EventListingsSection({
         method: "POST", headers: jsonHeaders(), body: JSON.stringify(body),
       });
       if (res.ok) {
-        showToast("Listing request sent");
+        showToast(tx("toastRequestSent"));
         refresh();
         setShowAddModal(false);
         setPendingCommunity(null);
         setAddMode("search");
-      } else { const err = await res.json().catch(() => ({})); showToast(err.error || "Failed to request"); }
-    } catch { showToast("Failed to request"); }
+      } else { const err = await res.json().catch(() => ({})); showToast(err.error || tx("failedToRequest")); }
+    } catch { showToast(tx("failedToRequest")); }
     finally { setAddSaving(false); }
   }
 
   function getStatusConfig(l: Listing) {
-    if (l.status === "ACTIVE" && l.isHidden) return { label: "Hidden", dot: "bg-amber-500" };
-    if (l.status === "ACTIVE") return { label: "Live", dot: "bg-emerald-500" };
-    if (l.status === "PENDING") return { label: "Pending", dot: "bg-amber-500" };
-    if (l.status === "PAUSED") return { label: "Paused", dot: "bg-zinc-400" };
-    return { label: "Cancelled", dot: "bg-red-500" };
+    if (l.status === "ACTIVE" && l.isHidden) return { label: tx("statusHidden"), dot: "bg-amber-500" };
+    if (l.status === "ACTIVE") return { label: tx("statusLive"), dot: "bg-emerald-500" };
+    if (l.status === "PENDING") return { label: tx("statusPending"), dot: "bg-amber-500" };
+    if (l.status === "PAUSED") return { label: tx("statusPaused"), dot: "bg-zinc-400" };
+    return { label: tx("statusCancelled"), dot: "bg-red-500" };
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-zinc-900">Listings</h2>
-          <p className="text-[12px] text-zinc-400 mt-0.5">Where this event appears across cobuntu communities.</p>
+          <h2 className="text-[15px] font-semibold text-zinc-900">{tx("title")}</h2>
+          <p className="text-[12px] text-zinc-400 mt-0.5">{tx("subtitle")}</p>
         </div>
         {showAddButton && (
           <button onClick={() => { setAddMode("search"); setPendingCommunity(null); setShowAddModal(true); }}
             className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer">
-            Add Listing
+            {tx("addListing")}
           </button>
         )}
       </div>
@@ -234,9 +236,9 @@ export function EventListingsSection({
                   <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center text-[13px] font-semibold text-zinc-500 shrink-0">{l.community?.name?.[0] || "?"}</div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-800 truncate">{l.community?.name || "Community"}</p>
+                  <p className="text-sm font-medium text-zinc-800 truncate">{l.community?.name || tx("community")}</p>
                   <p className="text-[11px] text-zinc-400 mt-0.5">
-                    {isPaid ? (l.isSelfListing ? "No commission" : `${l.ticketListing?.commissionRate ?? 0}% commission`) : "Free"}
+                    {isPaid ? (l.isSelfListing ? tx("noCommission") : tx("commission", { rate: l.ticketListing?.commissionRate ?? 0 })) : tx("free")}
                   </p>
                 </div>
                 <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium shrink-0 ${
@@ -253,13 +255,13 @@ export function EventListingsSection({
                   {isActiveLive && (
                     <button onClick={() => setVisibility(l, true)} disabled={saving}
                       className="px-3 py-1.5 text-[12px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
-                      Hide
+                      {tx("hide")}
                     </button>
                   )}
                   {isActiveHidden && (
                     <button onClick={() => setVisibility(l, false)} disabled={saving}
                       className="px-3 py-1.5 text-[12px] font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
-                      Show
+                      {tx("show")}
                     </button>
                   )}
                   {(isActiveLive || isActiveHidden) && (
@@ -267,7 +269,7 @@ export function EventListingsSection({
                       onClick={() => setPendingAction({
                         kind: "remove",
                         listingId: l.id,
-                        communityName: l.community?.name || "this community",
+                        communityName: l.community?.name || tx("thisCommunity"),
                         // Paid event with attendees on a live listing →
                         // real refund risk. Hidden listings can still
                         // carry orphan attendees but the practical case
@@ -276,7 +278,7 @@ export function EventListingsSection({
                       })}
                       disabled={saving}
                       className="px-3 py-1.5 text-[12px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-30 cursor-pointer">
-                      Remove
+                      {tx("remove")}
                     </button>
                   )}
                   {isPending && (
@@ -284,11 +286,11 @@ export function EventListingsSection({
                       onClick={() => setPendingAction({
                         kind: "withdraw",
                         listingId: l.id,
-                        communityName: l.community?.name || "this community",
+                        communityName: l.community?.name || tx("thisCommunity"),
                       })}
                       disabled={saving}
                       className="px-3 py-1.5 text-[12px] font-medium text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50 disabled:opacity-30 cursor-pointer">
-                      Withdraw
+                      {tx("withdraw")}
                     </button>
                   )}
                 </div>
@@ -298,8 +300,8 @@ export function EventListingsSection({
         ) : (
           <div className="px-6 py-12 text-center">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto text-zinc-200 mb-3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <p className="text-sm text-zinc-500">Not listed on any community yet</p>
-            <p className="text-xs text-zinc-400 mt-1">Add a listing to reach more people.</p>
+            <p className="text-sm text-zinc-500">{tx("emptyTitle")}</p>
+            <p className="text-xs text-zinc-400 mt-1">{tx("emptyBody")}</p>
           </div>
         )}
       </div>
@@ -312,26 +314,26 @@ export function EventListingsSection({
           <div className="bg-white rounded-2xl shadow-2xl w-[calc(100vw-2rem)] md:w-[420px] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-3">
               <h3 className="text-[15px] font-semibold text-zinc-900">
-                {pendingAction.kind === "remove" ? "Remove listing?" : "Withdraw submission?"}
+                {pendingAction.kind === "remove" ? tx("confirmRemoveTitle") : tx("confirmWithdrawTitle")}
               </h3>
               <p className="text-[13px] text-zinc-500 mt-2">
                 {pendingAction.kind === "remove"
                   ? pendingAction.hasMoney
-                    ? `This event will stop being promoted on ${pendingAction.communityName}. Any tickets sold through that community will be refunded and those attendees will be notified.`
-                    : `This event will stop being promoted on ${pendingAction.communityName}. Attendees from that community will be notified.`
-                  : `Your request to list on ${pendingAction.communityName} will be withdrawn.`}
+                    ? tx("confirmRemoveMoney", { community: pendingAction.communityName })
+                    : tx("confirmRemove", { community: pendingAction.communityName })
+                  : tx("confirmWithdraw", { community: pendingAction.communityName })}
               </p>
             </div>
             <div className="px-6 py-4 flex gap-2 justify-end border-t border-zinc-100">
               <button onClick={() => setPendingAction(null)}
                 className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">
-                Cancel
+                {tx("cancel")}
               </button>
               <button onClick={executePendingAction}
                 className={`px-4 py-2 text-[13px] font-medium text-white rounded-lg cursor-pointer ${
                   pendingAction.kind === "remove" ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"
                 }`}>
-                {pendingAction.kind === "remove" ? "Remove" : "Withdraw"}
+                {pendingAction.kind === "remove" ? tx("remove") : tx("withdraw")}
               </button>
             </div>
           </div>
@@ -348,8 +350,8 @@ export function EventListingsSection({
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-semibold text-zinc-900">List in Community</h3>
-                  <p className="text-[12px] text-zinc-400 mt-0.5">Choose where to list your event.</p>
+                  <h3 className="text-[15px] font-semibold text-zinc-900">{tx("addTitle")}</h3>
+                  <p className="text-[12px] text-zinc-400 mt-0.5">{tx("addSubtitle")}</p>
                 </div>
               </div>
               <button onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center cursor-pointer shrink-0 -mt-1 -mr-1">
@@ -360,7 +362,7 @@ export function EventListingsSection({
             <div className="flex-1 overflow-y-auto border-t border-zinc-100">
               {leaderCommunities.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider px-6 pt-4 pb-2">Your communities</p>
+                  <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider px-6 pt-4 pb-2">{tx("yourCommunities")}</p>
                   {leaderCommunities.map((c) => (
                     <button key={c.communityTag} onClick={() => handleLeaderAdd(c)} disabled={addSaving}
                       className="w-full flex items-center gap-3 px-6 py-3.5 hover:bg-zinc-50 cursor-pointer text-left disabled:opacity-50 transition-colors">
@@ -373,10 +375,10 @@ export function EventListingsSection({
                         <p className="text-sm font-medium text-zinc-900">{c.communityName}</p>
                         <p className="text-[12px] text-emerald-500 flex items-center gap-1 mt-0.5">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-                          Instant — no approval needed
+                          {tx("instant")}
                         </p>
                       </div>
-                      <div className="shrink-0 px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-[11px] font-medium">Add</div>
+                      <div className="shrink-0 px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-[11px] font-medium">{tx("add")}</div>
                     </button>
                   ))}
                 </div>
@@ -384,7 +386,7 @@ export function EventListingsSection({
               {memberCommunities.length > 0 && (
                 <div>
                   {leaderCommunities.length > 0 && <div className="h-px bg-zinc-100 mx-6" />}
-                  <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider px-6 pt-4 pb-2">Member of</p>
+                  <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider px-6 pt-4 pb-2">{tx("memberOf")}</p>
                   {memberCommunities.map((c) => (
                     <button key={c.communityTag} onClick={() => handleMemberAdd(c)} disabled={addSaving}
                       className="w-full flex items-center gap-3 px-6 py-3.5 hover:bg-zinc-50 cursor-pointer text-left disabled:opacity-50 transition-colors">
@@ -397,10 +399,10 @@ export function EventListingsSection({
                         <p className="text-sm font-medium text-zinc-900">{c.communityName}</p>
                         <p className="text-[12px] text-zinc-400 flex items-center gap-1 mt-0.5">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                          Requires approval
+                          {tx("requiresApproval")}
                         </p>
                       </div>
-                      <div className="shrink-0 px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 text-[11px] font-medium">Request</div>
+                      <div className="shrink-0 px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 text-[11px] font-medium">{tx("request")}</div>
                     </button>
                   ))}
                 </div>
@@ -408,8 +410,8 @@ export function EventListingsSection({
               {leaderCommunities.length === 0 && memberCommunities.length === 0 && (
                 <div className="px-6 py-10 text-center">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto text-zinc-200 mb-3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                  <p className="text-sm text-zinc-500">Already listed everywhere</p>
-                  <p className="text-xs text-zinc-400 mt-1">This event is listed in all your communities.</p>
+                  <p className="text-sm text-zinc-500">{tx("listedEverywhere")}</p>
+                  <p className="text-xs text-zinc-400 mt-1">{tx("listedEverywhereBody")}</p>
                 </div>
               )}
             </div>
@@ -432,7 +434,7 @@ export function EventListingsSection({
                   <p className="text-[15px] font-semibold text-zinc-900">{pendingCommunity.communityName}</p>
                   <p className="text-[12px] text-zinc-400 flex items-center gap-1 mt-0.5">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    Requires approval from community leaders
+                    {tx("requiresLeaderApproval")}
                   </p>
                 </div>
               </div>
@@ -443,7 +445,7 @@ export function EventListingsSection({
 
             <div className="px-6 py-5 border-t border-zinc-100">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[13px] font-medium text-zinc-700">Commission rate</span>
+                <span className="text-[13px] font-medium text-zinc-700">{tx("commissionRate")}</span>
                 <span className="text-[15px] font-semibold text-zinc-900 tabular-nums bg-zinc-100 px-2.5 py-0.5 rounded-lg">{commission}%</span>
               </div>
               <input type="range" min={0} max={50} step={1} value={commission} onChange={e => setCommission(Number(e.target.value))}
@@ -452,15 +454,15 @@ export function EventListingsSection({
                 <span className="text-[11px] text-zinc-400">0%</span>
                 <span className="text-[11px] text-zinc-400">50%</span>
               </div>
-              <p className="text-[12px] text-zinc-400 mt-3">Percentage the community takes from each ticket sale.</p>
+              <p className="text-[12px] text-zinc-400 mt-3">{tx("commissionHint")}</p>
             </div>
 
             <div className="px-6 py-4 border-t border-zinc-100 flex gap-2">
               <button onClick={() => { setAddMode("search"); setPendingCommunity(null); }} disabled={addSaving}
-                className="flex-1 px-4 py-2.5 text-[13px] text-zinc-500 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer disabled:opacity-40">Back</button>
+                className="flex-1 px-4 py-2.5 text-[13px] text-zinc-500 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer disabled:opacity-40">{tx("back")}</button>
               <button onClick={() => submitRequest(pendingCommunity.communityTag, commission)} disabled={addSaving}
                 className="flex-1 px-4 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer disabled:opacity-40">
-                {addSaving ? "Sending..." : "Send Request"}
+                {addSaving ? tx("sending") : tx("sendRequest")}
               </button>
             </div>
           </div>

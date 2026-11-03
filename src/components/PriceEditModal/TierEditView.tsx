@@ -7,6 +7,7 @@ import { isTierLocked } from "./helpers";
 import { BasicsStep } from "./steps/BasicsStep";
 import type { StepId } from "./steps";
 import type { MemberPricingRow, MemberPricingTierState } from "./member-pricing";
+import { useEventT } from "../../create-wizard/i18n";
 
 export interface TierEditViewProps {
   t: DraftTier;
@@ -71,13 +72,15 @@ export function TierEditView({
   publishToggling,
   draftMode,
 }: TierEditViewProps) {
+  // `t` is the tier draft here, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.tierEditView");
   const locked = isTierLocked(t);
 
   // Saved tiers report the server's copy via hasForm/formFieldCount; a draft
   // tier reports what is staged locally. Same row, two sources.
   const formFieldCount = t.id ? (t.hasForm ? t.formFieldCount : 0) : (t.draftForm?.fields?.length ?? 0);
   const fieldCountLabel =
-    formFieldCount > 0 ? `${formFieldCount} field${formFieldCount !== 1 ? "s" : ""}` : "None";
+    formFieldCount > 0 ? tx("fieldCount", { count: formFieldCount }) : tx("none");
 
   // publishedAt is the source of truth; the switch is just its presence.
   const published = !!t.publishedAt;
@@ -95,10 +98,10 @@ export function TierEditView({
               * test has specified this wording since before the banner existed
               * and has been failing against "3 sales" ever since.
               */}
-            <span className="font-medium">
-              {`${t.salesCount} ticket${t.salesCount !== 1 ? "s" : ""} sold`}
-            </span>
-            {" — price, currency and the installment plan are locked, because changing them would alter what those buyers paid. Refund them first to change it."}
+            {tx.rich("lockedBanner", {
+              count: t.salesCount,
+              b: (chunks) => <span className="font-medium">{chunks}</span>,
+            })}
           </p>
         </div>
       )}
@@ -106,25 +109,25 @@ export function TierEditView({
       {/* Identity — name + description, inline, with live char counters. */}
       <div>
         <Eyebrow count={t.name.length} max={TIER_NAME_MAX}
-          help="The public label buyers see at checkout, e.g. “Early bird” or “VIP”.">
-          Tier name
+          help={tx("nameHelp")}>
+          {tx("name")}
         </Eyebrow>
         <div className="mt-1">
           <StepInput type="text" value={t.name} maxLength={TIER_NAME_MAX}
             onChange={(e) => onUpdate({ name: e.target.value })}
-            placeholder="Standard, VIP, Early-bird…" />
+            placeholder={tx("namePlaceholder")} />
         </div>
       </div>
 
       <div>
         <Eyebrow count={t.description.length} max={TIER_DESCRIPTION_MAX}
-          help="Shown on the public product card — a short note on what this tier includes.">
-          Description (optional)
+          help={tx("descriptionHelp")}>
+          {tx("description")}
         </Eyebrow>
         <div className="mt-1">
           <StepTextarea value={t.description} maxLength={TIER_DESCRIPTION_MAX}
             onChange={(e) => onUpdate({ description: e.target.value })}
-            placeholder="What's included" rows={2} />
+            placeholder={tx("descriptionPlaceholder")} rows={2} />
         </div>
       </div>
 
@@ -139,27 +142,27 @@ export function TierEditView({
           placeholder). On a locked tier the floor is the already-sold count so
           a cap can't drop below tickets held. */}
       <div>
-        <Eyebrow help="Unlimited means there is no cap on how many can be sold.">
-          Capacity
+        <Eyebrow help={tx("capacityHelp")}>
+          {tx("capacity")}
         </Eyebrow>
         <div className="mt-1.5">
           <Stepper
             value={t.capacity}
             onChange={(next) => onUpdate({ capacity: next })}
-            placeholder="Unlimited"
+            placeholder={tx("unlimited")}
             min={locked ? t.salesCount : 0}
-            ariaLabel="Capacity"
+            ariaLabel={tx("capacity")}
           />
         </div>
         <p className="text-[12px] text-zinc-500 mt-1.5 leading-relaxed">
-          How many tickets can be sold before this tier is sold out. Leave empty for unlimited.
+          {tx("capacityHint")}
         </p>
       </div>
 
       {/* Pricing — the full pricing surface, inline (model, price, billing,
           installment schedule, and member pricing when enabled). */}
       <div>
-        <Eyebrow>Pricing</Eyebrow>
+        <Eyebrow>{tx("pricing")}</Eyebrow>
         <div className="mt-2">
           <BasicsStep
             t={t}
@@ -177,17 +180,17 @@ export function TierEditView({
       {/* Advanced — one hairline-divided card of rows that drill into a
           sub-screen. Matches the approved mockup. */}
       <div>
-        <Eyebrow>Advanced</Eyebrow>
+        <Eyebrow>{tx("advanced")}</Eyebrow>
         <div className="mt-1.5 rounded-2xl ring-1 ring-zinc-100 divide-y divide-zinc-100 overflow-hidden">
           <AdvancedRow
             icon={<Calendar className="h-[17px] w-[17px]" />}
-            label="Sales window"
-            value={t.autoScheduleEnabled ? "Scheduled" : "Always on"}
+            label={tx("salesWindow")}
+            value={t.autoScheduleEnabled ? tx("scheduled") : tx("alwaysOn")}
             onClick={() => onEnterStep("config")}
           />
           <AdvancedRow
             icon={<ClipboardList className="h-[17px] w-[17px]" />}
-            label="Registration form"
+            label={tx("registrationForm")}
             /*
              * Reachable on an UNSAVED tier since 2026-08-08. A form used to
              * need a tierId to key on, so during create the row read
@@ -206,25 +209,25 @@ export function TierEditView({
           switch in the modal footer. */}
       {onTogglePublish && (
         <div>
-          <Eyebrow>Availability</Eyebrow>
+          <Eyebrow>{tx("availability")}</Eyebrow>
           <div className="mt-1.5 rounded-2xl ring-1 ring-zinc-100 overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3.5">
               <span className="text-zinc-400 shrink-0">
                 {published ? <Eye className="h-[17px] w-[17px]" /> : <EyeOff className="h-[17px] w-[17px]" />}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-zinc-700">{published ? "Published" : "Draft"}</p>
+                <p className="text-sm text-zinc-700">{published ? tx("published") : tx("draft")}</p>
                 <p className="text-[11px] text-zinc-400 mt-0.5">
                   {published
-                    ? "Buyers can see and choose this tier."
-                    : "Hidden from buyers. Only you can see it."}
+                    ? tx("publishedHint")
+                    : tx("draftHint")}
                 </p>
               </div>
               <Switch
                 checked={published}
                 disabled={!!publishToggling}
                 onChange={() => onTogglePublish()}
-                label="Published"
+                label={tx("published")}
               />
             </div>
 
@@ -242,8 +245,8 @@ export function TierEditView({
               <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: "var(--brand-color, #71717a)" }} />
               <p className="text-[11.5px] text-zinc-600 leading-relaxed">
                 {draftMode
-                  ? `This choice is saved with the event — nothing goes live until you create it.`
-                  : "Changes here take effect immediately."}
+                  ? tx("draftModeNote")
+                  : tx("liveNote")}
               </p>
             </div>
           </div>

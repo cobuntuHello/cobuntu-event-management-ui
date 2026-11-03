@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useUpdateEvent } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 import {
     AccessAxisControl,
     toTierAccessValue,
@@ -37,6 +38,8 @@ interface Props {
 
 export function ViewabilityEditModal({ event, communityTag, onClose, onSaved, showToast, membershipTiers = [], initialTierIds }: Props) {
     const updateEvent = useUpdateEvent();
+    const t = useEventT("eventsUi.manageUi.viewabilityEditModal");
+    const tc = useEventT("eventsUi.manageUi.overviewCommon");
     /*
      * MEMBERS_ONLY with no granted tiers reads as "all members", never as an
      * empty selection - so every event that predates tier access opens here
@@ -55,10 +58,10 @@ export function ViewabilityEditModal({ event, communityTag, onClose, onSaved, sh
                 viewability: resolved.visibility,
                 viewTierIds: resolved.tierIds,
             });
-            showToast("Visibility updated");
+            showToast(t("updated"));
             onSaved();
         } catch (e: any) {
-            showToast(e?.message || "Failed to update visibility");
+            showToast(e?.message || t("failed"));
         } finally {
             setSaving(false);
         }
@@ -66,29 +69,29 @@ export function ViewabilityEditModal({ event, communityTag, onClose, onSaved, sh
 
     return (
         <ModalShell onClose={onClose}>
-            <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">Visibility</h3>
-            <p className="text-[12px] text-zinc-500 mb-4">Who can see this event's detail page.</p>
+            <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">{t("title")}</h3>
+            <p className="text-[12px] text-zinc-500 mb-4">{t("subtitle")}</p>
 
             {/* The same control the create form uses: full-width tap rows,
                 radios for Public/All members/Specific tiers. */}
             <div className="mb-4">
                 <AccessAxisControl
-                    label="Who can see it"
+                    label={t("whoCanSee")}
                     value={access}
                     onChange={setAccess}
                     tiers={membershipTiers}
-                    publicLabel="Anyone, including people who are not members"
+                    publicLabel={t("publicLabel")}
                 />
             </div>
 
             <div className="flex justify-end gap-2">
-                <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+                <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
                 <button
                     onClick={save}
                     disabled={saving}
                     className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
                 >
-                    {saving ? "Saving..." : "Save"}
+                    {saving ? tc("savingDots") : tc("save")}
                 </button>
             </div>
         </ModalShell>

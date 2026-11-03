@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useEventManagementConfig } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 export interface DuplicateModalProps {
   event: any;
@@ -22,6 +23,8 @@ export interface DuplicateModalProps {
 export function DuplicateModal({ event, communityTag, onClose, showToast, onDuplicated }: DuplicateModalProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
   const [saving, setSaving] = useState(false);
+  const t = useEventT("eventsUi.manageUi.duplicateModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
 
   async function execute() {
     setSaving(true);
@@ -37,14 +40,14 @@ export function DuplicateModal({ event, communityTag, onClose, showToast, onDupl
           slug: data.event?.slug || data.slug,
         };
         if (newEvent.id || newEvent.slug) {
-          showToast("Event duplicated");
+          showToast(t("duplicated"));
           onDuplicated?.(newEvent);
         }
       } else {
-        showToast("Failed to duplicate");
+        showToast(t("failed"));
       }
     } catch {
-      showToast("Failed to duplicate");
+      showToast(t("failed"));
     } finally {
       setSaving(false);
     }
@@ -52,23 +55,23 @@ export function DuplicateModal({ event, communityTag, onClose, showToast, onDupl
 
   return (
     <ModalShell onClose={onClose}>
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">Duplicate event</h3>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">{t("title")}</h3>
       <p className="text-[13px] text-zinc-500 mb-4">
-        Creates a copy of &ldquo;{event.name}&rdquo; as a new draft with the same details, pricing, and settings.
+        {t("body", { name: event.name })}
       </p>
       <div className="rounded-lg bg-zinc-50 p-3 mb-4">
-        <p className="text-[12px] font-medium text-zinc-600 mb-1">What&apos;s next after duplicating:</p>
+        <p className="text-[12px] font-medium text-zinc-600 mb-1">{t("nextHeading")}</p>
         <ul className="text-[12px] text-zinc-500 space-y-0.5 list-disc list-inside">
-          <li>Set new dates for the event</li>
-          <li>Add listings to communities</li>
-          <li>Publish when ready</li>
+          <li>{t("nextDates")}</li>
+          <li>{t("nextListings")}</li>
+          <li>{t("nextPublish")}</li>
         </ul>
       </div>
       <div className="flex justify-end gap-2">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button onClick={execute} disabled={saving}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
-          {saving ? "Duplicating..." : "Duplicate"}
+          {saving ? t("duplicating") : t("duplicate")}
         </button>
       </div>
     </ModalShell>

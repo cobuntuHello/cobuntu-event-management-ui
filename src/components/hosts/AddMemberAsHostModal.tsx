@@ -1,6 +1,7 @@
 "use client";
 
 import { useEventManagementConfig } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { PersonPickerModal, userIdsOf, type Recipient } from "@cobuntu/management-ui-shared";
 
@@ -61,6 +62,7 @@ export function AddMemberAsHostModal({
     onAdded,
 }: AddMemberAsHostModalProps) {
     const config = useEventManagementConfig();
+    const tx = useEventT("eventsUi.manageUi.addMemberAsHostModal");
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
 
     async function addHost(recipients: Recipient[]) {
@@ -70,7 +72,7 @@ export function AddMemberAsHostModal({
            never stages: making somebody a host writes a row keyed by user id,
            so the picker is mounted without `emails`. */
         const [userId] = userIdsOf(recipients);
-        if (!userId) throw new Error("Choose a member first.");
+        if (!userId) throw new Error(tx("errChoose"));
         const res = await fetch(`${config.apiBaseUrl}/api/events/${eventId}/hosts`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...config.authHeaders() },
@@ -83,9 +85,9 @@ export function AddMemberAsHostModal({
          * message, so a 409 does not cost the operator the person they chose.
          */
         const body = await res.json().catch(() => null);
-        if (res.status === 409) throw new Error("This person is already a host.");
-        if (res.status === 403) throw new Error("You don't have permission to add hosts on this event.");
-        throw new Error(body?.error || body?.message || `Failed (${res.status})`);
+        if (res.status === 409) throw new Error(tx("errAlreadyHost"));
+        if (res.status === 403) throw new Error(tx("errNoPermission"));
+        throw new Error(body?.error || body?.message || tx("errFailed", { status: res.status }));
     }
 
     return (
@@ -98,40 +100,40 @@ export function AddMemberAsHostModal({
             excludeUserIds={excludeUserIds}
             UserAvatar={UserAvatar}
             copy={{
-                title: "Add community member as host",
-                searchSubtitle: "Search members of this community. Guests and non-members are filtered out.",
-                pickedSubtitle: "They'll appear in the hosts list and can manage the event.",
-                searchPlaceholder: "Search by name or @usertag",
+                title: tx("title"),
+                searchSubtitle: tx("searchSubtitle"),
+                pickedSubtitle: tx("pickedSubtitle"),
+                searchPlaceholder: tx("searchPlaceholder"),
                 /* Not "start typing" any more: the roster is already on screen,
                    so this only shows for a community with nobody to list. */
-                emptyHint: "No members to show.",
-                searching: "Searching…",
-                noMatches: "No matches.",
-                unknown: "Unknown",
-                consequencesTitle: "What happens next",
-                stepOne: "Choose a person",
-                stepTwo: "Review",
-                back: "Back",
-                cancel: "Cancel",
-                confirm: "Add as host",
-                confirming: "Adding…",
-                membersLabel: "Members",
-                showingLabel: "Showing",
-                allMembersLabel: "All members",
-                selectedLabel: (n: number) => `${n} selected`,
+                emptyHint: tx("emptyHint"),
+                searching: tx("searching"),
+                noMatches: tx("noMatches"),
+                unknown: tx("unknown"),
+                consequencesTitle: tx("consequencesTitle"),
+                stepOne: tx("stepOne"),
+                stepTwo: tx("stepTwo"),
+                back: tx("back"),
+                cancel: tx("cancel"),
+                confirm: tx("confirm"),
+                confirming: tx("confirming"),
+                membersLabel: tx("membersLabel"),
+                showingLabel: tx("showingLabel"),
+                allMembersLabel: tx("allMembersLabel"),
+                selectedLabel: (n: number) => tx("selectedLabel", { count: n }),
                 /* Single-pick, so the staged strip never renders. The words
                    are still required: a surface that later allows several
                    hosts at once should not have to discover it needs them. */
-                selectedTitle: "Selected",
-                clearAll: "Clear",
-                remove: (name: string) => `Remove ${name}`,
+                selectedTitle: tx("selectedTitle"),
+                clearAll: tx("clearAll"),
+                remove: (name: string) => tx("remove", { name }),
             }}
             stepTwo={{
                 kind: "consequences",
                 items: [
-                    "They appear in the hosts list and can manage the event.",
-                    "They get an email letting them know they're now a host.",
-                    "No payment changes hands. They're not an attendee.",
+                    tx("consequence1"),
+                    tx("consequence2"),
+                    tx("consequence3"),
                 ],
             }}
             multiple={false}

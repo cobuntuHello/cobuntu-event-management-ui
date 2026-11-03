@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useUpdateEvent } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 interface Props {
   event: any;
@@ -14,6 +15,8 @@ interface Props {
 
 export function NameEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
   const updateEvent = useUpdateEvent();
+  const t = useEventT("eventsUi.manageUi.nameEditModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
   const [name, setName] = useState(event.name || "");
   const [saving, setSaving] = useState(false);
 
@@ -22,7 +25,7 @@ export function NameEditModal({ event, communityTag, onClose, onSaved, showToast
     setSaving(true);
     try {
       await updateEvent(communityTag, event.id, { name: name.trim() });
-      showToast("Name updated");
+      showToast(t("nameUpdated"));
       onSaved();
     } catch (e: any) {
       showToast(e.message);
@@ -33,7 +36,7 @@ export function NameEditModal({ event, communityTag, onClose, onSaved, showToast
 
   return (
     <ModalShell onClose={onClose}>
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Edit event name</h3>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">{t("title")}</h3>
       <input
         type="text"
         value={name}
@@ -44,13 +47,13 @@ export function NameEditModal({ event, communityTag, onClose, onSaved, showToast
       />
       <p className="text-[11px] text-zinc-400 text-right mt-1">{name.length}/100</p>
       <div className="flex justify-end gap-2 mt-3">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button
           onClick={save}
           disabled={saving || !name.trim()}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? tc("savingDots") : tc("save")}
         </button>
       </div>
     </ModalShell>

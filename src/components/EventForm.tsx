@@ -36,6 +36,7 @@ import { DonationsField } from "./PriceEditModal/DonationsField";
 import { useStripeStatus } from "./stripe-status";
 import { useEventManagementConfig } from "../config";
 import { InfoBanner, DismissibleTipBanner } from "../create-wizard/banners";
+import { useEventT } from "../create-wizard/i18n";
 import {
   AccessAxisControl,
   toTierAccessValue,
@@ -143,7 +144,8 @@ export type AttendeeVisibility = "PUBLIC" | "ATTENDEES_ONLY" | "COUNT_ONLY" | "H
 
 /** The four choices, in the order the picker offers them: most open first. */
 export const ATTENDEE_VISIBILITY_OPTIONS: {
-  value: AttendeeVisibility; label: string; hint: string; level: AudienceLevel;
+  /** `label`/`hint` are the English; the form renders `labelKey`/`hintKey` through the host translator. */
+  value: AttendeeVisibility; label: string; hint: string; labelKey: string; hintKey: string; level: AudienceLevel;
 }[] = [
   /*
    * `level` is how much of the audience each choice lets in, which is what
@@ -157,10 +159,10 @@ export const ATTENDEE_VISIBILITY_OPTIONS: {
    * the meter answers is "how much is shared", and a bare count is the least
    * you can share without sharing nothing.
    */
-  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees who is going", level: 3 },
-  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The list appears once someone has a ticket", level: 2 },
-  { value: "COUNT_ONLY", label: "Just the number", hint: "How many are going, but no names or faces", level: 1 },
-  { value: "HIDDEN", label: "Nobody", hint: "No list and no number", level: 0 },
+  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees who is going", labelKey: "attendeeVisPublic", hintKey: "attendeeVisPublicHint", level: 3 },
+  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The list appears once someone has a ticket", labelKey: "attendeeVisAttendees", hintKey: "attendeeVisAttendeesHint", level: 2 },
+  { value: "COUNT_ONLY", label: "Just the number", hint: "How many are going, but no names or faces", labelKey: "attendeeVisCount", hintKey: "attendeeVisCountHint", level: 1 },
+  { value: "HIDDEN", label: "Nobody", hint: "No list and no number", labelKey: "attendeeVisHidden", hintKey: "attendeeVisHiddenHint", level: 0 },
 ];
 
 /**
@@ -173,10 +175,10 @@ export type LocationVisibility = "PUBLIC" | "ATTENDEES_ONLY";
 
 /** The two choices, most open first. */
 export const LOCATION_VISIBILITY_OPTIONS: {
-  value: LocationVisibility; label: string; hint: string; level: AudienceLevel;
+  value: LocationVisibility; label: string; hint: string; labelKey: string; hintKey: string; level: AudienceLevel;
 }[] = [
-  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees the address", level: 3 },
-  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The address appears once someone has a ticket", level: 2 },
+  { value: "PUBLIC", label: "Everyone", hint: "Anyone who can see the event sees the address", labelKey: "locationVisPublic", hintKey: "locationVisPublicHint", level: 3 },
+  { value: "ATTENDEES_ONLY", label: "Attendees only", hint: "The address appears once someone has a ticket", labelKey: "locationVisAttendees", hintKey: "locationVisAttendeesHint", level: 2 },
 ];
 
 /** One location as sent to the server (Phase 2). Mirrors backend EventLocationInput. */
@@ -413,6 +415,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   // attendees + community access) and "settings" ("Policies & access" — the
   // Require-Approval toggle, and the refund policy later). Explicit membership so
   // a new page can never fall into a block it does not own.
+  const tf = useEventT("eventsUi.manageUi.eventForm");
   const showListing = page === "all" || page === "listing";
   const showCommerce = page === "all" || page === "commerce";
   const showSettings = page === "all" || page === "settings";
@@ -547,7 +550,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    */
   const standardTier = (): TierItem => ({
     localId: crypto.randomUUID(),
-    name: "Standard",
+    name: tf("tierStandard"),
     // "0", not "" — deliberately one step better than ProductForm's seed.
     // validateTier rejects an empty price, so a blank seed makes Save fail
     // with "Price required for Standard" the moment a host adds a SECOND
@@ -725,7 +728,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     const live = tiers.filter((t) => t.name.trim()).length;
     const nt: TierItem = {
       localId: crypto.randomUUID(),
-      name: live === 0 ? "Standard" : `Tier ${live + 1}`,
+      name: live === 0 ? tf("tierStandard") : tf("tierNumbered", { n: live + 1 }),
       description: "", price: "", currency: "EUR",
       capacity: "", isRecurring: false, recurringInterval: "monthly",
       publishedAt: new Date().toISOString(),
@@ -985,9 +988,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const locationSummary = (() => {
     if (locationsPayload.length === 0) return "";
     const primary = locationsPayload.find((l) => l.isPrimary) || locationsPayload[0];
-    const primaryLabel = primary.kind === "PHYSICAL" ? (primary.address || "In person") : "Online";
+    const primaryLabel = primary.kind === "PHYSICAL" ? (primary.address || tf("inPerson")) : tf("online");
     const extra = locationsPayload.length - 1;
-    return extra > 0 ? `${primaryLabel} · +${extra} more` : primaryLabel;
+    return extra > 0 ? tf("locationSummaryMore", { primary: primaryLabel, extra }) : primaryLabel;
   })();
 
   return (
@@ -1007,7 +1010,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 ) : (
                   userAvatar ? <img src={userAvatar} alt="" className="w-4 h-4 rounded-full object-cover" /> : <div className="w-4 h-4 rounded-full bg-zinc-300 flex items-center justify-center text-[8px] font-bold text-white">{userName?.[0]}</div>
                 )}
-                <span><span className="text-zinc-400">Owned by </span><span className="font-medium">{ownership === "community" ? communityName : userName}</span></span>
+                <span><span className="text-zinc-400">{tf("ownedBy")} </span><span className="font-medium">{ownership === "community" ? communityName : userName}</span></span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400"><polyline points="6 9 12 15 18 9" /></svg>
               </button>
               {ownershipOpen && (
@@ -1019,7 +1022,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                       {communityIcon ? <img src={communityIcon} alt="" className="w-6 h-6 rounded object-cover" /> : <div className="w-6 h-6 rounded bg-zinc-200 flex items-center justify-center text-[10px] font-bold text-zinc-500">{communityName?.[0]}</div>}
                       <div className="flex-1 text-left">
                         <p className="text-sm font-medium text-zinc-800">{communityName}</p>
-                        <p className="text-[11px] text-zinc-400">Community event</p>
+                        <p className="text-[11px] text-zinc-400">{tf("communityEvent")}</p>
                       </div>
                       {ownership === "community" && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-500 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>}
                     </button>
@@ -1028,7 +1031,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                       {userAvatar ? <img src={userAvatar} alt="" className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-zinc-200 flex items-center justify-center text-[10px] font-bold text-zinc-500">{userName?.[0]}</div>}
                       <div className="flex-1 text-left">
                         <p className="text-sm font-medium text-zinc-800">{userName}</p>
-                        <p className="text-[11px] text-zinc-400">Personal event</p>
+                        <p className="text-[11px] text-zinc-400">{tf("personalEvent")}</p>
                       </div>
                       {ownership === "personal" && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-500 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>}
                     </button>
@@ -1043,15 +1046,15 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               for anything. Lavender rather than FormNoticeBanner's amber: this
               is not a warning, there's nothing to fix here. */}
           <InfoBanner
-            title="Let's start with the basics"
-            body="Give your event a name people will recognize"
+            title={tf("basicsTitle")}
+            body={tf("basicsBody")}
             icon={<PenLine className="h-[12px] w-[12px]" strokeWidth={2.6} />}
           />
 
           {/* Event name */}
           <div>
             <input value={name} onChange={e => setName(e.target.value)}
-              placeholder="Event Name"
+              placeholder={tf("namePlaceholder")}
               aria-invalid={listingNameTooLong(name) || undefined}
               className="w-full text-[28px] font-bold text-zinc-900 placeholder:text-zinc-300 bg-transparent border-none outline-none p-0 leading-tight" />
             {showErrors && !name.trim() && (
@@ -1066,7 +1069,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                 </span>
-                Give your event a name so people know what they're joining
+                {tf("nameRequired")}
               </p>
             )}
             {/*
@@ -1078,8 +1081,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             {LISTING_NAME_MAX - name.trim().length <= NAME_COUNTER_FROM && (
               <p className={`mt-2 text-[13px] tabular-nums ${listingNameTooLong(name) ? "text-red-600 font-medium" : "text-zinc-400"}`}>
                 {listingNameTooLong(name)
-                  ? `${name.trim().length - LISTING_NAME_MAX} too many. A name this long is a description, not a title.`
-                  : `${LISTING_NAME_MAX - name.trim().length} left`}
+                  ? tf("nameTooLong", { over: name.trim().length - LISTING_NAME_MAX })
+                  : tf("nameLeft", { left: LISTING_NAME_MAX - name.trim().length })}
               </p>
             )}
           </div>
@@ -1090,14 +1093,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               360px. No gallery/options popup. */}
           {bannerUrl ? (
             <div className="group relative w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden ring-1 ring-zinc-100">
-              <button type="button" onClick={recropBanner} className="block w-full h-full cursor-pointer" aria-label="Recrop banner">
-                <img src={bannerUrl} alt="Event banner" className="w-full h-full object-cover" />
-                <span className="absolute top-3 left-3 text-[11px] font-semibold tracking-wide bg-white/85 backdrop-blur-sm text-zinc-800 px-2.5 py-1 rounded-full">Cover</span>
+              <button type="button" onClick={recropBanner} className="block w-full h-full cursor-pointer" aria-label={tf("recropBanner")}>
+                <img src={bannerUrl} alt={tf("bannerAlt")} className="w-full h-full object-cover" />
+                <span className="absolute top-3 left-3 text-[11px] font-semibold tracking-wide bg-white/85 backdrop-blur-sm text-zinc-800 px-2.5 py-1 rounded-full">{tf("cover")}</span>
                 <span className="absolute inset-0 flex items-center justify-center gap-2 bg-black/25 text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ImageIcon className="h-[18px] w-[18px]" /> Recrop
+                  <ImageIcon className="h-[18px] w-[18px]" /> {tf("recrop")}
                 </span>
               </button>
-              <button type="button" onClick={() => setBannerUrl("")} aria-label="Remove banner"
+              <button type="button" onClick={() => setBannerUrl("")} aria-label={tf("removeBanner")}
                 className="absolute top-2.5 right-2.5 h-7 w-7 rounded-full bg-black/55 hover:bg-black/75 text-white flex items-center justify-center transition-colors cursor-pointer">
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -1108,8 +1111,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               <span className="w-12 h-12 rounded-2xl bg-white ring-1 ring-zinc-100 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
                 <ImageIcon className="h-6 w-6 text-zinc-300" />
               </span>
-              <span className="text-[13px] font-medium">Add banner</span>
-              <span className="text-[11px] text-zinc-300">Shown across your event page</span>
+              <span className="text-[13px] font-medium">{tf("addBanner")}</span>
+              <span className="text-[11px] text-zinc-300">{tf("addBannerHint")}</span>
             </button>
           )}
           <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={onBannerFile} />
@@ -1147,11 +1150,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 </span>
               )}
               <span className="flex-1 min-w-0">
-                <span className={`block text-sm truncate ${hasLocation ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{hasLocation ? "Location" : "Add location"}</span>
+                <span className={`block text-sm truncate ${hasLocation ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{hasLocation ? tf("location") : tf("addLocation")}</span>
                 {/* Subtitle in BOTH states now: unanswered says what the field
                     is for, answered keeps showing the actual summary. */}
                 <span className="block text-[12.5px] text-zinc-500 truncate">
-                  {hasLocation ? locationSummary : "Add a venue or an online meeting link."}
+                  {hasLocation ? locationSummary : tf("addLocationHint")}
                 </span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
@@ -1167,9 +1170,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 </span>
               )}
               <span className="flex-1 min-w-0">
-                <span className={`block text-sm truncate ${descriptionPreview ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{descriptionPreview ? "Description" : "Add description"}</span>
+                <span className={`block text-sm truncate ${descriptionPreview ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{descriptionPreview ? tf("description") : tf("addDescription")}</span>
                 <span className="block text-[12.5px] text-zinc-500 truncate">
-                  {descriptionPreview || "Tell people what to expect."}
+                  {descriptionPreview || tf("addDescriptionHint")}
                 </span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
@@ -1196,12 +1199,12 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 </span>
               )}
               <span className="flex-1 min-w-0">
-                <span className={`block text-sm truncate ${tags.length > 0 ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{tags.length > 0 ? "Tags" : "Add tags"}</span>
+                <span className={`block text-sm truncate ${tags.length > 0 ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{tags.length > 0 ? tf("tags") : tf("addTags")}</span>
                 {/* Subtitle in BOTH states, matching every other row on this
                     step — was answered-only, leaving the unanswered row with
                     no hint of what it's for. */}
                 <span className="block text-[12.5px] text-zinc-500 truncate">
-                  {tags.length > 0 ? tags.map(t => t.name).join(" · ") : "Help people discover your event."}
+                  {tags.length > 0 ? tags.map(t => t.name).join(" · ") : tf("addTagsHint")}
                 </span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
@@ -1216,7 +1219,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         onOpenChange={setIsBannerCropOpen}
         directCropSrc={bannerCropSrc}
         onSave={(result: BannerCropResult) => { if (result.base64) setBannerUrl(result.base64); }}
-        title="Frame your photo"
+        title={tf("framePhoto")}
         hideStockPhotos
       />
 
@@ -1248,8 +1251,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             basics step's — no dismiss, no action, just framing for the three
             preset cards right below it. */}
         <InfoBanner
-          title="Configure your event's business model"
-          body="Choose how people can get access. You can change these later."
+          title={tf("businessModelTitle")}
+          body={tf("businessModelBody")}
           icon={<Wallet className="h-[12px] w-[12px]" strokeWidth={2.6} />}
           className="mb-3"
         />
@@ -1266,22 +1269,22 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             const paidGateKnown = stripeStatus.known && stripeStatus.connected;
             const cards: { key: PresetKey; title: string; body: string; icon: React.ReactNode; popular?: boolean; locked?: boolean; hint?: string }[] = [
               {
-                key: "free", title: "Free entry", icon: <Ticket className="h-[18px] w-[18px]" strokeWidth={2} />,
-                body: "Anyone who can see the event can RSVP, no approval needed.",
+                key: "free", title: tf("presetFreeTitle"), icon: <Ticket className="h-[18px] w-[18px]" strokeWidth={2} />,
+                body: tf("presetFreeBody"),
               },
               {
-                key: "paid", title: "Paid entry", icon: <CreditCard className="h-[18px] w-[18px]" strokeWidth={2} />, popular: true,
-                body: "Buyers pay a ticket price at checkout.",
+                key: "paid", title: tf("presetPaidTitle"), icon: <CreditCard className="h-[18px] w-[18px]" strokeWidth={2} />, popular: true,
+                body: tf("presetPaidBody"),
                 locked: !paidGateKnown,
-                hint: paidGateKnown ? undefined : "Connect Stripe to accept payments",
+                hint: paidGateKnown ? undefined : tf("connectStripePayments"),
               },
               {
-                key: "donations", title: "Free with donations", icon: <Heart className="h-[18px] w-[18px]" strokeWidth={2} />,
-                body: "Free, with an optional donation at signup.",
+                key: "donations", title: tf("presetDonationsTitle"), icon: <Heart className="h-[18px] w-[18px]" strokeWidth={2} />,
+                body: tf("presetDonationsBody"),
                 // Donations are money too — same Stripe requirement as "Paid
                 // entry", and the same lock/hint treatment.
                 locked: !paidGateKnown,
-                hint: paidGateKnown ? undefined : "Connect Stripe to accept donations",
+                hint: paidGateKnown ? undefined : tf("connectStripeDonations"),
               },
             ];
             return cards.map((c) => {
@@ -1299,7 +1302,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                   }`}
                 >
                   {c.popular && (
-                    <span className="absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wide bg-zinc-900 text-white px-1.5 py-0.5 rounded-full">Popular</span>
+                    <span className="absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wide bg-zinc-900 text-white px-1.5 py-0.5 rounded-full">{tf("popular")}</span>
                   )}
                   {/* Same fixed badge size and top position on every card, so
                       the three stay aligned regardless of title/body length. */}
@@ -1367,8 +1370,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-zinc-800 truncate">{t.name || "Unnamed tier"}</p>
-                        <p className="text-[12px] text-zinc-400 mt-0.5 truncate">{t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : "Free"}</p>
+                        <p className="text-[14px] font-semibold text-zinc-800 truncate">{t.name || tf("unnamedTier")}</p>
+                        <p className="text-[12px] text-zinc-400 mt-0.5 truncate">{t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : tf("free")}</p>
                       </div>
                       <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
                     </div>
@@ -1376,16 +1379,16 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                         so a host discovers these exist behind the card. */}
                     <div className="flex flex-wrap border-t border-zinc-100">
                       <div className="flex-1 min-w-[110px] px-4 py-2.5 border-r border-zinc-100">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Capacity</p>
-                        <p className="text-[13px] font-medium text-zinc-800 mt-0.5 tabular-nums">{hasCap ? `${cap} spots` : "Unlimited"}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{tf("capacity")}</p>
+                        <p className="text-[13px] font-medium text-zinc-800 mt-0.5 tabular-nums">{hasCap ? tf("spots", { count: cap }) : tf("unlimited")}</p>
                       </div>
                       <div className="flex-1 min-w-[110px] px-4 py-2.5 border-r border-zinc-100">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Sign-up form</p>
-                        <p className="text-[13px] font-medium text-zinc-800 mt-0.5">{formCount > 0 ? `${formCount} question${formCount === 1 ? "" : "s"}` : "Not set"}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{tf("signupForm")}</p>
+                        <p className="text-[13px] font-medium text-zinc-800 mt-0.5">{formCount > 0 ? tf("questions", { count: formCount }) : tf("notSet")}</p>
                       </div>
                       <div className="flex-1 min-w-[110px] px-4 py-2.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Status</p>
-                        <p className="text-[13px] font-medium mt-0.5" style={{ color: published ? "#15803d" : "#a16207" }}>{published ? "Published" : "Draft"}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{tf("status")}</p>
+                        <p className="text-[13px] font-medium mt-0.5" style={{ color: published ? "#15803d" : "#a16207" }}>{published ? tf("published") : tf("draft")}</p>
                       </div>
                     </div>
                   </button>
@@ -1398,7 +1401,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               onMouseLeave={e => { e.currentTarget.style.color = ""; e.currentTarget.style.borderColor = ""; e.currentTarget.style.background = ""; }}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[13px] font-medium text-zinc-500 border border-dashed border-zinc-200 rounded-xl cursor-pointer transition-all duration-150">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              {tiers.length === 0 ? "Add ticket tier" : "Add ticket tier"}
+              {tf("addTicketTier")}
             </button>
         </div>
 
@@ -1431,9 +1434,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           if (pendingPresetClick) applyPreset(pendingPresetClick);
           setPendingPresetClick(null);
         }}
-        title="Reset to this preset?"
-        message="Your custom ticket tiers and donation setup will be replaced with this preset's defaults."
-        confirmLabel="Reset"
+        title={tf("resetPresetTitle")}
+        message={tf("resetPresetMessage")}
+        confirmLabel={tf("reset")}
       />
 
       <ConfirmLeaveModal
@@ -1444,18 +1447,18 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           setPendingStripeLeaveUrl(null);
           if (url) window.location.href = url;
         }}
-        title="Connect Stripe to accept payments"
-        message="You'll be taken to Stripe to connect your account. You can come back and finish this event afterward."
-        confirmLabel="Continue to Stripe"
-        cancelLabel="Not now"
+        title={tf("connectStripePayments")}
+        message={tf("stripeLeaveMessage")}
+        confirmLabel={tf("continueToStripe")}
+        cancelLabel={tf("notNow")}
       />
 
       {/* Dismissible tip, bottom of the pricing step. See DismissibleTipBanner
           for why dismissal is local-only (no persistence pattern to reuse). */}
       <div className="mt-6">
         <DismissibleTipBanner
-          title="Good to know"
-          body="You can always add more ticket types, adjust pricing, customize the sign-up form, or set a maximum capacity later."
+          title={tf("goodToKnow")}
+          body={tf("goodToKnowBody")}
         />
       </div>
       </div>
@@ -1475,8 +1478,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           use, since this step is specifically about access and policy,
           not naming or money. */}
       <InfoBanner
-        title="Set your policies & access"
-        body="Decide who can see, join and buy before you publish."
+        title={tf("policiesTitle")}
+        body={tf("policiesBody")}
         icon={<Shield className="h-[12px] w-[12px]" strokeWidth={2.6} />}
       />
 
@@ -1499,7 +1502,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           above, it is NOT community-scoped: a member hosting their own event
           owns this decision about their own guest list. */}
       <div className="mt-6">
-        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Attendees</p>
+        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">{tf("attendees")}</p>
         {/* A ROW that opens a picker, not a dropdown.
 
             Four options where each needs a sentence to be understood, and a
@@ -1513,8 +1516,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             -- so it lives in the sheet below, and the row states the answer. */}
         <PolicyRow
           icon={<Users className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
-          title="Who can see the guest list"
-          value={selectedAttendeeOption?.label ?? ""}
+          title={tf("guestListTitle")}
+          value={selectedAttendeeOption ? tf(selectedAttendeeOption.labelKey) : ""}
           level={selectedAttendeeOption?.level ?? 3}
           onClick={() => setAttendeeVisibilityOpen(true)}
         />
@@ -1528,17 +1531,15 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           <button
             type="button"
             onClick={() => setAttendeeVisibilityOpen(false)}
-            aria-label="Close"
+            aria-label={tf("close")}
             className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
           <DialogHeader>
-            <DialogTitle>Who can see the guest list</DialogTitle>
+            <DialogTitle>{tf("guestListTitle")}</DialogTitle>
             <DialogDescription>
-              This applies to the event page and anywhere else the community
-              shows who is going. You and the community&rsquo;s team always see
-              the full list on the event&rsquo;s manage page.
+              {tf("guestListDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1546,7 +1547,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               exclusive answers to one question, and a screen reader should say
               so. Picking closes the sheet — there is nothing to confirm when a
               single choice IS the whole decision. */}
-          <div role="radiogroup" aria-label="Who can see the guest list" className="py-1">
+          <div role="radiogroup" aria-label={tf("guestListTitle")} className="py-1">
             {ATTENDEE_VISIBILITY_OPTIONS.map((o) => {
               const selected = o.value === attendeeVisibility;
               return (
@@ -1567,9 +1568,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 >
                   <span className="flex-1 min-w-0">
                     <span className={`block text-sm ${selected ? "font-semibold text-zinc-900" : "font-medium text-zinc-800"}`}>
-                      {o.label}
+                      {tf(o.labelKey)}
                     </span>
-                    <span className="block text-[12.5px] text-zinc-500">{o.hint}</span>
+                    <span className="block text-[12.5px] text-zinc-500">{tf(o.hintKey)}</span>
                   </span>
                   {/* EVERY row carries the control, filled only on the chosen
                       one. Drawing it solely on the selection left the other
@@ -1607,7 +1608,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               onClick={() => setAttendeeVisibilityOpen(false)}
               className="w-full rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer"
             >
-              Close
+              {tf("close")}
             </button>
           </div>
         </DialogContent>
@@ -1621,11 +1622,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           only meaningful for an event with a physical location. Same server-side
           enforcement and same manage-page exemption as the guest list. */}
       <div className="mt-6">
-        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Location</p>
+        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">{tf("location")}</p>
         <PolicyRow
           icon={<MapPin className="h-[18px] w-[18px] text-zinc-400 shrink-0 transition-colors group-hover:text-zinc-500" />}
-          title="Who can see the location"
-          value={selectedLocationOption?.label ?? ""}
+          title={tf("locationVisTitle")}
+          value={selectedLocationOption ? tf(selectedLocationOption.labelKey) : ""}
           level={selectedLocationOption?.level ?? 3}
           onClick={() => setLocationVisibilityOpen(true)}
         />
@@ -1636,21 +1637,19 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           <button
             type="button"
             onClick={() => setLocationVisibilityOpen(false)}
-            aria-label="Close"
+            aria-label={tf("close")}
             className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
           <DialogHeader>
-            <DialogTitle>Who can see the location</DialogTitle>
+            <DialogTitle>{tf("locationVisTitle")}</DialogTitle>
             <DialogDescription>
-              This controls the physical address on the event page. An online
-              meeting link is always shown only to people with a ticket. You and
-              the community&rsquo;s team always see the address on the manage page.
+              {tf("locationVisDescription")}
             </DialogDescription>
           </DialogHeader>
 
-          <div role="radiogroup" aria-label="Who can see the location" className="py-1">
+          <div role="radiogroup" aria-label={tf("locationVisTitle")} className="py-1">
             {LOCATION_VISIBILITY_OPTIONS.map((o) => {
               const selected = o.value === locationVisibility;
               return (
@@ -1671,9 +1670,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 >
                   <span className="flex-1 min-w-0">
                     <span className={`block text-sm ${selected ? "font-semibold text-zinc-900" : "font-medium text-zinc-800"}`}>
-                      {o.label}
+                      {tf(o.labelKey)}
                     </span>
-                    <span className="block text-[12.5px] text-zinc-500">{o.hint}</span>
+                    <span className="block text-[12.5px] text-zinc-500">{tf(o.hintKey)}</span>
                   </span>
                   {selected ? (
                     <span
@@ -1699,7 +1698,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               onClick={() => setLocationVisibilityOpen(false)}
               className="w-full rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer"
             >
-              Close
+              {tf("close")}
             </button>
           </div>
         </DialogContent>
@@ -1714,7 +1713,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             absence explains itself. */}
         {!hideVisibility && (
           <div className="mt-6">
-            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Community access</p>
+            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">{tf("communityAccess")}</p>
 
             {/* The two questions read back as ONE rule, promoted above the
                 controls - the card used to ask them in two groups and never
@@ -1729,24 +1728,24 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
 
             <div className="flex flex-col gap-3">
               <AccessAxisControl
-                label="Who can see it"
+                label={tf("whoCanSee")}
                 value={viewAccess}
                 onChange={changeViewAccess}
                 tiers={membershipTiers}
-                publicLabel="Anyone, including people who are not members"
+                publicLabel={tf("whoCanSeePublic")}
               />
               <AccessAxisControl
-                label="Who can register"
+                label={tf("whoCanRegister")}
                 value={buyAccess}
                 onChange={setBuyAccess}
                 tiers={membershipTiers}
-                publicLabel="Anyone can register, members or not"
+                publicLabel={tf("whoCanRegisterPublic")}
                 ceiling={buyCeiling}
               />
             </div>
 
             <p className="text-[11px] text-zinc-400 mt-3 px-1">
-              Available because {communityName || "this community"} owns this event.
+              {tf("availableBecause", { community: communityName || tf("thisCommunity") })}
             </p>
           </div>
       )}
@@ -1759,7 +1758,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           block later. On "all" it renders after Community access above. */}
       {showSettings && (
       <div className={`${maxWidthClassName} mt-8`}>
-        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Approval</p>
+        <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">{tf("approval")}</p>
         <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
           <div
             onClick={() => setRequiresApproval(!requiresApproval)}
@@ -1767,7 +1766,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             <div className="flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
               <div>
-                <span className="text-sm font-medium text-zinc-800">Require Approval</span>
+                <span className="text-sm font-medium text-zinc-800">{tf("requireApproval")}</span>
                 {/*
                   * What is true RIGHT NOW, not what the feature is.
                   *
@@ -1782,8 +1781,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                   */}
                 <p className="text-[11px] text-zinc-400 mt-0.5">
                   {requiresApproval
-                    ? "You approve each person before they are registered"
-                    : "Anyone can register straight away"}
+                    ? tf("approvalOn")
+                    : tf("approvalOff")}
                 </p>
               </div>
             </div>
@@ -1806,7 +1805,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             advertised, and scoping it would take the setting away from
             exactly the hosts most likely to need it. */}
         <div className="mt-6">
-          <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Discovery</p>
+          <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">{tf("discovery")}</p>
           <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 divide-y divide-zinc-100">
             <div
               onClick={() => setListed(!listed)}
@@ -1814,7 +1813,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               <div className="flex items-center gap-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
                 <div>
-                  <span className="text-sm font-medium text-zinc-800">Show on the calendar</span>
+                  <span className="text-sm font-medium text-zinc-800">{tf("showOnCalendar")}</span>
                   {/*
                     * What is true RIGHT NOW, the same rule the approval row
                     * above follows.
@@ -1831,10 +1830,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                     */}
                   <p className="text-[11px] text-zinc-400 mt-0.5">
                     {listed
-                      ? "Anyone browsing can find it"
+                      ? tf("listedOn")
                       : requiresApproval
-                        ? "Only people with the link can find it, and you approve each one"
-                        : "Only people with the link can find it. Anyone with the link can still register."}
+                        ? tf("listedOffApproval")
+                        : tf("listedOff")}
                   </p>
                 </div>
               </div>
@@ -1859,7 +1858,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               manage page's refund modal uses (RefundPolicyField). Standard =
               platform default window; None = buyers contact the host. */}
         <div className="mt-6">
-          <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Refunds</p>
+          <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">{tf("refunds")}</p>
           {houseRefundBands && houseRefundBands.length > 0 ? (
             <RefundScheduleStatement
               bands={houseRefundBands}
@@ -1877,15 +1876,15 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       <Dialog open={isDescriptionOpen} onOpenChange={setIsDescriptionOpen}>
         <DialogContent className="sm:max-w-3xl h-[640px] max-h-[85vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Event Description</DialogTitle>
-            <DialogDescription>Describe your event. What should attendees expect?</DialogDescription>
+            <DialogTitle>{tf("descriptionDialogTitle")}</DialogTitle>
+            <DialogDescription>{tf("descriptionDialogBody")}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <MarkdownEditor value={description} onChange={setDescription} placeholder="Write your event description..." />
+            <MarkdownEditor value={description} onChange={setDescription} placeholder={tf("descriptionPlaceholder")} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDescriptionOpen(false)}>Cancel</Button>
-            <Button onClick={() => setIsDescriptionOpen(false)}>Done</Button>
+            <Button variant="outline" onClick={() => setIsDescriptionOpen(false)}>{tf("cancel")}</Button>
+            <Button onClick={() => setIsDescriptionOpen(false)}>{tf("done")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1949,8 +1948,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             one thing you had to scroll past nine rows to reach.
           */}
           <DialogHeader>
-            <DialogTitle>Event Location</DialogTitle>
-            <DialogDescription>Add a physical location and/or online event link.</DialogDescription>
+            <DialogTitle>{tf("locationDialogTitle")}</DialogTitle>
+            <DialogDescription>{tf("locationDialogBody")}</DialogDescription>
             <LocationAddButtons
               className="pt-2"
               onAdd={(kind) => setLocations((prev) => addLocation(prev, kind))}
@@ -1976,7 +1975,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               in place and there is nothing to roll back. "Cancel" promised a
               discard it never performed.
             */}
-            <Button variant="secondary" onClick={() => { setLocationSubmitted(false); setIsLocationOpen(false); }}>Close</Button>
+            <Button variant="secondary" onClick={() => { setLocationSubmitted(false); setIsLocationOpen(false); }}>{tf("close")}</Button>
             {/*
               Done REFUSES an empty or malformed row rather than dropping it.
               The save path filters contentless locations out of the payload,
@@ -1993,7 +1992,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 setIsLocationOpen(false);
               }}
             >
-              Done
+              {tf("done")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2003,12 +2002,12 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       <Dialog open={isTagsOpen} onOpenChange={setIsTagsOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Event Tags</DialogTitle>
-            <DialogDescription>Add tags to help people discover your event.</DialogDescription>
+            <DialogTitle>{tf("tagsDialogTitle")}</DialogTitle>
+            <DialogDescription>{tf("tagsDialogBody")}</DialogDescription>
           </DialogHeader>
-          <EventTags selectedTags={tags} onTagsChange={setTags} placeholder="Search or create tags..." />
+          <EventTags selectedTags={tags} onTagsChange={setTags} placeholder={tf("tagsPlaceholder")} />
           <DialogFooter>
-            <Button onClick={() => setIsTagsOpen(false)}>Done</Button>
+            <Button onClick={() => setIsTagsOpen(false)}>{tf("done")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

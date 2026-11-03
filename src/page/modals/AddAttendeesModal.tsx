@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { getEventManagementConfig } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import {
     PersonPickerModal, recipientsToApi, type Recipient, type PersonPickerTierStep,
@@ -66,6 +67,7 @@ export function AddAttendeesModal({
      * synchronously inside onConfirm.
      */
     const finished = useRef(false);
+    const tx = useEventT("eventsUi.manageUi.addAttendeesModal");
 
     const config = getEventManagementConfig();
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
@@ -101,22 +103,22 @@ export function AddAttendeesModal({
             soldOut: t.soldOut === true,
         })),
         copy: {
-            stepLabel: "Choose a ticket",
-            subtitle: "Which ticket are they getting? This uses up that ticket's capacity.",
-            remaining: (n) => `${n} left`,
-            unlimited: "No limit",
-            soldOut: "Full",
-            allFull: "Every ticket is full. Raise a capacity to add anyone else.",
-            summary: (n, name) => `${n} ${n === 1 ? "person" : "people"} on ${name}`,
-            overBy: (n, name) => `${n} more than ${name} has room for.`,
-            importPreviewTitle: "Check this import",
-            importReady: (n) => `${n} ${n === 1 ? "row" : "rows"} will be added.`,
-            importProblems: (n) => `${n} ${n === 1 ? "row" : "rows"} cannot be added.`,
-            problemUnknownTier: (name) => `No ticket called "${name}"`,
-            problemNoTier: "No ticket chosen",
-            problemTierFull: "That ticket is full",
-            importConfirm: "Add these",
-            importCancel: "Discard import",
+            stepLabel: tx("tierStepLabel"),
+            subtitle: tx("tierSubtitle"),
+            remaining: (n) => tx("tierRemaining", { count: n }),
+            unlimited: tx("tierUnlimited"),
+            soldOut: tx("tierSoldOut"),
+            allFull: tx("tierAllFull"),
+            summary: (n, name) => tx("tierSummary", { count: n, name }),
+            overBy: (n, name) => tx("tierOverBy", { count: n, name }),
+            importPreviewTitle: tx("importPreviewTitle"),
+            importReady: (n) => tx("importReady", { count: n }),
+            importProblems: (n) => tx("importProblems", { count: n }),
+            problemUnknownTier: (name) => tx("problemUnknownTier", { name }),
+            problemNoTier: tx("problemNoTier"),
+            problemTierFull: tx("problemTierFull"),
+            importConfirm: tx("importConfirm"),
+            importCancel: tx("importCancel"),
         },
     } : undefined;
 
@@ -136,10 +138,10 @@ export function AddAttendeesModal({
         /* The old modal disabled its own submit button for this. The picker's
            confirm is always live, so the rule lives here — where the server
            enforces it too, rather than only in a disabled attribute. */
-        if (isPast) throw new Error("This event has ended. Attendees can no longer be added.");
+        if (isPast) throw new Error(tx("errEnded"));
         const { usertags, emails } = recipientsToApi(recipients);
         if (usertags.length === 0 && emails.length === 0) {
-            throw new Error("Choose at least one person.");
+            throw new Error(tx("errChoose"));
         }
         /*
          * One entry per person, because an imported list can mix tickets. The
@@ -167,7 +169,7 @@ export function AddAttendeesModal({
             /* Thrown, not toasted: the picker keeps the staged list and shows
                the reason, so a failure does not cost a CSV import. */
             const data = await res.json().catch(() => ({}));
-            throw new Error(data?.error || "Failed to add attendees.");
+            throw new Error(data?.error || tx("errAddFailed"));
         }
         const data = await res.json().catch(() => ({}));
         finished.current = true;
@@ -180,21 +182,21 @@ export function AddAttendeesModal({
             <AttendeesActionModalShell
                 isOpen
                 onClose={onClose}
-                title="Done"
-                subtitle={`${added} attendee${added === 1 ? "" : "s"} added to ${event?.name || "this event"}.`}
+                title={tx("doneTitle")}
+                subtitle={tx("doneSubtitle", { count: added, event: event?.name || tx("thisEvent") })}
                 footer={
                     <div className="flex items-center justify-between gap-3">
                         <button
                             onClick={() => { finished.current = false; setAdded(null); }}
                             className="px-4 py-2.5 text-[13px] rounded-lg cursor-pointer bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
                         >
-                            Add more
+                            {tx("addMore")}
                         </button>
                         <button
                             onClick={onClose}
                             className="px-5 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
                         >
-                            Done
+                            {tx("done")}
                         </button>
                     </div>
                 }
@@ -224,38 +226,38 @@ export function AddAttendeesModal({
             tierStep={tierStep}
             suggestions={suggestions}
             emails={{
-                addRow: (a) => `Add ${a}`,
-                importCsv: "Import CSV",
-                imported: (n) => `Imported ${n} ${n === 1 ? "address" : "addresses"}.`,
-                importedNothing: "No email addresses in the first column of that file.",
-                importFailed: "That file could not be read.",
+                addRow: (a) => tx("addRow", { address: a }),
+                importCsv: tx("importCsv"),
+                imported: (n) => tx("imported", { count: n }),
+                importedNothing: tx("importedNothing"),
+                importFailed: tx("importFailed"),
             }}
             copy={{
-                title: "Add attendees",
-                searchSubtitle: "Register people who cannot sign up themselves. No invitation email is sent.",
-                pickedSubtitle: "They go straight onto the attendee list.",
-                searchPlaceholder: "Search by name, @usertag or email",
-                emptyHint: "No members to show.",
-                searching: "Searching…",
-                noMatches: "No matches.",
-                unknown: "Unknown",
-                consequencesTitle: "What happens next",
-                stepOne: "Choose people",
-                stepTwo: "Review",
-                back: "Back to choosing people",
-                cancel: "Cancel",
-                confirm: "Add attendees",
-                confirming: "Adding…",
-                membersLabel: "Members",
-                showingLabel: "Showing",
-                allMembersLabel: "All members",
-                selectedLabel: (n) => `${n} selected`,
-                selectedTitle: "Selected",
-                clearAll: "Clear all",
-                remove: (name) => `Remove ${name}`,
-                messageLabel: "Internal note (optional)",
-                messagePlaceholder: "Notes for yourself. Not sent to anyone.",
-                discardConfirm: "You have people staged. Discard them?",
+                title: tx("title"),
+                searchSubtitle: tx("searchSubtitle"),
+                pickedSubtitle: tx("pickedSubtitle"),
+                searchPlaceholder: tx("searchPlaceholder"),
+                emptyHint: tx("emptyHint"),
+                searching: tx("searching"),
+                noMatches: tx("noMatches"),
+                unknown: tx("unknown"),
+                consequencesTitle: tx("consequencesTitle"),
+                stepOne: tx("stepOne"),
+                stepTwo: tx("stepTwo"),
+                back: tx("back"),
+                cancel: tx("cancel"),
+                confirm: tx("confirm"),
+                confirming: tx("confirming"),
+                membersLabel: tx("membersLabel"),
+                showingLabel: tx("showingLabel"),
+                allMembersLabel: tx("allMembersLabel"),
+                selectedLabel: (n) => tx("selectedLabel", { count: n }),
+                selectedTitle: tx("selectedTitle"),
+                clearAll: tx("clearAll"),
+                remove: (name) => tx("remove", { name }),
+                messageLabel: tx("messageLabel"),
+                messagePlaceholder: tx("messagePlaceholder"),
+                discardConfirm: tx("discardConfirm"),
             }}
             stepTwo={{
                 kind: "compose",
@@ -267,36 +269,36 @@ export function AddAttendeesModal({
                     <div className="space-y-3">
                         {isPast && (
                             <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-[13px] text-amber-800">
-                                This event has ended. Attendees can no longer be added.
+                                {tx("errEnded")}
                             </div>
                         )}
                         {tierFormsCount > 0 && !isPast && (
                             <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
                                 <p className="text-[13px] text-amber-900 font-medium mb-1">
-                                    Attendees added here skip the registration form
+                                    {tx("skipFormTitle")}
                                 </p>
                                 <p className="text-[12px] text-amber-800 leading-snug">
                                     {tierFormsCount === 1
-                                        ? "This event has a registration form."
-                                        : `This event has ${tierFormsCount} tiers with registration forms.`}{" "}
-                                    Their answers will be empty for everyone you add here.{" "}
+                                        ? tx("hasForm")
+                                        : tx("hasForms", { count: tierFormsCount })}{" "}
+                                    {tx("answersEmpty")}{" "}
                                     {onSwitchToInvite && (
                                         <button
                                             onClick={() => { onClose(); onSwitchToInvite(); }}
                                             className="text-amber-900 font-medium underline hover:no-underline cursor-pointer"
                                         >
-                                            Invite guests instead
+                                            {tx("inviteInstead")}
                                         </button>
                                     )}
                                 </p>
                             </div>
                         )}
                         <div className="rounded-xl bg-zinc-50 border border-zinc-100 p-3 text-[12px] text-zinc-600 leading-relaxed">
-                            <p className="font-medium text-zinc-800 mb-1">What happens next</p>
+                            <p className="font-medium text-zinc-800 mb-1">{tx("whatNext")}</p>
                             <ul className="space-y-1 list-disc list-inside [&>li]:pl-0">
-                                <li>They appear on the attendee list straight away, already approved.</li>
-                                <li>No invitation is sent and no payment is taken.</li>
-                                <li>The note stays with you. It is never shown to them.</li>
+                                <li>{tx("next1")}</li>
+                                <li>{tx("next2")}</li>
+                                <li>{tx("next3")}</li>
                             </ul>
                         </div>
                     </div>

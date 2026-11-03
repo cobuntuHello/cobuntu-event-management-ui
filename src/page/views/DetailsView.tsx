@@ -35,6 +35,7 @@ import { DescriptionSection } from "../sections/DescriptionSection";
 import { OverviewActionCards } from "../sections/OverviewActionCards";
 import { DonationsSummaryCard } from "../../components/DonationsSummaryCard";
 import { useCanEdit } from "../../lib/manageAccess";
+import { useEventT } from "../../create-wizard/i18n";
 // feat/manage-event-restructure / attendees-unified: the
 // AttendeesAndInvitationsSection moved to the new Attendees tab.
 // Only its paid-event revenue KPIs stay on Overview, via the standalone
@@ -116,6 +117,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
   // Workstream 1 of the events-domain roadmap.)
 
   const status = getEventStatus(event);
+  const t = useEventT("eventsUi.manageUi.detailsView");
 
   // The group chat lives in the community-app (a different host than admin),
   // at /conversations/<conversationId>. getCommunityAppUrl resolves that host
@@ -138,9 +140,9 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
   async function handleBannerSave(result: BannerCropResult) {
     try {
       await updateEvent(communityTag, event.id, { bannerUrl: result.base64 || null });
-      showToast(result.base64 ? "Image updated" : "Image removed");
+      showToast(result.base64 ? t("imageUpdated") : t("imageRemoved"));
       onUpdate();
-    } catch (e: any) { showToast(e.message || "Failed to update image"); }
+    } catch (e: any) { showToast(e.message || t("imageFailed")); }
   }
 
   return (
@@ -308,7 +310,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
         onOpenChange={setBannerCropOpen}
         initialImageSrc={event.bannerUrl}
         onSave={handleBannerSave}
-        title="Event Image"
+        title={t("imageTitle")}
       />
 
       {/*

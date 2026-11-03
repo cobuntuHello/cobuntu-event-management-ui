@@ -8,6 +8,7 @@ import {
 import { AddAttendeesModal } from "../modals/AddAttendeesModal";
 import { InviteGuestsModal } from "../modals/InviteGuestsModal";
 import { useCanEdit } from "../../lib/manageAccess";
+import { useEventT } from "../../create-wizard/i18n";
 
 /**
  * Unified Attendees tab — replaces the legacy "Add Attendees" and
@@ -50,6 +51,7 @@ export function AttendeesView({
     // Same reasoning as OverviewView: gate the opener, not each button.
     // Adding or inviting attendees is a write on someone else's event.
     const canEdit = useCanEdit();
+    const tx = useEventT("eventsUi.manageUi.attendeesView");
     const setModal: typeof setModalState = (v) => {
         if (!canEdit && v !== null) return;
         setModalState(v);
@@ -133,7 +135,7 @@ export function AttendeesView({
                 open={promotePreselected !== null}
                 onClose={() => setPromotePreselected(null)}
                 onPromoted={() => {
-                    showToast("Promoted to host");
+                    showToast(tx("promotedToHost"));
                     onUpdate();
                     setRefreshKey((k) => k + 1);
                 }}

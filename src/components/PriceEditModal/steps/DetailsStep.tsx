@@ -3,6 +3,7 @@
 import { TIER_NAME_MAX, TIER_DESCRIPTION_MAX, type DraftTier } from "../types";
 import { isTierLocked } from "../helpers";
 import { Eyebrow, StepInput, StepTextarea } from "../_primitives";
+import { useEventT } from "../../../create-wizard/i18n";
 
 export interface DetailsStepProps {
   t: DraftTier;
@@ -19,6 +20,8 @@ export interface DetailsStepProps {
  * same here as in every other step.
  */
 export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
+  // `t` is the tier draft here, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.detailsStep");
   const locked = isTierLocked(t);
 
   return (
@@ -26,11 +29,11 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
       {/* Tier name */}
       <div>
         <Eyebrow
-          help="The public label buyers see at checkout, e.g. “Early bird” or “VIP”."
+          help={tx("nameHelp")}
           count={t.name.length}
           max={TIER_NAME_MAX}
         >
-          Tier name
+          {tx("name")}
         </Eyebrow>
         <div className="mt-1">
           <StepInput
@@ -38,7 +41,7 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
             value={t.name}
             maxLength={TIER_NAME_MAX}
             onChange={(e) => onUpdate({ name: e.target.value })}
-            placeholder="Standard, VIP, Early-bird…"
+            placeholder={tx("namePlaceholder")}
           />
         </div>
       </div>
@@ -46,18 +49,18 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
       {/* Description — tier info, lives with the identity fields. */}
       <div>
         <Eyebrow
-          help="Shown on the public ticket card — a short note on what this tier includes."
+          help={tx("descriptionHelp")}
           count={t.description.length}
           max={TIER_DESCRIPTION_MAX}
         >
-          Description (optional)
+          {tx("description")}
         </Eyebrow>
         <div className="mt-1">
           <StepTextarea
             value={t.description}
             maxLength={TIER_DESCRIPTION_MAX}
             onChange={(e) => onUpdate({ description: e.target.value })}
-            placeholder="What's included"
+            placeholder={tx("descriptionPlaceholder")}
             rows={3}
           />
         </div>
@@ -66,8 +69,8 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
       {/* Capacity (attendance cap) — raisable even on a locked tier; just
           can't drop below sold. */}
       <div>
-        <Eyebrow help="The maximum number of tickets sold for this tier. Leave blank for unlimited.">
-          Capacity (optional)
+        <Eyebrow help={tx("capacityHelp")}>
+          {tx("capacity")}
         </Eyebrow>
         <div className="mt-1">
           <StepInput
@@ -76,7 +79,7 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
             step="1"
             value={t.capacity}
             onChange={(e) => onUpdate({ capacity: e.target.value })}
-            placeholder="Unlimited"
+            placeholder={tx("unlimited")}
           />
         </div>
         {/*
@@ -87,9 +90,7 @@ export function DetailsStep({ t, onUpdate }: DetailsStepProps) {
           */}
         {locked && (
           <p className="mt-1 text-[10.5px] text-zinc-500">
-            {t.salesCount === 1
-              ? "1 person already has a ticket, so the cap cannot go below 1. You can still raise it."
-              : `${t.salesCount} people already have tickets, so the cap cannot go below ${t.salesCount}. You can still raise it.`}
+            {tx("capFloor", { count: t.salesCount })}
           </p>
         )}
       </div>

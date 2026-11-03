@@ -38,6 +38,7 @@ import { FieldTypePickerFlow, FIELD_ICONS } from "../sub-flows/FieldTypePickerFl
 import { EditFieldFlow } from "../sub-flows/EditFieldFlow";
 import { EditPageBreakFlow } from "../sub-flows/EditPageBreakFlow";
 import { FooterSlotContext } from "../footer-slot";
+import { useEventT } from "../../../create-wizard/i18n";
 
 export interface FormStepProps {
   t: DraftTier;
@@ -82,6 +83,8 @@ type SubView =
  */
 export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormChange }: FormStepProps) {
   const { apiBaseUrl, authHeaders } = useEventManagementConfig();
+  // `t` is the tier draft here, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.formStep");
   const jsonHeaders = useJsonHeaders();
   // The form builder's primary actions live in the modal footer, not in
   // the body — portaled into this slot. See ../footer-slot.tsx.
@@ -164,10 +167,10 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
           setItems([]);
           setStep0Label("");
         } else {
-          setLoadError("Failed to load form");
+          setLoadError(tx("loadFailed"));
         }
       } catch {
-        if (!cancelled) setLoadError("Failed to load form");
+        if (!cancelled) setLoadError(tx("loadFailed"));
       }
     })();
     return () => { cancelled = true; };
@@ -204,9 +207,9 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
           body: JSON.stringify({ fields, stepLabels }),
         },
       );
-      if (!res.ok) showToast("Failed to save form");
+      if (!res.ok) showToast(tx("saveFailed"));
     } catch {
-      showToast("Failed to save form");
+      showToast(tx("saveFailed"));
     } finally {
       inFlightRef.current = false;
       setSaving(false);
@@ -280,8 +283,8 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
 
   function seedDefault() {
     const defaults: FormField[] = [
-      { id: `field-${Date.now()}-1`, type: "SHORT_TEXT", label: "Name", required: true },
-      { id: `field-${Date.now()}-2`, type: "EMAIL", label: "Email", required: true },
+      { id: `field-${Date.now()}-1`, type: "SHORT_TEXT", label: tx("defaultNameField"), required: true },
+      { id: `field-${Date.now()}-2`, type: "EMAIL", label: tx("defaultEmailField"), required: true },
     ];
     setItems(defaults as Item[]);
     persist(defaults as Item[], step0Label);
@@ -300,11 +303,11 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
   if (!t.id && !draftMode) {
     return (
       <div className="px-4 py-6 rounded-lg border border-dashed border-zinc-300 text-center">
-        <p className="text-[12px] font-medium text-zinc-700">Save tier first</p>
+        <p className="text-[12px] font-medium text-zinc-700">{tx("saveTierFirst")}</p>
         <p className="text-[11px] text-zinc-500 mt-1">
           {t.sourceTierId
-            ? `The form will copy from "${t.sourceTierName || "the source tier"}" when you save.`
-            : "Forms are attached to saved tiers. Save once, then come back here."}
+            ? tx("willCopyFrom", { tier: t.sourceTierName || tx("theSourceTier") })
+            : tx("saveTierFirstBody")}
         </p>
       </div>
     );
@@ -365,14 +368,14 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
               onClick={seedDefault}
               className="px-3 py-2 text-[13px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
             >
-              Use default
+              {tx("useDefault")}
             </button>
             <button
               type="button"
               onClick={() => setView({ kind: "add-field" })}
               className="px-3 py-2 text-[13px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
             >
-              Add question
+              {tx("addQuestion")}
             </button>
           </>
         ) : (
@@ -382,14 +385,14 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
               onClick={() => setView({ kind: "edit-page-break" })}
               className="px-3 py-2 text-[13px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
             >
-              + Page break
+              {tx("addPageBreak")}
             </button>
             <button
               type="button"
               onClick={() => setView({ kind: "add-field" })}
               className="px-3 py-2 text-[13px] font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
             >
-              + Question
+              {tx("addQuestionShort")}
             </button>
           </>
         ),
@@ -399,35 +402,35 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
       <div className="flex items-center mb-3">
         <p className="text-[12px] text-zinc-500">
           {fieldsFlat.length === 0
-            ? "No questions yet."
-            : `${fieldsFlat.length} question${fieldsFlat.length === 1 ? "" : "s"}.`}
-          {saving && <span className="ml-2 text-zinc-400">Saving…</span>}
+            ? tx("noQuestionsDot")
+            : tx("questionCount", { count: fieldsFlat.length })}
+          {saving && <span className="ml-2 text-zinc-400">{tx("saving")}</span>}
         </p>
       </div>
 
       {fieldsFlat.length > 0 && !hasEmail && (
         <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
-          No Email field. Applicants can't be identified — add an Email question before going live.
+          {tx("noEmailField")}
         </div>
       )}
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-4 py-8 text-center">
-          <p className="text-[13px] font-medium text-zinc-700 mb-1">No questions yet</p>
+          <p className="text-[13px] font-medium text-zinc-700 mb-1">{tx("noQuestions")}</p>
           <p className="text-[11px] text-zinc-400">
-            Use the footer to start with the default Name + Email, or add questions one-by-one.
+            {tx("emptyHint")}
           </p>
         </div>
       ) : (
         <div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
           {/* Page 1 label header */}
           <div className="flex items-center gap-3 px-3 py-2 bg-zinc-50 border-b border-zinc-100">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 shrink-0">Page 1</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 shrink-0">{tx("pageN", { n: 1 })}</span>
             <input
               type="text"
               value={step0Label}
               onChange={(e) => handleStep0LabelChange(e.target.value)}
-              placeholder="Page title (optional)"
+              placeholder={tx("pageTitlePlaceholder")}
               className="flex-1 bg-transparent border-none outline-none text-[12px] font-medium text-zinc-700 placeholder:text-zinc-300"
             />
           </div>
@@ -494,6 +497,7 @@ function SortableFieldRow({
   };
   const Icon = FIELD_ICONS[field.type as keyof typeof FIELD_ICONS];
   const meta = fieldTypeMeta(field.type);
+  const tx = useEventT("eventsUi.manageUi.formStep");
 
   return (
     <div
@@ -507,7 +511,7 @@ function SortableFieldRow({
         {...listeners}
         onClick={(e) => e.stopPropagation()}
         className="cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 shrink-0 touch-none"
-        aria-label="Drag to reorder"
+        aria-label={tx("dragToReorder")}
       >
         <GripVertical className="w-3.5 h-3.5" />
       </button>
@@ -519,7 +523,7 @@ function SortableFieldRow({
         <div className="flex items-center gap-2">
           <p className="text-[12px] font-medium text-zinc-900 truncate">{field.label}</p>
           {field.required && (
-            <span className="text-[9px] font-medium text-red-400 bg-red-50 px-1.5 py-0.5 rounded">Required</span>
+            <span className="text-[9px] font-medium text-red-400 bg-red-50 px-1.5 py-0.5 rounded">{tx("required")}</span>
           )}
         </div>
         <p className="text-[10px] text-zinc-400 truncate">
@@ -534,7 +538,7 @@ function SortableFieldRow({
           onRemove();
         }}
         className="p-1 text-zinc-300 hover:text-red-500 cursor-pointer shrink-0"
-        aria-label={`Remove ${field.label}`}
+        aria-label={tx("removeField", { label: field.label })}
       >
         <X className="w-3.5 h-3.5" />
       </button>
@@ -559,6 +563,7 @@ function SortableSeparatorRow({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const tx = useEventT("eventsUi.manageUi.formStep");
   return (
     <div
       ref={setNodeRef}
@@ -571,17 +576,17 @@ function SortableSeparatorRow({
         {...listeners}
         onClick={(e) => e.stopPropagation()}
         className="cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 shrink-0 touch-none"
-        aria-label="Drag to reorder"
+        aria-label={tx("dragToReorder")}
       >
         <GripVertical className="w-3.5 h-3.5" />
       </button>
       <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-400 shrink-0">
-        Page {stepNumber}
+        {tx("pageN", { n: stepNumber })}
       </span>
       <span className="flex-1 text-[12px] font-medium text-zinc-700 truncate">
-        {sep.label || <span className="text-zinc-300 font-normal">Untitled page</span>}
+        {sep.label || <span className="text-zinc-300 font-normal">{tx("untitledPage")}</span>}
       </span>
-      <span className="text-[10px] text-zinc-400 shrink-0">Edit</span>
+      <span className="text-[10px] text-zinc-400 shrink-0">{tx("edit")}</span>
     </div>
   );
 }

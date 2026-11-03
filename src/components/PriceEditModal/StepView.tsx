@@ -13,6 +13,7 @@ import { FormStep } from "./steps/FormStep";
 import type { StepId } from "./steps";
 import { Eyebrow, StepInput, Switch } from "./_primitives";
 import { isTierLocked } from "./helpers";
+import { useEventT } from "../../create-wizard/i18n";
 
 export interface StepViewProps {
   t: DraftTier;
@@ -106,6 +107,8 @@ function CapacityStep({
   t: DraftTier;
   onUpdate: (patch: Partial<DraftTier>) => void;
 }) {
+  // `t` is the tier draft here, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.capacityStep");
   const locked = isTierLocked(t);
   const floor = locked ? t.salesCount : 0;
   const [limited, setLimited] = useState(!!t.capacity);
@@ -128,15 +131,15 @@ function CapacityStep({
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <Eyebrow help="Unlimited means there is no cap on how many can be sold. Turn it off to set a maximum.">
-          Capacity
+        <Eyebrow help={tx("capacityHelp")}>
+          {tx("capacity")}
         </Eyebrow>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] text-zinc-500">Unlimited</span>
+          <span className="text-[11px] text-zinc-500">{tx("unlimited")}</span>
           <Switch
             checked={!limited}
             onChange={(next) => toggleUnlimited(next)}
-            label="Unlimited capacity"
+            label={tx("unlimitedCapacity")}
           />
         </div>
       </div>
@@ -151,11 +154,11 @@ function CapacityStep({
               step="1"
               value={t.capacity}
               onChange={(e) => onUpdate({ capacity: e.target.value })}
-              placeholder="Maximum"
+              placeholder={tx("maximum")}
             />
           </div>
           {locked && (
-            <p className="text-[10px] text-zinc-400 mt-1">Min {t.salesCount} (already sold).</p>
+            <p className="text-[10px] text-zinc-400 mt-1">{tx("minAlreadySold", { count: t.salesCount })}</p>
           )}
         </>
       )}

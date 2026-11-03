@@ -11,6 +11,9 @@ import {
   isGoogleMapsConfigured,
   type LocationSuggestion,
 } from "../lib/google-maps";
+import { useEventT, getEventT } from "../create-wizard/i18n";
+
+const NS = "eventsUi.manageUi.eventLocationsField";
 
 /**
  * One location on the wire (Phase 2 event-locations). Mirrors the backend
@@ -86,11 +89,12 @@ export function isValidOnlineUrl(raw: string): boolean {
  * Discarding what someone deliberately added is worse than refusing to save.
  */
 export function locationRowError(row: EventLocationValue): string | null {
+  const t = getEventT("eventsUi.manageUi.eventLocationsField");
   if (row.kind === "PHYSICAL") {
-    return locationHasContent(row) ? null : "Add an address, or remove this location.";
+    return locationHasContent(row) ? null : t("errAddAddress");
   }
-  if (!row.url.trim()) return "Add a link, or remove this location.";
-  return isValidOnlineUrl(row.url) ? null : "That does not look like a link. It should start with https://";
+  if (!row.url.trim()) return t("errAddLink");
+  return isValidOnlineUrl(row.url) ? null : t("errNotALink");
 }
 
 /** Every row's error, keyed by row key. Empty object = the set is saveable. */
@@ -142,15 +146,16 @@ export function LocationAddButtons({
   disabled?: boolean;
   className?: string;
 }) {
+  const t = useEventT(NS);
   const base =
     "inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-3 py-2 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-200 cursor-pointer disabled:opacity-50";
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
       <button type="button" disabled={disabled} onClick={() => onAdd("PHYSICAL")} className={base}>
-        <Plus className="h-3.5 w-3.5" /> Add place
+        <Plus className="h-3.5 w-3.5" /> {t("addPlace")}
       </button>
       <button type="button" disabled={disabled} onClick={() => onAdd("ONLINE")} className={base}>
-        <Plus className="h-3.5 w-3.5" /> Add online link
+        <Plus className="h-3.5 w-3.5" /> {t("addOnlineLink")}
       </button>
     </div>
   );
@@ -179,6 +184,7 @@ interface Props {
  * Google Places autocomplete; online rows a validated URL field.
  */
 export function EventLocationsField({ value, onChange, disabled = false, hideAddButtons = false, errors }: Props) {
+  const t = useEventT(NS);
   const rows = value;
 
   /*
@@ -203,7 +209,7 @@ export function EventLocationsField({ value, onChange, disabled = false, hideAdd
   return (
     <div className="space-y-4">
       {rows.length === 0 && (
-        <p className="text-[13px] text-zinc-500">No location yet. Add a place or an online link.</p>
+        <p className="text-[13px] text-zinc-500">{t("noLocationYet")}</p>
       )}
 
       <div className="space-y-3">
@@ -227,7 +233,7 @@ export function EventLocationsField({ value, onChange, disabled = false, hideAdd
       {!isGoogleMapsConfigured() && (
         <div className="text-xs text-zinc-500 flex items-center gap-1">
           <Search className="h-3 w-3" />
-          <span>Google Maps not configured — addresses are manual, without a map pin.</span>
+          <span>{t("mapsNotConfigured")}</span>
         </div>
       )}
     </div>
@@ -246,6 +252,7 @@ function LocationRow({
   onMakePrimary: () => void;
   error?: string;
 }) {
+  const t = useEventT(NS);
   const isPhysical = row.kind === "PHYSICAL";
   return (
     /*
@@ -279,7 +286,7 @@ function LocationRow({
           {isPhysical ? <MapPin className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />}
         </span>
         <span className="text-[13px] font-semibold text-zinc-900">
-          {isPhysical ? "In person" : "Online"}
+          {isPhysical ? t("inPerson") : t("online")}
         </span>
 
         <div className="ml-auto flex items-center gap-1.5">
@@ -289,11 +296,11 @@ function LocationRow({
                 row.isPrimary
                   ? "bg-zinc-900 text-white"
                   : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700")}>
-              {row.isPrimary ? "Primary" : "Make primary"}
+              {row.isPrimary ? t("primary") : t("makePrimary")}
             </button>
           )}
           {canRemove && (
-            <button type="button" aria-label="Remove location" onClick={onRemove} disabled={disabled}
+            <button type="button" aria-label={t("removeLocation")} onClick={onRemove} disabled={disabled}
               className="h-7 w-7 rounded-full flex items-center justify-center text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer">
               <X className="h-4 w-4" />
             </button>
@@ -332,6 +339,7 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
   const listRef = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [lookupFailed, setLookupFailed] = useState(false);
+  const t = useEventT(NS);
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
@@ -391,13 +399,13 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
   return (
     <div className="relative" ref={boxRef}>
       <Input type="text" value={row.address} disabled={disabled}
-        placeholder="Search for a place or enter an address..."
+        placeholder={t("searchPlacePlaceholder")}
         // Any hand-edit drops the pin — it's only valid for the picked address.
         onChange={(e) => onPatch({ address: e.target.value, latitude: null, longitude: null })}
         className="w-full pr-8 h-8 rounded-none border-0 bg-transparent px-0 text-[14px] focus:border-0 focus:ring-0" />
       {loading && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-zinc-400" /></div>}
       {row.latitude != null && row.longitude != null && (
-        <span className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-zinc-400"><MapPin className="h-3 w-3" /> Pinned on the map</span>
+        <span className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-zinc-400"><MapPin className="h-3 w-3" /> {t("pinnedOnMap")}</span>
       )}
       {/*
         * The suggestion list sits IN FLOW, not absolutely positioned.
@@ -420,7 +428,7 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
         */}
       {lookupFailed && (
         <span className="mt-1 block text-[11.5px] text-amber-600">
-          Place search is unavailable right now. Your address is still saved, just without a map pin.
+          {t("placeSearchUnavailable")}
         </span>
       )}
       {open && suggestions.length > 0 && (
@@ -446,13 +454,14 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
 }
 
 function OnlineInput({ row, disabled, onPatch }: { row: EventLocationValue; disabled: boolean; onPatch: (p: Partial<EventLocationValue>) => void }) {
+  const t = useEventT(NS);
   const valid = !row.url || isValidUrl(row.url);
   return (
     <div>
       <Input type="url" value={row.url} disabled={disabled}
         placeholder="https://zoom.us/j/... or https://meet.google.com/..."
         onChange={(e) => onPatch({ url: e.target.value })} className="w-full h-8 rounded-none border-0 bg-transparent px-0 text-[14px] focus:border-0 focus:ring-0" />
-      {row.url && !valid && <p className="mt-1 text-[12px] text-red-600">Invalid URL format</p>}
+      {row.url && !valid && <p className="mt-1 text-[12px] text-red-600">{t("invalidUrl")}</p>}
     </div>
   );
 }

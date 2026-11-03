@@ -9,6 +9,7 @@ import { StockPhotoPicker } from "./stock-photo-picker";
 import { Image as ImageIcon, Trash2, Loader2 } from "lucide-react";
 import { cn } from "./utils";
 import { drawFitted, fitWithin, IMAGE_QUALITY } from "@cobuntu/management-ui-shared";
+import { useEventT } from "../create-wizard/i18n";
 
 type CroppedAreaPixels = { width: number; height: number; x: number; y: number };
 
@@ -33,9 +34,11 @@ interface BannerCropModalProps {
 }
 
 export function BannerCropModal({
-  open, onOpenChange, initialImageSrc = null, onSave, title = "Edit Banner", hideStockPhotos = false,
+  open, onOpenChange, initialImageSrc = null, onSave, title: titleProp, hideStockPhotos = false,
   directCropSrc = null,
 }: BannerCropModalProps) {
+  const t = useEventT("eventsUi.manageUi.bannerCropModal");
+  const title = titleProp ?? t("editBanner");
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [optionsOpen, setOptionsOpen] = React.useState(false);
   const [stockPhotoOpen, setStockPhotoOpen] = React.useState(false);
@@ -234,25 +237,25 @@ export function BannerCropModal({
                   ? "bg-zinc-50 border border-dashed border-zinc-900"
                   : "bg-zinc-100 hover:bg-zinc-200",
               )}>
-              {dragging ? "Drop your image to use it" : "Upload new image"}
+              {dragging ? t("dropToUse") : t("uploadNew")}
             </button>
             {!hideStockPhotos && (
               <button type="button" onClick={() => { setOptionsOpen(false); setStockPhotoOpen(true); }}
                 className="flex min-h-[48px] items-center justify-center rounded-xl bg-zinc-100 px-6 py-3 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-200 cursor-pointer">
                 <ImageIcon className="h-4 w-4 mr-2" />
-                Add Stock Photo
+                {t("addStockPhoto")}
               </button>
             )}
             {initialImageSrc && (
               <button type="button" onClick={handleClear} disabled={isSaving}
                 className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-red-50 px-6 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 cursor-pointer">
                 <Trash2 className="h-4 w-4" />
-                Remove image
+                {t("removeImage")}
               </button>
             )}
             <button type="button" onClick={() => { setOptionsOpen(false); onOpenChange(false); }}
               className="flex min-h-[48px] items-center justify-center rounded-xl px-6 py-3 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 cursor-pointer">
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </DialogContent>
@@ -270,8 +273,8 @@ export function BannerCropModal({
                 so it has to be said once here or nobody discovers it. */}
             <p className="text-sm text-zinc-500 mt-1">
               {dragging
-                ? "Drop your image to use it"
-                : "Adjust the image to fit a square (1:1) format, or drop a new one in"}
+                ? t("dropToUse")
+                : t("adjustHint")}
             </p>
           </DialogHeader>
 
@@ -313,7 +316,7 @@ export function BannerCropModal({
                 <div className="flex h-full w-full items-center justify-center text-zinc-400">
                   <div className="text-center space-y-2">
                     <ImageIcon className="h-12 w-12 mx-auto opacity-50" />
-                    <p className="text-sm">Select an image to start</p>
+                    <p className="text-sm">{t("selectToStart")}</p>
                   </div>
                 </div>
               )}
@@ -325,7 +328,7 @@ export function BannerCropModal({
                     actions, so the zoom row is just its label. */}
                 <div className="flex items-center gap-2">
                   <ImageIcon className="h-4 w-4 text-zinc-400" />
-                  <label className="text-sm font-medium text-zinc-800">Zoom</label>
+                  <label className="text-sm font-medium text-zinc-800">{t("zoom")}</label>
                 </div>
                 {/*
                   * Floor of 100%, not 50%.
@@ -359,16 +362,16 @@ export function BannerCropModal({
               Save = primary. */}
           <div className="px-6 py-4 border-t border-zinc-100 bg-zinc-50 grid grid-cols-2 sm:grid-cols-4 gap-2 flex-shrink-0">
             <Button variant="destructive" onClick={handleClear} disabled={isSaving} className="w-full px-2">
-              <Trash2 className="h-4 w-4 mr-1.5" /> Remove
+              <Trash2 className="h-4 w-4 mr-1.5" /> {t("remove")}
             </Button>
             <Button variant="secondary" onClick={handleChangeImage} disabled={isSaving} className="w-full px-2">
-              Change image
+              {t("changeImage")}
             </Button>
             <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSaving} className="w-full px-2">
-              Cancel
+              {t("cancel")}
             </Button>
             <Button onClick={handleSave} disabled={!imageSrc || !croppedAreaPixels || isSaving} className="w-full px-2">
-              {isSaving ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Saving…</> : "Save"}
+              {isSaving ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />{t("saving")}</> : t("save")}
             </Button>
           </div>
         </DialogContent>

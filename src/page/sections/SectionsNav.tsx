@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEventT, type NamespacedT } from "../../create-wizard/i18n";
 
 // feat/manage-event-restructure: "invite-guests" + "add-attendees" tabs
 // merged into a single "attendees" tab. The Add and Invite actions
@@ -109,6 +110,7 @@ const SECTIONS: Section[] = [
  * skipped.
  */
 export function SectionsNav({ communityTag: _communityTag, activeView, onViewChange, visibleViews }: Props) {
+  const t = useEventT("eventsUi.manageUi.sectionsNav");
   const tabRefs = useRef<Map<ViewKey, HTMLButtonElement | null>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
@@ -196,7 +198,7 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
             onClick={disabled ? undefined : () => onViewChange(s.key)}
             disabled={disabled}
             aria-disabled={disabled || undefined}
-            title={disabled ? "Coming soon" : undefined}
+            title={disabled ? t("comingSoon") : undefined}
             className={`relative inline-flex items-center px-3 py-3 text-[14px] whitespace-nowrap transition-colors ${
               disabled
                 ? "text-zinc-300 cursor-not-allowed"
@@ -205,7 +207,7 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
                   : "text-zinc-400 hover:text-zinc-700 cursor-pointer"
             }`}
           >
-            {s.label}
+            {sectionLabel(t, s.key)}
           </button>
         );
       })}
@@ -244,6 +246,25 @@ export function SectionsNav({ communityTag: _communityTag, activeView, onViewCha
       />
     </div>
   );
+}
+
+/*
+ * SECTIONS keeps its English labels for readability in the source; this is
+ * what renders. Literal keys, so the key-coverage test sees every one.
+ */
+function sectionLabel(t: NamespacedT, key: ViewKey): string {
+  switch (key) {
+    case "overview": return t("overview");
+    case "ledger": return t("ledger");
+    case "details": return t("details");
+    case "pricing": return t("pricing");
+    case "hosts": return t("hosts");
+    case "listings": return t("listings");
+    case "agenda": return t("agenda");
+    case "attendees": return t("attendees");
+    case "activity": return t("activity");
+    case "updates": return t("updates");
+  }
 }
 
 /** The tab order, for tests that assert it without rendering the strip. */

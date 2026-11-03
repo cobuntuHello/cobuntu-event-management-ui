@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 
 /**
@@ -62,6 +63,7 @@ export function ConfirmRemoveHostModal({
     communityName,
 }: ConfirmRemoveHostModalProps) {
     const config = useEventManagementConfig();
+    const tx = useEventT("eventsUi.manageUi.confirmRemoveHostModal");
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
 
     useEffect(() => {
@@ -75,20 +77,21 @@ export function ConfirmRemoveHostModal({
 
     if (!open) return null;
 
-    const action = target.hasAttendance ? "Demote to attendee" : "Remove from hosts";
+    const action = target.hasAttendance ? tx("actionDemote") : tx("actionRemove");
     const title = target.hasAttendance
-        ? `Demote ${target.user.name || "this host"} to attendee?`
-        : `Remove ${target.user.name || "this host"} from hosts?`;
+        ? tx("titleDemote", { name: target.user.name || tx("thisHost") })
+        : tx("titleRemove", { name: target.user.name || tx("thisHost") });
     const baseExplanation = target.hasAttendance
-        ? "They'll stop being a host but their event registration and any payment stay on file."
-        : "Their host status will be deleted. No registration or payment changes. They were never an attendee.";
+        ? tx("explainDemote")
+        : tx("explainRemove");
+    const inCommunity = communityName ? tx("inCommunity", { community: communityName }) : "";
 
     // The "aesthetic-only" warning. Composed in two voices depending on
     // whether the operator is removing themselves or someone else.
     const roleWarning = target.hasManageEventsRole
         ? isSelf
-            ? `You'll still be able to manage this event after removing yourself because you hold the manage-events role${communityName ? ` in ${communityName}` : ""}. This removal is mostly aesthetic. You remain in control.`
-            : `${target.user.name || "They"} will still be able to manage this event because they hold the manage-events role${communityName ? ` in ${communityName}` : ""}. This removal is mostly aesthetic. They remain in control.`
+            ? tx("roleWarningSelf", { inCommunity })
+            : tx("roleWarningOther", { name: target.user.name || tx("they"), inCommunity })
         : null;
 
     // Portal to document.body so the fixed backdrop escapes any
@@ -141,14 +144,14 @@ export function ConfirmRemoveHostModal({
                         disabled={submitting}
                         className="px-4 py-2 text-[13px] font-medium text-zinc-600 rounded-lg hover:bg-zinc-50 cursor-pointer disabled:opacity-50"
                     >
-                        Cancel
+                        {tx("cancel")}
                     </button>
                     <button
                         onClick={onConfirm}
                         disabled={submitting}
                         className="px-4 py-2 text-[13px] font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {submitting ? "Removing…" : action}
+                        {submitting ? tx("removing") : action}
                     </button>
                 </div>
             </div>

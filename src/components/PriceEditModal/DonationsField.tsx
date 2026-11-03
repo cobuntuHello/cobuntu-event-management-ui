@@ -4,6 +4,7 @@ import { DonationsField as SharedDonationsField } from "@cobuntu/management-ui-s
 import type { DonationDraft } from "./types";
 import { getSymbol } from "./helpers";
 import { ModalShell } from "../../ui/modal-shell";
+import { useEventT } from "../../create-wizard/i18n";
 
 export interface DonationsFieldProps {
   donation: DonationDraft;
@@ -37,11 +38,12 @@ export interface DonationsFieldProps {
  * drifting again — which is the entire reason this file shrank.
  */
 export function DonationsField(props: DonationsFieldProps) {
+  const t = useEventT("eventsUi.manageUi.donationsAdapter");
   return (
     <SharedDonationsField
       {...props}
       symbolFor={getSymbol}
-      tierNoun="ticket tier"
+      tierNoun={t("tierNoun")}
       modalShell={ModalShell}
     />
   );

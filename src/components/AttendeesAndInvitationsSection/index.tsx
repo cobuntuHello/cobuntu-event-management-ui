@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 import { EmptyState as SharedEmptyState } from "@cobuntu/management-ui-shared";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { AttendeeDetailDrawer } from "./AttendeeDetailDrawer";
@@ -81,6 +82,8 @@ const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: 
 
 export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, onAddClick, eventIdOrSlug, belowRevenueSlot, canPromoteAttendeeToHost, onPromoteAttendeeFromDrawer }: Props) {
   const config = useEventManagementConfig();
+  const tx = useEventT("eventsUi.manageUi.attendeesSection");
+  const dateLocale = tx("dateLocale");
   const API = config.apiBaseUrl;
   const authHeaders = config.authHeaders;
   // Pkg-portable avatar: consumer can inject; fall back to the
@@ -288,11 +291,11 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       });
       if (res.ok) {
         setPendingAttendees(prev => prev.filter(a => a.id !== attendanceId));
-        showToast(action === "approve" ? "Attendee approved" : "Attendee rejected");
+        showToast(action === "approve" ? tx("toastApproved") : tx("toastRejected"));
       } else {
-        showToast("Action failed");
+        showToast(tx("toastActionFailed"));
       }
-    } catch { showToast("Action failed"); }
+    } catch { showToast(tx("toastActionFailed")); }
     finally { setLoadingAction(null); }
   }
 
@@ -303,9 +306,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         method: "POST",
         headers: authHeaders(),
       });
-      if (res.ok) showToast("Invitation resent");
-      else showToast("Failed to resend");
-    } catch { showToast("Failed to resend"); }
+      if (res.ok) showToast(tx("toastInvitationResent"));
+      else showToast(tx("toastResendFailed"));
+    } catch { showToast(tx("toastResendFailed")); }
     finally { setResending(null); }
   }
 
@@ -407,7 +410,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     } else {
       inviterMap.set(inv.invitedBy, {
         userId: inv.users.id,
-        name: inv.users.name || "Unknown",
+        name: inv.users.name || tx("unknown"),
         profileImage: inv.users.profileImage ?? null,
         totalSent: 1,
         accepted: inv.status === "ACCEPTED" ? 1 : 0,
@@ -443,31 +446,31 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const salesUiConfig = {
     apiBaseUrl: `${API}/api`,
     getAuthHeaders: () => authHeaders(),
-    locale: "en-GB",
+    locale: dateLocale,
   };
 
   const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: "approved", label: "Registered", count: approved.length },
+    { key: "approved", label: tx("tabRegistered"), count: approved.length },
     ...(requiresApproval ? [
-      { key: "pending" as Tab, label: "Pending", count: pendingAttendees.length },
+      { key: "pending" as Tab, label: tx("tabPending"), count: pendingAttendees.length },
     ] : []),
     ...(requiresApproval ? [
-      { key: "rejected" as Tab, label: "Rejected", count: rejected.length },
+      { key: "rejected" as Tab, label: tx("tabRejected"), count: rejected.length },
     ] : []),
     // Cancelled: spans self-cancellations + admin removals + (historical)
     // 48h payment timeouts produced by the now-deprecated Pay-now cron.
     // Always shown when there's at least one row so hosts can see the
     // historical exits regardless of event type.
     ...(cancelled.length > 0 ? [
-      { key: "cancelled" as Tab, label: "Cancelled", count: cancelled.length },
+      { key: "cancelled" as Tab, label: tx("tabCancelled"), count: cancelled.length },
     ] : []),
     // Refunded: only shown when at least one refunded sale exists for
     // this event. Powers "who got their money back" auditing for hosts
     // without leaking the section onto free events.
     ...(refundedSales.length > 0 ? [
-      { key: "refunded" as Tab, label: "Refunded", count: refundedSales.length },
+      { key: "refunded" as Tab, label: tx("tabRefunded"), count: refundedSales.length },
     ] : []),
-    { key: "invitations" as Tab, label: "Invitations", count: pendingInvitations.length },
+    { key: "invitations" as Tab, label: tx("tabInvitations"), count: pendingInvitations.length },
   ];
 
   return (
@@ -504,32 +507,32 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-[15px] font-semibold text-zinc-900">Attendees ({attendeeCount})</h2>
+            <h2 className="text-[15px] font-semibold text-zinc-900">{tx("heading", { count: attendeeCount })}</h2>
             {requiresApproval && pendingAttendees.length > 0 && (
               <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-                {pendingAttendees.length} pending
+                {tx("pendingCount", { count: pendingAttendees.length })}
               </span>
             )}
           </div>
-          <p className="text-[12px] text-zinc-400 mt-0.5">People registered or invited to this event.</p>
+          <p className="text-[12px] text-zinc-400 mt-0.5">{tx("subtitle")}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {attendeeCount > 0 && (
             <button onClick={exportCSV}
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export
+              {tx("export")}
             </button>
           )}
           {!isPast && (
             <>
               <button onClick={onAddClick || (() => config.navigate(`/${communityTag}/events/${eventId}?view=add-attendees`))} disabled={!isPublished}
                 className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
-                Add
+                {tx("add")}
               </button>
               <button onClick={onInviteClick || (() => config.navigate(`/${communityTag}/events/${eventId}?view=invite-guests`))} disabled={!isPublished}
                 className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
-                Invite
+                {tx("invite")}
               </button>
             </>
           )}
@@ -543,16 +546,16 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         <div className="px-4 sm:px-6 py-5 border-b border-zinc-100 grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Left — Invitations Sent + breakdown + acceptance rate */}
           <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4 sm:p-5">
-            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">Invitations Sent</p>
+            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">{tx("invitationsSent")}</p>
             <p className="text-4xl sm:text-5xl font-semibold text-zinc-900 tabular-nums leading-none mb-4">{totalInvited}</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500 mb-4">
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{accepted} Accepted</span>
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{pending} Pending</span>
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />{expired} Expired</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{tx("acceptedCount", { count: accepted })}</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{tx("pendingInvCount", { count: pending })}</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />{tx("expiredCount", { count: expired })}</span>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-medium text-zinc-500">Acceptance rate</span>
+                <span className="text-[11px] font-medium text-zinc-500">{tx("acceptanceRate")}</span>
                 <span className="text-[11px] font-semibold text-zinc-700 tabular-nums">{acceptanceRate}%</span>
               </div>
               <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden">
@@ -564,8 +567,8 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           {/* Right — By Host */}
           <div className="rounded-xl border border-zinc-100 bg-white p-1">
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">By Host</span>
-              <span className="text-[11px] text-zinc-400 tabular-nums">Accepted / Sent</span>
+              <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{tx("byHost")}</span>
+              <span className="text-[11px] text-zinc-400 tabular-nums">{tx("acceptedSent")}</span>
             </div>
             {byInviter.length > 0 ? (
               <div className="divide-y divide-zinc-50 max-h-[180px] overflow-y-auto">
@@ -583,7 +586,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 ))}
               </div>
             ) : (
-              <div className="px-4 py-6 text-center text-[12px] text-zinc-400">No host breakdown yet</div>
+              <div className="px-4 py-6 text-center text-[12px] text-zinc-400">{tx("noHostBreakdown")}</div>
             )}
           </div>
         </div>
@@ -641,7 +644,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               ))}
             </div>
           ) : (
-            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No pending requests</div>
+            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">{tx("noPending")}</div>
           )
         )}
 
@@ -655,7 +658,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               ))}
             </div>
           ) : (
-            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No rejected attendees</div>
+            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">{tx("noRejected")}</div>
           )
         )}
 
@@ -669,7 +672,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               ))}
             </div>
           ) : (
-            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No cancelled attendees</div>
+            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">{tx("noCancelled")}</div>
           )
         )}
 
@@ -681,7 +684,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               ))}
             </div>
           ) : (
-            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No refunded sales</div>
+            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">{tx("noRefunded")}</div>
           )
         )}
 
@@ -696,7 +699,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               ))}
             </div>
           ) : (
-            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">No pending invitations</div>
+            <div className="px-6 py-8 text-center text-[13px] text-zinc-400">{tx("noPendingInvitations")}</div>
           )
         )}
       </div>
@@ -725,7 +728,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         onRefunded={() => {
           setRefundSale(null);
           setSalesRefreshTick((t) => t + 1);
-          showToast("Refund issued");
+          showToast(tx("toastRefundIssued"));
         }}
       />
 
@@ -788,8 +791,8 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
-              {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+              <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || tx("unknown")}</p>
+              {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">{tx("guest")}</span>}
             </div>
             {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
           </div>
@@ -803,12 +806,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               </span>
             )}
             {!sale && !isPaid && (
-              <span className="text-[11px] text-zinc-400">Free</span>
+              <span className="text-[11px] text-zinc-400">{tx("free")}</span>
             )}
             {!sale && isPaid && (
-              <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">Complimentary</span>
+              <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{tx("complimentary")}</span>
             )}
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">Confirmed</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">{tx("confirmed")}</span>
             {/* Refund button matrix — see refundButtonState derivation
                 above. The "enabled" state opens RefundSaleModal which
                 handles both standard (ESCROW) and bypass (ELIGIBLE)
@@ -817,15 +820,15 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onRefund(sale); }}
-                title={sale.payoutStatus === "ESCROW" ? "Refund this attendee" : "Refund this attendee (past standard window)"}
+                title={sale.payoutStatus === "ESCROW" ? tx("refundTitle") : tx("refundTitlePastWindow")}
                 className="px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer"
               >
-                Refund
+                {tx("refund")}
               </button>
             )}
             {refundButtonState === "disabled-policy" && (
               <span
-                title="Sale is past the standard refund window. Enable Extended refunds in event Settings to refund this attendee."
+                title={tx("refundWindowClosedTitle")}
                 className="px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 border-zinc-200 text-zinc-500 bg-zinc-50 inline-flex items-center gap-1 cursor-help"
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
@@ -833,7 +836,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                Refund window closed
+                {tx("refundWindowClosed")}
               </span>
             )}
             {refundButtonState === "disabled-paid-out" && (
@@ -841,7 +844,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 href="https://dashboard.stripe.com/payments"
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Already paid out to your community's Stripe account. Click to open your Stripe dashboard where you can issue the refund."
+                title={tx("paidOutTitle")}
                 onClick={(e) => e.stopPropagation()}
                 className="px-2 py-0.5 text-[10px] font-medium rounded border shrink-0 border-zinc-200 text-zinc-500 bg-zinc-50 inline-flex items-center gap-1 cursor-pointer hover:bg-zinc-100"
               >
@@ -849,7 +852,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                   <path d="M7 17 17 7" />
                   <path d="M7 7h10v10" />
                 </svg>
-                Paid out · Refund from Stripe
+                {tx("paidOut")}
               </a>
             )}
           </div>
@@ -887,8 +890,8 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
-              {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">Guest</span>}
+              <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || tx("unknown")}</p>
+              {a.type === "guest" && <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">{tx("guest")}</span>}
             </div>
             {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
           </div>
@@ -899,20 +902,20 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             {heldInEscrow && (
               <span
                 className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100 shrink-0 tabular-nums"
-                title="Held by Cobuntu in escrow. Approving releases the funds toward the daily payout sweep. Rejecting auto-refunds the buyer (net of Stripe's processing fee, which the buyer absorbs)."
+                title={tx("heldTitle")}
               >
-                {SYMBOLS[sale!.currency] || sale!.currency} {(sale!.grossAmount / 100).toFixed(2)} held
+                {tx("held", { amount: `${SYMBOLS[sale!.currency] || sale!.currency} ${(sale!.grossAmount / 100).toFixed(2)}` })}
               </span>
             )}
             <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
               <button onClick={onApprove} disabled={loading || isPast}
-                title={isPast ? "Event has ended — approve disabled" : undefined}
+                title={isPast ? tx("approveDisabledPast") : undefined}
                 className="px-3 py-1 text-[11px] font-medium bg-emerald-500 text-white rounded-md hover:bg-emerald-600 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                Approve
+                {tx("approve")}
               </button>
               <button onClick={onReject} disabled={loading}
                 className="px-3 py-1 text-[11px] font-medium bg-zinc-100 text-zinc-600 rounded-md hover:bg-zinc-200 cursor-pointer transition-colors disabled:opacity-50">
-                Reject
+                {tx("reject")}
               </button>
             </div>
           </div>
@@ -943,9 +946,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       return (
         <span
           className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0"
-          title="Money has been returned to the buyer. Open the attendee or the sales view to see the exact refund amount."
+          title={tx("refundedTitle")}
         >
-          Refunded
+          {tx("refunded")}
         </span>
       );
     }
@@ -953,9 +956,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       return (
         <span
           className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50/60 text-emerald-700/80 border border-emerald-100 shrink-0"
-          title="Partial refund issued. Open the attendee or the sales view to see the exact remaining balance."
+          title={tx("partialRefundTitle")}
         >
-          Partial refund
+          {tx("partialRefund")}
         </span>
       );
     }
@@ -973,12 +976,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
         <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || tx("unknown")}</p>
             {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
             <RefundBadge sale={sale} />
-            <span className="text-[10px] font-medium text-red-400 bg-red-50 px-2 py-0.5 rounded shrink-0">Rejected</span>
+            <span className="text-[10px] font-medium text-red-400 bg-red-50 px-2 py-0.5 rounded shrink-0">{tx("rejected")}</span>
           </div>
         </div>
       </div>
@@ -995,9 +998,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     // the matching backend cleanup PR; the label is left here so the 9
     // historical rows still display readable text until then.
     const reasonLabels: Record<string, string> = {
-      USER_REQUEST: "Self-cancelled",
-      ADMIN_REMOVAL: "Removed by host",
-      PAYMENT_TIMEOUT: "Payment timed out",
+      USER_REQUEST: tx("reasonSelfCancelled"),
+      ADMIN_REMOVAL: tx("reasonRemovedByHost"),
+      PAYMENT_TIMEOUT: tx("reasonPaymentTimedOut"),
     };
     const reason = a.cancellationReason ? reasonLabels[a.cancellationReason] : null;
     return (
@@ -1007,7 +1010,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         <UserAvatar user={a.user || { name: a.name }} className="w-9 h-9 shrink-0" />
         <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || "Unknown"}</p>
+            <p className="text-sm font-medium text-zinc-800 truncate">{a.name || a.user?.name || tx("unknown")}</p>
             {subtitle.length > 0 && <p className="text-[11px] text-zinc-400 truncate">{subtitle.join(" · ")}</p>}
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
@@ -1015,7 +1018,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{reason}</span>
             )}
             <RefundBadge sale={sale} />
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 shrink-0">Cancelled</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 shrink-0">{tx("cancelled")}</span>
           </div>
         </div>
       </div>
@@ -1048,7 +1051,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
    * to the sale createdAt otherwise.
    */
   function RefundedRow({ sale }: { sale: SaleRow }) {
-    const buyerName = sale.buyer?.name || sale.buyerEmail || "Unknown";
+    const buyerName = sale.buyer?.name || sale.buyerEmail || tx("unknown");
     const subtitleParts: string[] = [];
     if (sale.buyer?.usertag) subtitleParts.push(`@${sale.buyer.usertag}`);
     if (sale.buyerEmail) subtitleParts.push(sale.buyerEmail);
@@ -1056,7 +1059,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     const refundedAt = sale.refund?.createdAt
       ? new Date(sale.refund.createdAt)
       : new Date(sale.createdAt);
-    const refundedAtLabel = refundedAt.toLocaleDateString("en-GB", {
+    const refundedAtLabel = refundedAt.toLocaleDateString(dateLocale, {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -1079,14 +1082,14 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               <p className="text-[11px] text-zinc-400 truncate">{subtitleParts.join(" · ")}</p>
             )}
             {sale.refund?.reason && (
-              <p className="text-[11px] text-zinc-400 truncate mt-0.5">Reason: {sale.refund.reason}</p>
+              <p className="text-[11px] text-zinc-400 truncate mt-0.5">{tx("reason", { reason: sale.refund.reason })}</p>
             )}
             {sale.refund?.bypassReason && (
               <p
                 className="text-[11px] text-amber-700 truncate mt-0.5"
-                title="Refunded past the standard window under the event's extended-mode refund policy."
+                title={tx("policyOverrideTitle")}
               >
-                Policy override: {sale.refund.bypassReason}
+                {tx("policyOverride", { reason: sale.refund.bypassReason })}
               </p>
             )}
           </div>
@@ -1096,7 +1099,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             </span>
             <span className="text-[10px] font-medium text-zinc-500 tabular-nums">{refundedAtLabel}</span>
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0">
-              {sale.refundStatus === "PARTIAL" ? "Partial refund" : "Refunded"}
+              {sale.refundStatus === "PARTIAL" ? tx("partialRefund") : tx("refunded")}
             </span>
             {creditNoteUrl ? (
               <a
@@ -1104,9 +1107,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-2 py-0.5 text-[10px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer inline-flex items-center gap-1 shrink-0"
-                title="Open the Stripe credit-note PDF"
+                title={tx("creditNoteTitle")}
               >
-                Credit note
+                {tx("creditNote")}
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
                   <path d="M7 17 17 7" />
                   <path d="M7 7h10v10" />
@@ -1114,10 +1117,10 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               </a>
             ) : (
               <span
-                title="The refund went through; the credit note is being generated and should appear in a few seconds."
+                title={tx("creditNotePendingTitle")}
                 className="px-2 py-0.5 text-[10px] font-medium rounded border border-zinc-200 text-zinc-400 bg-zinc-50 cursor-help shrink-0"
               >
-                Credit note pending
+                {tx("creditNotePending")}
               </span>
             )}
           </div>
@@ -1143,10 +1146,10 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
           <p className="text-sm font-medium text-zinc-800 truncate">{inv.invitedUser?.name || inv.email}</p>
           <p className="text-[11px] text-zinc-400 truncate">{inv.invitedUser ? `@${inv.invitedUser.usertag}` : inv.email}</p>
         </div>
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 shrink-0">Pending</span>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 shrink-0">{tx("pending")}</span>
         <button onClick={onResend} disabled={resending || isPast}
           className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-          title={isPast ? "Event has ended — resend disabled" : "Resend invitation"}>
+          title={isPast ? tx("resendDisabledPast") : tx("resendInvitation")}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -1164,8 +1167,8 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
         }
-        title="No attendees yet"
-        body={isPublished && !isPast ? "Invite people to get them signed up." : undefined}
+        title={tx("emptyTitle")}
+        body={isPublished && !isPast ? tx("emptyBody") : undefined}
       />
     );
   }
@@ -1180,8 +1183,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
  * lands.
  */
 function AttendeesSectionSkeleton() {
+  const tx = useEventT("eventsUi.manageUi.attendeesSection");
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden" aria-busy="true" aria-label="Loading attendees">
+    <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden" aria-busy="true" aria-label={tx("loadingAria")}>
       {/* Header row — "Attendees (n)" + Export / Add / Invite buttons. */}
       <div className="flex items-center justify-between px-6 pt-6 pb-4">
         <div className="flex items-center gap-2">

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { getEventManagementConfig } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import {
     PersonPickerModal, recipientsToApi, perRecipientMessages, type Recipient,
@@ -64,6 +65,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
      * written synchronously inside onConfirm.
      */
     const finished = useRef(false);
+    const tx = useEventT("eventsUi.manageUi.inviteGuestsModal");
 
     const config = getEventManagementConfig();
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
@@ -83,10 +85,10 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
         .filter(Boolean);
 
     async function invite(recipients: Recipient[], shared: string | null) {
-        if (isPast) throw new Error("This event has ended. Invitations can no longer be sent.");
+        if (isPast) throw new Error(tx("errEnded"));
         const { usertags, emails } = recipientsToApi(recipients);
         if (usertags.length === 0 && emails.length === 0) {
-            throw new Error("Choose at least one person.");
+            throw new Error(tx("errChoose"));
         }
         const overrides = perRecipientMessages(recipients);
 
@@ -105,7 +107,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
         );
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
-            throw new Error(data?.error || "Failed to send invitations.");
+            throw new Error(data?.error || tx("errSendFailed"));
         }
         const data = await res.json().catch(() => ({}));
 
@@ -116,7 +118,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
             count: typeof data?.success === "number" ? data.success : usertags.length + emails.length,
             deliveries: recipients.map((r) => ({
                 email: r.email || (r.usertag ? `@${r.usertag}` : ""),
-                name: r.name || r.email || "Unknown",
+                name: r.name || r.email || tx("unknown"),
                 status: "queued" as const,
             })),
         });
@@ -127,21 +129,21 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
             <AttendeesActionModalShell
                 isOpen
                 onClose={onClose}
-                title="Done"
-                subtitle={`${sent.count} invitation${sent.count === 1 ? "" : "s"} sent for ${event?.name || "this event"}.`}
+                title={tx("doneTitle")}
+                subtitle={tx("doneSubtitle", { count: sent.count, event: event?.name || tx("thisEvent") })}
                 footer={
                     <div className="flex items-center justify-between gap-3">
                         <button
                             onClick={() => { finished.current = false; setSent(null); }}
                             className="px-4 py-2.5 text-[13px] rounded-lg cursor-pointer bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
                         >
-                            Send more
+                            {tx("sendMore")}
                         </button>
                         <button
                             onClick={onClose}
                             className="px-5 py-2.5 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
                         >
-                            Done
+                            {tx("done")}
                         </button>
                     </div>
                 }
@@ -171,48 +173,48 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
             multiple
             suggestions={suggestions}
             emails={{
-                addRow: (a) => `Invite ${a}`,
-                importCsv: "Import CSV",
-                imported: (n) => `Imported ${n} ${n === 1 ? "address" : "addresses"}.`,
-                importedNothing: "No email addresses in the first column of that file.",
-                importFailed: "That file could not be read.",
+                addRow: (a) => tx("addRow", { address: a }),
+                importCsv: tx("importCsv"),
+                imported: (n) => tx("imported", { count: n }),
+                importedNothing: tx("importedNothing"),
+                importFailed: tx("importFailed"),
             }}
             copy={{
-                title: "Invite to event",
-                searchSubtitle: `Send invitations to join ${event?.name || "this event"}.`,
-                pickedSubtitle: "Write your note, then see exactly what lands in their inbox.",
-                searchPlaceholder: "Search by name, @usertag or email",
-                emptyHint: "No members to show.",
-                searching: "Searching…",
-                noMatches: "No matches.",
-                unknown: "Unknown",
-                consequencesTitle: "What happens next",
-                stepOne: "Choose people",
-                stepTwo: "Write and preview",
-                back: "Back to choosing people",
-                cancel: "Cancel",
-                confirm: "Send invitations",
-                confirming: "Sending…",
-                membersLabel: "Members",
-                showingLabel: "Showing",
-                allMembersLabel: "All members",
-                selectedLabel: (n) => `${n} selected`,
-                selectedTitle: "Selected",
-                clearAll: "Clear all",
-                remove: (name) => `Remove ${name}`,
-                messageLabel: "Message to everyone",
-                messagePlaceholder: "Add a personal note. Anyone you write to individually gets theirs instead.",
-                discardConfirm: "You have people staged. Discard them?",
+                title: tx("title"),
+                searchSubtitle: tx("searchSubtitle", { event: event?.name || tx("thisEvent") }),
+                pickedSubtitle: tx("pickedSubtitle"),
+                searchPlaceholder: tx("searchPlaceholder"),
+                emptyHint: tx("emptyHint"),
+                searching: tx("searching"),
+                noMatches: tx("noMatches"),
+                unknown: tx("unknown"),
+                consequencesTitle: tx("consequencesTitle"),
+                stepOne: tx("stepOne"),
+                stepTwo: tx("stepTwo"),
+                back: tx("back"),
+                cancel: tx("cancel"),
+                confirm: tx("confirm"),
+                confirming: tx("confirming"),
+                membersLabel: tx("membersLabel"),
+                showingLabel: tx("showingLabel"),
+                allMembersLabel: tx("allMembersLabel"),
+                selectedLabel: (n) => tx("selectedLabel", { count: n }),
+                selectedTitle: tx("selectedTitle"),
+                clearAll: tx("clearAll"),
+                remove: (name) => tx("remove", { name }),
+                messageLabel: tx("messageLabel"),
+                messagePlaceholder: tx("messagePlaceholder"),
+                discardConfirm: tx("discardConfirm"),
             }}
             stepTwo={{
                 kind: "compose",
                 maxLength: 500,
                 perRecipient: {
-                    personalize: "Write to them",
-                    personalized: "Has their own message",
-                    save: "Save",
-                    cancel: "Discard",
-                    placeholder: (name) => `Write to ${name} instead of the shared message`,
+                    personalize: tx("personalize"),
+                    personalized: tx("personalized"),
+                    save: tx("save"),
+                    cancel: tx("discard"),
+                    placeholder: (name) => tx("perRecipientPlaceholder", { name }),
                 },
                 /* Renders the community's own customized event template, so
                    what is on screen is what will be received. */
@@ -220,7 +222,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
                     <>
                         {isPast && (
                             <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 mb-3 text-[13px] text-amber-800">
-                                This event has ended. Invitations can no longer be sent.
+                                {tx("errEnded")}
                             </div>
                         )}
                         <InlineEmailPreview

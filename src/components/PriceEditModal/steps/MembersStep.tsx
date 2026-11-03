@@ -4,6 +4,7 @@ import { MemberPricingSection } from "../../MemberPricingSection";
 import type { DraftTier } from "../types";
 import { getSymbol } from "../helpers";
 import type { MemberPricingRow, MemberPricingTierState } from "../member-pricing";
+import { useEventT } from "../../../create-wizard/i18n";
 
 export interface MembersStepProps {
   t: DraftTier;
@@ -41,6 +42,8 @@ export function MembersStep({
   onMemberPricingRowChange,
   draftMode,
 }: MembersStepProps) {
+  // `t` is the tier draft here, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.membersStep");
   const sym = getSymbol(t.currency);
   const tierId = t.id;
 
@@ -51,9 +54,9 @@ export function MembersStep({
   if (!tierId && !draftMode) {
     return (
       <div className="px-4 py-6 rounded-lg border border-dashed border-zinc-300 text-center">
-        <p className="text-[12px] font-medium text-zinc-700">Save tier first</p>
+        <p className="text-[12px] font-medium text-zinc-700">{tx("saveTierFirst")}</p>
         <p className="text-[11px] text-zinc-500 mt-1">
-          Member-pricing overrides need a saved tier id. Save once, then come back here.
+          {tx("saveTierFirstBody")}
         </p>
       </div>
     );

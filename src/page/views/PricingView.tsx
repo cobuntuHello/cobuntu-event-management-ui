@@ -15,6 +15,7 @@ import { DonationsSection } from "../../components/PriceEditModal/DonationsSecti
 import type { DonationDraft } from "../../components/PriceEditModal/types";
 import { useEventManagementConfig, useJsonHeaders } from "../../config";
 import { useCanEdit } from "../../lib/manageAccess";
+import { useEventT } from "../../create-wizard/i18n";
 
 /**
  * PRICING TAB — the tier list, as the create wizard shows it.
@@ -100,6 +101,8 @@ export function PricingView({
    * rather than opening an editor whose Save would be refused at the API.
    */
   const canEdit = useCanEdit();
+  // `t` names a tier inside the list below, so the translator is `tx`.
+  const tx = useEventT("eventsUi.manageUi.pricingView");
   const openTier = (key: string) => {
     if (!canEdit) return;
     setEditingTier(key);
@@ -149,13 +152,13 @@ export function PricingView({
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
         // Same ownership test PricingView already uses for `showMemberPricing`.
-        throw new Error(describeSaveError(e, "Failed to save donation settings", !event?.communityId));
+        throw new Error(describeSaveError(e, tx("failedToSaveDonations"), !event?.communityId));
       }
       setDonationDirty(false);
-      showToast("Donations updated");
+      showToast(tx("donationsUpdated"));
       onUpdate();
     } catch (e: any) {
-      showToast(e?.message || "Failed to save donation settings");
+      showToast(e?.message || tx("failedToSaveDonations"));
     } finally {
       setSavingDonation(false);
     }
@@ -178,11 +181,10 @@ export function PricingView({
           just a heading and its content now. */}
       <div>
         <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>
-          Ticket types
+          {tx("heading")}
         </h2>
         <p className="text-[12px] mt-1 mb-4 max-w-[68ch] leading-relaxed" style={muted(0.6)}>
-          Each ticket type is a version attendees can register for, with its own price, capacity
-          and sign-up form. Open one to edit it.
+          {tx("intro")}
         </p>
 
         {tiers.length > 0 && (
@@ -195,7 +197,7 @@ export function PricingView({
               const cur = t?.products?.currency || "EUR";
               const minor = Number(t?.products?.price ?? 0);
               const major = toDisplay(minor, cur);
-              const price = minor > 0 ? `${getSymbol(cur)}${major.toFixed(2)}` : "Free";
+              const price = minor > 0 ? `${getSymbol(cur)}${major.toFixed(2)}` : tx("free");
               const cap = t?.capacity != null ? Number(t.capacity) : null;
               // `tier_forms` is the relation; `formId` is the denormalised
               // column. Either means a form is linked — AddAttendeesModal
@@ -220,18 +222,18 @@ export function PricingView({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold text-zinc-800 truncate">
-                        {t?.name || "Unnamed tier"}
+                        {t?.name || tx("unnamedTier")}
                       </p>
                       <p className="text-[12px] text-zinc-400 mt-0.5 truncate">{price}</p>
                     </div>
                     <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
                   </div>
                   <div className="flex flex-wrap border-t border-zinc-100">
-                    <Fact k="Capacity" v={cap != null ? `${cap} spots` : "Unlimited"} />
-                    <Fact k="Sign-up form" v={hasForm ? "Linked" : "Not set"} />
+                    <Fact k={tx("capacity")} v={cap != null ? tx("spots", { count: cap }) : tx("unlimited")} />
+                    <Fact k={tx("signUpForm")} v={hasForm ? tx("linked") : tx("notSet")} />
                     <Fact
-                      k="Status"
-                      v={published ? "Published" : "Draft"}
+                      k={tx("status")}
+                      v={published ? tx("published") : tx("draft")}
                       color={published ? "#15803d" : "#a16207"}
                     />
                   </div>
@@ -267,7 +269,7 @@ export function PricingView({
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Add ticket type
+          {tx("addTicketType")}
         </button>
         </>
         )}
@@ -292,7 +294,7 @@ export function PricingView({
               className="px-4 py-2 text-[13px] font-medium rounded-lg cursor-pointer disabled:opacity-40"
               style={{ background: theme.brand, color: theme.onBrand }}
             >
-              {savingDonation ? "Saving..." : "Save donations"}
+              {savingDonation ? tx("saving") : tx("saveDonations")}
             </button>
           </div>
         )}

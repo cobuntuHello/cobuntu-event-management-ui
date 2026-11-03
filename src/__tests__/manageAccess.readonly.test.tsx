@@ -25,6 +25,7 @@ import { join } from "path";
 import { render, screen, act } from "@testing-library/react";
 import { useState } from "react";
 import { ManageAccessProvider, useCanEdit, useEditAction } from "../lib/manageAccess";
+import { endedNoticeCopy } from "../page/EventManagePage";
 
 /** A stand-in for the openers the real views hold. */
 function Editable() {
@@ -185,6 +186,7 @@ describe("an ended event is locked", () => {
     // "Ask a leader for permission" is the wrong answer, and a little
     // insulting, when the real one is "this already happened".
     expect(page).toContain("endedNoticeCopy");
-    expect(page).toContain("This event has ended.");
+    // The words live in the package's English defaults now (host-translatable).
+    expect(endedNoticeCopy().title).toBe("This event has ended.");
   });
 });

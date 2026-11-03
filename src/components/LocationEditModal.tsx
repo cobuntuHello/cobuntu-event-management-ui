@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { EventLocationsField, makeLocation, locationErrors, type EventLocationValue } from "../ui/event-locations-field";
 import { useUpdateEvent } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 interface Props {
   event: any;
@@ -39,6 +40,8 @@ function seedLocations(event: any): EventLocationValue[] {
 
 export function LocationEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
   const updateEvent = useUpdateEvent();
+  const t = useEventT("eventsUi.manageUi.locationEditModal");
+  const tc = useEventT("eventsUi.manageUi.overviewCommon");
   const [locations, setLocations] = useState<EventLocationValue[]>(() => seedLocations(event));
   const [saving, setSaving] = useState(false);
   /* Shown only after Save is pressed, so a row being typed into is not marked
@@ -70,7 +73,7 @@ export function LocationEditModal({ event, communityTag, onClose, onSaved, showT
         }))
         .filter((l) => l.kind === "PHYSICAL" ? (!!l.address || (l.latitude != null && l.longitude != null)) : !!l.url);
       await updateEvent(communityTag, event.id, { locations: payload });
-      showToast("Location updated");
+      showToast(t("updated"));
       onSaved();
     } catch (e: any) {
       showToast(e.message);
@@ -81,20 +84,20 @@ export function LocationEditModal({ event, communityTag, onClose, onSaved, showT
 
   return (
     <ModalShell onClose={onClose} width="w-full sm:w-[480px]">
-      <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">Edit location</h3>
+      <h3 className="text-[15px] font-semibold text-zinc-900 mb-4">{t("title")}</h3>
       <EventLocationsField
         value={locations}
         onChange={setLocations}
         errors={submitted ? locationErrors(locations) : undefined}
       />
       <div className="flex justify-end gap-2 mt-5">
-        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">Cancel</button>
+        <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button
           onClick={save}
           disabled={saving}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? tc("savingDots") : tc("save")}
         </button>
       </div>
     </ModalShell>

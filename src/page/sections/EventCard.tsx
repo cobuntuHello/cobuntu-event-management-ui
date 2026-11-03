@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { formatEventDate, formatEventTime, getTimezoneAbbr, PencilIcon } from "../helpers";
+import { formatEventDate, formatEventTime, getTimezoneAbbr, PencilIcon, missingRequirementLabel } from "../helpers";
+import { useEventT } from "../../create-wizard/i18n";
 import { EventBannerPlaceholder } from "../../ui/event-banner-placeholder";
 
 interface Props {
@@ -33,6 +34,7 @@ export function EventCard({
   onEditTags,
 }: Props) {
   const [urlCopied, setUrlCopied] = useState(false);
+  const t = useEventT("eventsUi.manageUi.eventCard");
   const [imgSize, setImgSize] = useState(280);
   const rightRef = useRef<HTMLDivElement>(null);
   const startDate = event?.startDate ? new Date(event.startDate) : null;
@@ -89,7 +91,7 @@ export function EventCard({
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="opacity-80"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 )}
               </div>
-              <span className="text-sm font-medium text-white/90">{urlCopied ? "Link copied!" : "Copy event link"}</span>
+              <span className="text-sm font-medium text-white/90">{urlCopied ? t("linkCopied") : t("copyLink")}</span>
             </button>
         </div>
 
@@ -99,7 +101,7 @@ export function EventCard({
             {/* Name */}
             <InfoRow onClick={!isPast ? onEditName : undefined} disabled={isPast}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>}>
-              <p className="text-sm font-medium text-zinc-900 truncate">{event.name || "Untitled Event"}</p>
+              <p className="text-sm font-medium text-zinc-900 truncate">{event.name || t("untitled")}</p>
             </InfoRow>
 
             {/* Slug. Locks once the event is published — changing the
@@ -110,9 +112,9 @@ export function EventCard({
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>}>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-zinc-400">
-                  Slug{isPublished && <span className="ml-1 text-zinc-300">(locked — would break shared links)</span>}
+                  {t("slug")}{isPublished && <span className="ml-1 text-zinc-300">{t("slugLocked")}</span>}
                 </p>
-                <p className="text-sm font-medium text-zinc-900 truncate">{event.slug || "Not set"}</p>
+                <p className="text-sm font-medium text-zinc-900 truncate">{event.slug || t("notSet")}</p>
               </div>
             </InfoRow>
 
@@ -127,7 +129,7 @@ export function EventCard({
               {event.physicalLocation && <p className="text-sm font-medium text-zinc-900">{event.physicalLocation}</p>}
               {event.onlineUrl && <p className="text-sm font-medium text-zinc-900 truncate">{event.onlineUrl}</p>}
               {!event.physicalLocation && !event.onlineUrl && (
-                <p className="text-sm text-zinc-400 italic">{isPast ? "Location was never set" : "Location to be announced"}</p>
+                <p className="text-sm text-zinc-400 italic">{isPast ? t("locationNeverSet") : t("locationTba")}</p>
               )}
             </InfoRow>
 
@@ -150,9 +152,9 @@ export function EventCard({
               }>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-zinc-900">{startDate ? formatEventDate(event.startDate) : "No date set"}</p>
-                  {isLive && <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600">Live</span>}
-                  {isPast && <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Ended</span>}
+                  <p className="text-sm font-medium text-zinc-900">{startDate ? formatEventDate(event.startDate) : t("noDate")}</p>
+                  {isLive && <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600">{t("live")}</span>}
+                  {isPast && <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-500">{t("ended")}</span>}
                 </div>
                 {startDate && endDate && (
                   <p className="text-sm text-zinc-500">
@@ -178,11 +180,11 @@ export function EventCard({
             <InfoRow onClick={onEditTags}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>}>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-zinc-400">Tags</p>
+                <p className="text-xs text-zinc-400">{t("tags")}</p>
                 <p className="text-sm font-medium text-zinc-900 truncate">
                   {event.tags && event.tags.length > 0
                     ? event.tags.map((t: any) => t.name || t.tag?.name).filter(Boolean).join(", ")
-                    : "Add tags..."}
+                    : t("addTags")}
                 </p>
               </div>
             </InfoRow>
@@ -202,16 +204,16 @@ export function EventCard({
               </div>
               <div className="flex-1 min-w-0 flex flex-col justify-center min-h-[2.75rem]">
                 {isPast ? (
-                  <p className="text-sm font-medium text-zinc-500">Event has ended</p>
+                  <p className="text-sm font-medium text-zinc-500">{t("eventEnded")}</p>
                 ) : isPublished ? (
-                  <p className="text-sm font-medium text-emerald-600">Event is published</p>
+                  <p className="text-sm font-medium text-emerald-600">{t("eventPublished")}</p>
                 ) : missingRequirements.length > 0 ? (
                   // 2026-06-15 (feat/publish-tier-requirement): each missing
                   // requirement now renders as a clickable row that opens
                   // the matching edit modal — buyers go from "I don't know
                   // what's wrong" to "one click and I'm at the fix".
                   <>
-                    <p className="text-sm font-medium text-amber-600 mb-1">Not published yet</p>
+                    <p className="text-sm font-medium text-amber-600 mb-1">{t("notPublishedYet")}</p>
                     <ul className="space-y-0.5">
                       {missingRequirements.map((req) => {
                         const action = resolveMissingRequirementAction(req, {
@@ -227,13 +229,13 @@ export function EventCard({
                               >
                                 <span className="text-zinc-300 group-hover:text-amber-500 mt-0.5" aria-hidden>•</span>
                                 <span className="group-hover:underline decoration-amber-300 underline-offset-2">
-                                  {capitalize(req)}
+                                  {capitalize(missingRequirementLabel(req))}
                                 </span>
                               </button>
                             ) : (
                               <span className="text-xs text-zinc-500 flex items-start gap-1.5">
                                 <span className="text-zinc-300 mt-0.5" aria-hidden>•</span>
-                                <span>{capitalize(req)}</span>
+                                <span>{capitalize(missingRequirementLabel(req))}</span>
                               </span>
                             )}
                           </li>
@@ -242,7 +244,7 @@ export function EventCard({
                     </ul>
                   </>
                 ) : (
-                  <p className="text-sm font-medium text-zinc-900">Ready to publish</p>
+                  <p className="text-sm font-medium text-zinc-900">{t("readyToPublish")}</p>
                 )}
               </div>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useEventT } from "../create-wizard/i18n";
 
 const SOFT_THRESHOLD = 500;
 const APPROACHING_RATIO = 0.9;
@@ -33,6 +34,7 @@ export function EventChatCapacityNotice({
   memberCount, maxMembers, announceOnly, onOpenChat,
 }: EventChatCapacityNoticeProps) {
   const [dismissed, setDismissed] = useState(false);
+  const t = useEventT("eventsUi.manageUi.eventChatCapacityNotice");
 
   const atCap = maxMembers > 0 && memberCount >= maxMembers;
   const approaching = maxMembers > 0 && !atCap && memberCount >= Math.floor(maxMembers * APPROACHING_RATIO);
@@ -42,8 +44,7 @@ export function EventChatCapacityNotice({
     return (
       <Banner tone="red">
         <span>
-          This chat is at capacity ({memberCount.toLocaleString()}/{maxMembers.toLocaleString()}).
-          New attendees won&apos;t be added until it has room.
+          {t("atCap", { count: memberCount.toLocaleString(), max: maxMembers.toLocaleString() })}
         </span>
       </Banner>
     );
@@ -53,8 +54,7 @@ export function EventChatCapacityNotice({
     return (
       <Banner tone="amber">
         <span>
-          This chat is nearing its {maxMembers.toLocaleString()}-member limit
-          ({memberCount.toLocaleString()} so far). New attendees won&apos;t be added past it.
+          {t("approaching", { count: memberCount.toLocaleString(), max: maxMembers.toLocaleString() })}
         </span>
       </Banner>
     );
@@ -64,12 +64,13 @@ export function EventChatCapacityNotice({
     return (
       <Banner tone="amber" onDismiss={() => setDismissed(true)}>
         <span>
-          This chat has {memberCount.toLocaleString()} members. Large open chats get noisy,
-          so consider switching it to announce-only{onOpenChat ? " in the chat settings." : "."}
+          {onOpenChat
+            ? t("noisyWithSettings", { count: memberCount.toLocaleString() })
+            : t("noisy", { count: memberCount.toLocaleString() })}
         </span>
         {onOpenChat && (
           <button onClick={onOpenChat} className="ml-2 underline font-medium cursor-pointer whitespace-nowrap">
-            Open chat
+            {t("openChat")}
           </button>
         )}
       </Banner>
@@ -80,6 +81,7 @@ export function EventChatCapacityNotice({
 }
 
 function Banner({ tone, children, onDismiss }: { tone: "amber" | "red"; children: React.ReactNode; onDismiss?: () => void }) {
+  const t = useEventT("eventsUi.manageUi.eventChatCapacityNotice");
   const cls = tone === "red"
     ? "bg-red-50 border-red-100 text-red-800"
     : "bg-amber-50 border-amber-100 text-amber-800";
@@ -87,7 +89,7 @@ function Banner({ tone, children, onDismiss }: { tone: "amber" | "red"; children
     <div className={`flex items-start gap-2 rounded-lg border p-3 text-[12px] ${cls}`}>
       <div className="flex-1">{children}</div>
       {onDismiss && (
-        <button onClick={onDismiss} aria-label="Dismiss" className="shrink-0 opacity-60 hover:opacity-100 cursor-pointer">×</button>
+        <button onClick={onDismiss} aria-label={t("dismiss")} className="shrink-0 opacity-60 hover:opacity-100 cursor-pointer">×</button>
       )}
     </div>
   );

@@ -199,7 +199,8 @@ describe("the location modal's chrome", () => {
     // "Close", not "Cancel": both buttons call setIsLocationOpen(false) and
     // nothing is rolled back, so "Cancel" promised a discard it never did.
     const modal = locationModalCode();
-    expect(modal).toMatch(/variant="secondary"[\s\S]*?>Close</);
+    expect(modal).toMatch(/variant="secondary"[\s\S]*?>\{tf\("close"\)\}</);
     expect(modal).not.toMatch(/>Cancel</);
+    expect(modal).not.toMatch(/\{tf\("cancel"\)\}/);
   });
 });

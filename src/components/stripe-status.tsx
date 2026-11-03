@@ -3,6 +3,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../config";
+import { useEventT } from "../create-wizard/i18n";
 
 export interface StripeStatus {
   connected: boolean;
@@ -175,22 +176,21 @@ export function StripePayoutNotice({
   connected: boolean;
 }) {
   const { stripeConnectUrl } = useEventManagementConfig();
+  const t = useEventT("eventsUi.manageUi.stripeStatus");
   if (!known || connected) return null;
   return (
     <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2.5 ring-1 ring-amber-200/70">
       <p className="text-[12px] font-medium text-amber-900">
-        No payment account connected yet
+        {t("noAccountTitle")}
       </p>
       <p className="mt-0.5 text-[12px] leading-relaxed text-amber-800">
-        You can set a price now, but a paid event cannot be saved until a Stripe
-        account is connected, because there would be nowhere to pay the money
-        out. Free tiers are unaffected.
+        {t("noAccountBody")}
       </p>
       <a
         href={stripeConnectUrl(communityTag)}
         className="mt-1.5 inline-block text-[12px] font-medium text-amber-900 underline underline-offset-2 hover:text-amber-950"
       >
-        Connect Stripe
+        {t("connectStripe")}
       </a>
     </div>
   );
@@ -210,6 +210,7 @@ export function StripeRequiredWarning({
   onClose: () => void;
 }) {
   const { stripeConnectUrl } = useEventManagementConfig();
+  const t = useEventT("eventsUi.manageUi.stripeStatus");
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
@@ -226,26 +227,25 @@ export function StripeRequiredWarning({
             <line x1="1" y1="10" x2="23" y2="10" />
           </svg>
         </div>
-        <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">Connect Stripe</h3>
+        <h3 className="text-[15px] font-semibold text-zinc-900 mb-2">{t("connectStripe")}</h3>
         <p className="text-[13px] text-zinc-500 mb-1">
-          This community doesn&apos;t have a payment account configured yet.
+          {t("noCommunityAccount")}
         </p>
         <p className="text-[13px] text-zinc-500 mb-5">
-          We use Stripe to process payments. Connect or set up a Stripe account to start
-          accepting payments. It usually takes less than 5 minutes.
+          {t("weUseStripe")}
         </p>
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
             className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <a
             href={stripeConnectUrl(communityTag)}
             className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 no-underline cursor-pointer"
           >
-            Connect Stripe
+            {t("connectStripe")}
           </a>
         </div>
       </div>

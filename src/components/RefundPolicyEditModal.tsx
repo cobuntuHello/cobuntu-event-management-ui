@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useUpdateEvent } from "../config";
+import { useEventT, getEventT } from "../create-wizard/i18n";
 import { RefundPolicyField, type RefundPolicyValue } from "@cobuntu/management-ui-shared";
 
 /**
@@ -27,6 +28,8 @@ interface Props {
 
 export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, showToast }: Props) {
     const updateEvent = useUpdateEvent();
+    const t = useEventT("eventsUi.manageUi.refundPolicyEditModal");
+    const tc = useEventT("eventsUi.manageUi.overviewCommon");
     const [value, setValue] = useState<RefundPolicyValue>(event?.refundPolicy ?? null);
     const [saving, setSaving] = useState(false);
 
@@ -34,10 +37,10 @@ export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, s
         setSaving(true);
         try {
             await updateEvent(communityTag, event.id, { refundPolicy: value } as any);
-            showToast("Refund policy updated");
+            showToast(t("updated"));
             onSaved();
         } catch (e: any) {
-            showToast(e?.message || "Failed to update refund policy");
+            showToast(e?.message || t("failed"));
         } finally {
             setSaving(false);
         }
@@ -45,10 +48,9 @@ export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, s
 
     return (
         <ModalShell onClose={onClose}>
-            <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">Refund policy</h3>
+            <h3 className="text-[15px] font-semibold text-zinc-900 mb-1">{t("title")}</h3>
             <p className="text-[12px] text-zinc-500 mb-4">
-                Choose whether buyers can refund themselves. Once a payout has reached your community's
-                Stripe account, refund the buyer directly from your Stripe dashboard.
+                {t("subtitle")}
             </p>
 
             <div className="mb-5">
@@ -60,14 +62,14 @@ export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, s
                     onClick={onClose}
                     className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer"
                 >
-                    Cancel
+                    {tc("cancel")}
                 </button>
                 <button
                     onClick={save}
                     disabled={saving}
                     className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
                 >
-                    {saving ? "Saving..." : "Save"}
+                    {saving ? tc("savingDots") : tc("save")}
                 </button>
             </div>
         </ModalShell>
@@ -80,5 +82,6 @@ export function RefundPolicyEditModal({ event, communityTag, onClose, onSaved, s
  */
 export function refundPolicySummary(raw: unknown): string {
     const off = !!raw && typeof raw === "object" && (raw as Record<string, unknown>).customBuyerWindowDays === 0;
-    return off ? "No self-service refunds" : "Standard refunds";
+    const t = getEventT("eventsUi.manageUi.refundPolicyEditModal");
+    return off ? t("summaryNone") : t("summaryStandard");
 }

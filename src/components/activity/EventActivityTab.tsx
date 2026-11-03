@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEventManagementConfig } from "../../config";
+import { useEventT } from "../../create-wizard/i18n";
 import { EmptyState as SharedEmptyState } from "@cobuntu/management-ui-shared";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import {
@@ -61,6 +62,7 @@ interface ListResponse {
 
 export function EventActivityTab({ event, communityTag, pageSize = 25 }: EventActivityTabProps) {
     const config = useEventManagementConfig();
+    const tx = useEventT("eventsUi.manageUi.eventActivityTab");
     const API = config.apiBaseUrl;
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
 
@@ -108,22 +110,22 @@ export function EventActivityTab({ event, communityTag, pageSize = 25 }: EventAc
                     // didn't fire (PR 1's redirect). Surface a clear
                     // message rather than redirect from inside a tab
                     // — that's the page's responsibility.
-                    if (res.status === 401) throw new Error("Sign in to view this event's activity.");
-                    if (res.status === 403) throw new Error("Not authorized to view this event's activity.");
-                    if (res.status === 404) throw new Error("Event not found.");
-                    throw new Error(`Failed to load activity (${res.status})`);
+                    if (res.status === 401) throw new Error(tx("errSignIn"));
+                    if (res.status === 403) throw new Error(tx("errNotAuthorized"));
+                    if (res.status === 404) throw new Error(tx("errNotFound"));
+                    throw new Error(tx("errFailedStatus", { status: res.status }));
                 }
                 const data = (await res.json()) as ListResponse;
                 setEntries((prev) => (pageCursor ? [...prev, ...data.entries] : data.entries));
                 setCursor(data.nextCursor);
                 if (!data.nextCursor) setExhausted(true);
             } catch (err: any) {
-                setError(err?.message ?? "Failed to load activity");
+                setError(err?.message ?? tx("errFailed"));
             } finally {
                 setLoading(false);
             }
         },
-        [API, communityTag, eventIdOrSlug, pageSize, config, loading],
+        [API, communityTag, eventIdOrSlug, pageSize, config, loading, tx],
     );
 
     // First page on mount.
@@ -160,9 +162,9 @@ export function EventActivityTab({ event, communityTag, pageSize = 25 }: EventAc
     return (
         <section>
             <div className="mb-4">
-                <h2 className="text-[15px] font-semibold text-zinc-900">Activity</h2>
+                <h2 className="text-[15px] font-semibold text-zinc-900">{tx("title")}</h2>
                 <p className="text-[12px] text-zinc-400 mt-0.5">
-                    Every meaningful change to this event. Newest first.
+                    {tx("subtitle")}
                 </p>
             </div>
 
@@ -193,7 +195,7 @@ export function EventActivityTab({ event, communityTag, pageSize = 25 }: EventAc
                             onClick={() => void loadPage(cursor)}
                             className="px-3 py-1.5 text-[12px] font-medium text-zinc-700 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
                         >
-                            Retry
+                            {tx("retry")}
                         </button>
                     </div>
                 )}
@@ -206,7 +208,7 @@ export function EventActivityTab({ event, communityTag, pageSize = 25 }: EventAc
 
                 {exhausted && entries.length > 0 && (
                     <p className="px-6 py-4 text-center text-[11px] text-zinc-400">
-                        End of activity.
+                        {tx("end")}
                     </p>
                 )}
             </div>
@@ -277,6 +279,7 @@ function LoadingRow() {
 }
 
 function EmptyState() {
+    const tx = useEventT("eventsUi.manageUi.eventActivityTab");
     return (
         <SharedEmptyState
             icon={
@@ -285,8 +288,8 @@ function EmptyState() {
                     <path d="M12 7v5l3 2" />
                 </svg>
             }
-            title="No activity yet"
-            body="Edits, attendee actions, and settings changes will show up here."
+            title={tx("emptyTitle")}
+            body={tx("emptyBody")}
         />
     );
 }
