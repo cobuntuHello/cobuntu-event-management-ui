@@ -490,7 +490,8 @@ describe("the commission step", () => {
       community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.025 },
     });
     // 100 - 10 (package) - 4 (Cobuntu all-in: 2.5% net + 1.5% processing) = 86.
-    expect(await screen.findByText("You keep about 86% of each sale")).toBeInTheDocument();
+    expect(await screen.findByText("You keep, per sale")).toBeInTheDocument();
+    expect(screen.getByText("86%")).toBeInTheDocument();
   });
 });
 
