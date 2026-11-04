@@ -372,7 +372,30 @@ describe("PriceEditModal — per-tier publish toggle (L2 footer)", () => {
 });
 
 describe("PriceEditModal — header breadcrumb + single title/subtitle", () => {
-  it("L1 has no breadcrumb; L2 shows the tier crumb + name; L3 shows step crumb trail + step title", async () => {
+  /*
+   * These two were red on main after the inline redesign (T-304), and the
+   * reason is worth keeping: they asserted a THREE-level drill-in where the
+   * middle level was a hub of tiles. It is now two-and-a-bit.
+   *
+   *   L1  the tier list. No breadcrumb.
+   *   L2  the tier EDIT screen. Details, basics (member pricing included) and
+   *       capacity are all INLINE here -- there is no hub and no Details step
+   *       to enter. Breadcrumb ["Pricing tiers"], title = the tier's name.
+   *   L3  a step, and only `config` or `form`: the two "Advanced" rows are the
+   *       only things that still call onEnterStep. Breadcrumb
+   *       ["Pricing tiers", tierName], title = STEP_TITLES[step] ("Sales
+   *       window" for `config`, "Registration form" for `form`).
+   *
+   * STEP_TITLES still lists details/basics/capacity, but nothing enters them
+   * any more; they are reachable only as dead StepIds. That is recorded here
+   * rather than silently asserted around, because removing them from StepId
+   * is a separate decision.
+   *
+   * The old tests also asserted L3 content without ever navigating to L3 --
+   * they expected clicking a tier to land on a step. That is what actually
+   * broke, and it is why the fix is a rewrite rather than a selector tweak.
+   */
+  it("L1 has no breadcrumb; L2 is the tier screen with details inline; L3 is a step", async () => {
     const user = userEvent.setup();
     const tier = makeTier({ name: "GA" });
     mockFetch([...stubGetRoutes([tier])]);
@@ -382,17 +405,23 @@ describe("PriceEditModal — header breadcrumb + single title/subtitle", () => {
     expect(await screen.findByRole("heading", { name: "Edit pricing", level: 3 })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
 
-    // L2 — breadcrumb back to the list, title = tier name.
+    // L2 — breadcrumb back to the list, title = tier name, and the Details
+    // content is right here rather than behind a tile.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
     const nav2 = await screen.findByRole("navigation", { name: "Breadcrumb" });
     expect(within(nav2).getByRole("button", { name: "Pricing tiers" })).toBeInTheDocument();
+    expect(within(nav2).queryByRole("button", { name: "GA" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "GA", level: 3 })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("What's included")).toBeInTheDocument();
 
+    // L3 — entered from the "Advanced" sales-window row, the only drill-in
+    // left besides the form builder.
+    await user.click(screen.getByRole("button", { name: /sales window/i }));
     const nav3 = await screen.findByRole("navigation", { name: "Breadcrumb" });
     expect(within(nav3).getByRole("button", { name: "Pricing tiers" })).toBeInTheDocument();
     expect(within(nav3).getByRole("button", { name: "GA" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Config", level: 3 })).toBeInTheDocument();
-    // The auto-schedule control now lives in the Config step.
+    expect(screen.getByRole("heading", { name: "Sales window", level: 3 })).toBeInTheDocument();
+    // The auto-schedule control lives in the sales-window step.
     expect(screen.getByRole("switch", { name: "Auto-schedule sales window" })).toBeInTheDocument();
   });
 
@@ -403,12 +432,15 @@ describe("PriceEditModal — header breadcrumb + single title/subtitle", () => {
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
     await user.click(await screen.findByRole("button", { name: /GA/ }));
+    await user.click(screen.getByRole("button", { name: /sales window/i }));
 
-    // Crumb "GA" → back to the hub (Config tile visible again).
+    // Crumb "GA" → back to the tier screen (details inline again, and the
+    // step's own control gone).
     const nav3 = await screen.findByRole("navigation", { name: "Breadcrumb" });
     await user.click(within(nav3).getByRole("button", { name: "GA" }));
-    expect(await screen.findByRole("heading", { name: "Config", level: 3 })).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("What's included")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "GA", level: 3 })).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Auto-schedule sales window" })).not.toBeInTheDocument();
 
     // Crumb "Pricing tiers" → back to L1 list (no breadcrumb).
     const nav2 = await screen.findByRole("navigation", { name: "Breadcrumb" });

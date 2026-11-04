@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PriceEditModal } from "../components/PriceEditModal";
 import { renderWithConfig, mockFetch } from "./test-utils";
@@ -94,7 +94,26 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     await waitFor(() => expect(saveBtn).not.toBeDisabled());
   });
 
-  it("dirty rows committed via outer Save after exiting the Members step (bug #1)", async () => {
+  /*
+   * T-304: these three asserted a Members STEP that the inline redesign
+   * removed. Member pricing is now rendered inline on the tier screen (L2) by
+   * TierEditView, so "exiting the Members step" no longer denotes anything and
+   * the old double-Back (L3 -> L2 -> L1) had one hop too many.
+   *
+   * The GUARANTEE is unchanged and is what these now pin: dirty member-pricing
+   * rows live in PriceEditModal's own state map, so they survive navigation and
+   * commit on the outer Save. What changed is which transitions can threaten
+   * them. Three remain, and there is one test each:
+   *
+   *   1. leaving the tier screen   L2 -> L1, then Save
+   *   2. re-entering the tier      L2 -> L1 -> L2
+   *   3. drilling into a step      L2 -> L3 -> L2, then Save
+   *
+   * (3) replaces the old "leaving the tier mid-edit" case, which collapsed
+   * into (1) once member pricing stopped being a step. The remaining drill-ins
+   * are the two Advanced rows, so the sales-window step is the live risk now.
+   */
+  it("dirty rows committed via outer Save after leaving the tier screen", async () => {
     const user = userEvent.setup();
     const fetchFn = mockFetch([
       ...stubLoadRoutes(),
@@ -111,13 +130,11 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
 
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // 1. L1 lists tier as a clickable row (name is read-only text).
-    // 2. Click the row → enter L2 (per-tier hub takeover).
+    // 1. L1 lists the tier as a clickable row (the name is read-only text).
+    // 2. Click the row -> the tier screen (L2), where member pricing is inline.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
 
-    // 3. Click the Member pricing SectionCard (whole card is clickable
-
-    // 4. Wait for the section to load and toggle a row dirty.
+    // 3. Wait for the section to load and toggle a row dirty.
     const vipsCheckbox = await screen.findByLabelText(
       /Offer member pricing for VIPs/,
     );
@@ -133,17 +150,10 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     // dirty before any commit.
     expect(await screen.findByText(/unsaved/i)).toBeInTheDocument();
 
-    // 5. Back to hub (L2). Navigation lives in the modal footer.
+    // 5. One Back, to the tier list (L1), where the outer Save lives. There
+    //    is no hub in between any more.
     await user.click(screen.getByRole("button", { name: /^Back$/ }));
-
-    // Hub is visible again — clickable SectionCards re-appear.
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Pricing configuration/ })).toBeInTheDocument(),
-    );
-
-    // 5b. The hub is a pure menu with no Save — Back once more to the
-    //     tier list (L1), where the outer Save lives.
-    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    expect(await screen.findByRole("heading", { name: "Edit pricing", level: 3 })).toBeInTheDocument();
 
     // 6. Click the outer modal's Save. Should commit BOTH the tier
     //    update (PUT) AND the member-pricing override (POST).
@@ -166,12 +176,12 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     });
   });
 
-  it("re-entering Members step shows the previously-toggled state (mount stability)", async () => {
+  it("re-entering the tier shows the previously-toggled state (mount stability)", async () => {
     const user = userEvent.setup();
     mockFetch(stubLoadRoutes());
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // L1 → click row → L2 → click Member pricing card → L3.
+    // L1 -> click row -> L2, member pricing inline.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
 
     // Toggle VIPs on
@@ -181,21 +191,24 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     await user.click(vipsCheckbox);
     expect(vipsCheckbox).toBeChecked();
 
-    // Exit step via footer Back, then re-enter via the Member pricing card.
+    // Leave the tier via footer Back, then walk back into it. This is the
+    // transition that used to unmount the section and drop the toggle.
     await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
 
-    // The same checkbox is still checked — modal-level state survived.
+    // The same checkbox is still checked -- modal-level state survived.
     const vipsAfter = await screen.findByLabelText(
       /Offer member pricing for VIPs/,
     );
     expect(vipsAfter).toBeChecked();
   });
 
-  it("leaving the tier (back to tiers) mid-edit no longer drops the dirty rows (papercut #1 fix)", async () => {
-    // Pre-state-lift: rows lived inside MemberPricingSection. Leaving
-    // the tier (back-arrow up to L1) unmounted the section + dropped
-    // any pending dirty rows. Post-lift: rows live in PriceEditModal's
-    // state map and survive Level 1 ↔ Level 2 navigation.
+  it("drilling into a step and back mid-edit no longer drops the dirty rows", async () => {
+    // The remaining drill-in. Entering the sales-window step swaps the tier
+    // screen out of the tree, which is the same shape of unmount that used to
+    // lose pending rows -- so the guarantee is re-pinned at the one boundary
+    // where it can still fail. Rows live in PriceEditModal's state map, not in
+    // the section, so they survive L2 <-> L3.
     const user = userEvent.setup();
     const fetchFn = mockFetch([
       ...stubLoadRoutes(),
@@ -209,7 +222,7 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
 
     renderWithConfig(<PriceEditModal {...baseProps()} />);
 
-    // L1 → click row → L2 → Member pricing card → L3 → toggle → dirty.
+    // L1 -> click row -> L2 -> toggle a row dirty.
     await user.click(await screen.findByRole("button", { name: /GA/ }));
 
     await user.click(
@@ -221,10 +234,12 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     fireEvent.change(valueInput, { target: { value: "20" } });
     expect(await screen.findByText(/unsaved/i)).toBeInTheDocument();
 
-    // Back to hub (L2), then back to tiers (L1) via the footer Back
-    // button. Pre-fix, leaving the tier wiped the dirty rows. Modal-
-    // level state map keeps them now.
-    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    // Into the sales-window step and back out to the tier screen, then out to
+    // L1 where Save lives.
+    await user.click(screen.getByRole("button", { name: /sales window/i }));
+    expect(await screen.findByRole("heading", { name: "Sales window", level: 3 })).toBeInTheDocument();
+    const nav = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    await user.click(within(nav).getByRole("button", { name: "GA" }));
     await user.click(screen.getByRole("button", { name: /^Back$/ }));
 
     // Click Save from L1 — the dirty member-pricing row should commit.
