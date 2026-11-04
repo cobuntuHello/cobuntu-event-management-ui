@@ -473,15 +473,15 @@ describe("the commission step", () => {
       transport: transport({ myPackages: twoPackages }),
       community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.025 },
     });
-    expect(await screen.findByText("Orbis reviews this before it goes live.")).toBeInTheDocument();
+    expect(await screen.findByText("Orbis reviews it")).toBeInTheDocument();
   });
 
-  it("says it goes live immediately when the community does not require approval", async () => {
+  it("says it's approved automatically when the community does not require approval", async () => {
     await toCommissionStep({
       transport: transport({ myPackages: twoPackages }),
       community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: false, platformFeeRate: 0.025 },
     });
-    expect(await screen.findByText(/Goes live the moment you submit/)).toBeInTheDocument();
+    expect(await screen.findByText("Automatically approved")).toBeInTheDocument();
   });
 
   it("totals the selected package's rate and Cobuntu's cut into a 'you keep' line", async () => {
