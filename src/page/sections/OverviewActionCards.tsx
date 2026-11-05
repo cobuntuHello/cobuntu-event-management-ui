@@ -52,6 +52,12 @@ interface Props {
    * (card label "Group chat active") → open the chat in the community-app.
    */
   onGroupChat: () => void;
+  /**
+   * T-286 ("Packages v2") — opens PrivateHireModal. Visible on every
+   * event for now, not gated on a feature flag or event type; see the
+   * modal's own doc comment for the design this implements.
+   */
+  onPrivateHire: () => void;
 }
 
 /**
@@ -65,7 +71,7 @@ export function OverviewActionCards({
   isPublished, isEventPast, isEventLive, hasPaidAttendees,
   canConfigureSettings = true,
   onShare, onEdit, onDuplicate, onPublish, onUnpublish, onDelete,
-  groupChatExists, onGroupChat,
+  groupChatExists, onGroupChat, onPrivateHire,
 }: Props) {
   const t = useEventT("eventsUi.manageUi.overviewActionCards");
   const publishDisabled = isEventPast || (isPublished && isEventLive);
@@ -109,6 +115,13 @@ export function OverviewActionCards({
       iconBg: groupChatExists ? "bg-emerald-50" : "bg-sky-50",
       iconColor: groupChatExists ? "text-emerald-500" : "text-sky-500",
       onClick: onGroupChat,
+    },
+    {
+      label: t("privateHire"),
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-5h4v5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-9"/></svg>,
+      iconBg: "bg-amber-50",
+      iconColor: "text-amber-600",
+      onClick: onPrivateHire,
     },
     {
       label: isPublished ? t("unpublish") : t("publish"),

@@ -35,6 +35,7 @@ const cardProps = {
   onDelete: vi.fn(),
   groupChatExists: false,
   onGroupChat: vi.fn(),
+  onPrivateHire: vi.fn(),
 };
 
 describe("with a host translator", () => {
