@@ -51,7 +51,7 @@ export const OVERVIEW_MESSAGES_EN = {
         errChargeFailed: "Failed to charge the final invoice",
         startTitle: "Start a private hire",
         renterLabel: "Renter",
-        renterPlaceholder: "Search by name, @usertag or email…",
+        renterPlaceholder: "Search any Cobuntu account by name or @usertag (2+ characters)…",
         renterEmailLabel: "Renter's email",
         renterEmailPlaceholder: "renter@example.com",
         change: "Change",

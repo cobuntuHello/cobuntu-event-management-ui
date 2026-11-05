@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useEventManagementConfig, useJsonHeaders } from "../config";
 import { useEventT } from "../create-wizard/i18n";
-import { searchPeople, type PersonSearchResult } from "@cobuntu/management-ui-shared";
+import { searchPeople, minQueryLength, type PersonSearchResult } from "@cobuntu/management-ui-shared";
 
 /**
  * T-286 ("Packages v2: hold vs sinal") — the admin side of a private room
@@ -21,6 +21,14 @@ import { searchPeople, type PersonSearchResult } from "@cobuntu/management-ui-sh
  *   GET  /api/communities/:tag/events/:id/private-hire
  *   POST /api/communities/:tag/events/:id/private-hire/deposit-checkout
  *   POST /api/communities/:tag/events/:id/private-hire/charge-final-invoice
+ *
+ * The renter picker searches EVERY Cobuntu account (searchPeople's global
+ * mode), not just this community's members — a private hire is arranged
+ * with a known contact, who has no reason to already be a TEJÁ Circle
+ * member just to rent the room. The backend never required community
+ * membership either (createPrivateHireDepositCheckoutController only
+ * checks the account exists); this was a frontend search-scope choice,
+ * not a backend rule, so fixing it needed no API change.
  */
 
 type BookingStatus =
@@ -102,14 +110,19 @@ export function PrivateHireModal({ event, communityTag, onClose }: Props) {
 
   useEffect(() => { loadStatus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Global search (communityTag: null), deliberately — a private-hire
+  // renter does NOT need to already be a member of this community, only
+  // a Cobuntu account. searchPeople's community-scoped mode (members/search)
+  // would have silently required that; this is GET /discovery/users instead,
+  // the same global lookup used for a personal (non-community) co-seller pick.
   useEffect(() => {
     searchAbort.current?.abort();
-    if (query.trim().length < 1) { setResults([]); return; }
+    if (query.trim().length < minQueryLength(null)) { setResults([]); return; }
     const controller = new AbortController();
     searchAbort.current = controller;
     const timer = setTimeout(async () => {
       const people = await searchPeople({
-        apiBaseUrl, communityTag, query, headers: authHeaders(), signal: controller.signal,
+        apiBaseUrl, communityTag: null, query, headers: authHeaders(), signal: controller.signal,
       });
       setResults(people);
     }, 250);
