@@ -86,6 +86,37 @@ describe("EventForm — pricing presets", () => {
     hrefSpy.mockRestore();
   });
 
+  /*
+   * Choosing Paid blanks the price (no invented amount). The card used to be
+   * derived from the price alone, so it stayed on Free right after the click
+   * and hosts read it as "I can't select Paid entry" (PBN, 2026-11-05).
+   */
+  it("Paid entry shows selected right after the click, while the price is still blank", async () => {
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: true, chargesEnabled: true } }]);
+    const user = userEvent.setup();
+    renderForm();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Free entry/ })).toHaveAttribute("aria-pressed", "true"));
+
+    await user.click(screen.getByRole("button", { name: /Paid entry/ }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Paid entry/ })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: /Free entry/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("going back to Free after choosing Paid selects Free again", async () => {
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: true, chargesEnabled: true } }]);
+    const user = userEvent.setup();
+    renderForm();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Free entry/ })).toHaveAttribute("aria-pressed", "true"));
+
+    await user.click(screen.getByRole("button", { name: /Paid entry/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Paid entry/ })).toHaveAttribute("aria-pressed", "true"));
+    await user.click(screen.getByRole("button", { name: /Free entry/ }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Free entry/ })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: /Paid entry/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("Free entry click applies immediately when nothing is dirty (no confirm)", async () => {
     mockFetch([{ url: /\/stripe\/connected/, body: { connected: true, chargesEnabled: true } }]);
     const user = userEvent.setup();

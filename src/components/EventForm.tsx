@@ -924,12 +924,27 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    */
   const primaryTierPrice = parseFloat(tiers[0]?.price || "0");
   const primaryTierHasPrice = !Number.isNaN(primaryTierPrice) && primaryTierPrice > 0;
+  /*
+   * "Paid entry" was chosen and the price is still to be typed.
+   *
+   * Choosing Paid deliberately BLANKS the price (we never invent an amount),
+   * and the highlighted card is derived from the price. So the moment a host
+   * clicked Paid, the price was empty, the derivation said "free", and the
+   * card they had just clicked stayed unselected: it read as "I can't select
+   * Paid entry" (PBN host, 2026-11-05). This flag carries the choice across
+   * exactly that gap. It only counts while the price is BLANK: a real price
+   * decides as before, and an explicit "0" still reads as Free, so the card
+   * keeps reflecting the actual state rather than a stale tap.
+   */
+  const [paidIntent, setPaidIntent] = useState(false);
+  const primaryTierPriceBlank = (tiers[0]?.price ?? "").trim() === "";
 
   type PresetKey = "free" | "paid" | "donations";
   const selectedPreset: PresetKey | null = useMemo(() => {
     if (primaryTierHasPrice) return "paid"; // price>0 wins regardless of donation.enabled, per spec
+    if (paidIntent && primaryTierPriceBlank) return "paid"; // chosen, price not typed yet
     return donation.enabled ? "donations" : "free";
-  }, [primaryTierHasPrice, donation.enabled]);
+  }, [primaryTierHasPrice, paidIntent, primaryTierPriceBlank, donation.enabled]);
 
   /** Actually mutates tiers/donation for the given preset. Goes through
    *  setTiers/setDonation directly — NOT handleTiersCommit/DonationsField's
@@ -938,7 +953,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     if (key === "free") {
       setTiers((ts) => ts.map((t) => ({ ...t, price: "0" })));
       setDonation((d) => ({ ...d, enabled: false }));
+      setPaidIntent(false);
     } else if (key === "paid") {
+      setPaidIntent(true);
       // Never fabricate an amount. A tier that already has a price keeps it;
       // one that doesn't is left blank so the tier editor's own input
       // naturally prompts for a number instead of silently charging €10 (or
@@ -952,6 +969,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     } else {
       setTiers((ts) => ts.map((t) => ({ ...t, price: "0" })));
       setDonation((d) => ({ ...d, enabled: true }));
+      setPaidIntent(false);
     }
     setPresetDirty(false);
   }
