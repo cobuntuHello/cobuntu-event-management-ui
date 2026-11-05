@@ -80,6 +80,7 @@ export { SlugEditModal, type SlugEditModalProps } from "./components/SlugEditMod
 export { DistributionEditModal, type DistributionEditModalProps } from "./components/DistributionEditModal";
 export { AfterCheckoutEditModal, type AfterCheckoutEditModalProps } from "./components/AfterCheckoutEditModal";
 export { ShareModal } from "./components/ShareModal";
+export { PrivateHireModal } from "./components/PrivateHireModal";
 export { PublishModal } from "./components/PublishModal";
 export { DeleteModal } from "./components/DeleteModal";
 

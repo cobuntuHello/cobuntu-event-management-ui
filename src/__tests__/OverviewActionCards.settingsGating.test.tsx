@@ -27,6 +27,7 @@ const actions = {
   onUnpublish: vi.fn(),
   onDelete: vi.fn(),
   onGroupChat: vi.fn(),
+  onPrivateHire: vi.fn(),
 };
 
 const base = {
