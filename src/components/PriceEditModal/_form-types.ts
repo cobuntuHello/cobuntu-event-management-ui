@@ -139,7 +139,12 @@ export function makeBlankField(type: FieldType): FormField {
   return {
     id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     type,
-    label: fieldTypeMeta(type)?.label || getEventT("eventsUi.manageUi.formFieldTypes")("field"),
+    // Empty on purpose. Pre-filling the TYPE name ("Short Text") made it look
+    // like the question was already written, so a host typed hers into Help
+    // text and attendees saw "Short Text" as the title (Impact Hub Porto,
+    // 2026-11-06). Empty shows the "What should the question read?" hint, and
+    // the editor asks for it before adding.
+    label: "",
     required: type === "EMAIL",
     options: fieldHasOptions(type)
       ? [

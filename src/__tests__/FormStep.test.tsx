@@ -201,7 +201,7 @@ describe("FormStep — Add Question sub-flow", () => {
     ).toBeInTheDocument();
 
     // Edit the label + confirm
-    const labelInput = screen.getByLabelText("Label") as HTMLInputElement;
+    const labelInput = screen.getByLabelText("Question") as HTMLInputElement;
     await user.clear(labelInput);
     await user.type(labelInput, "Full name");
 

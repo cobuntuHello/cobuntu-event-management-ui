@@ -8,6 +8,7 @@ import { EmptyState as SharedEmptyState } from "@cobuntu/management-ui-shared";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { AttendeeDetailDrawer } from "./AttendeeDetailDrawer";
 import { RefundSaleModal, SalesUiConfigProvider, type SaleRow } from "@cobuntu/sales-ui";
+import { answerText, type AnswerField } from "./answerText";
 
 interface Props {
   event: any;
@@ -336,10 +337,14 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   function exportCSV() {
     // Union form-answer fields across attendees so each becomes a CSV column.
     const fieldMap = new Map<string, string>();
+    const fieldDefs = new Map<string, AnswerField>();
     attendees.forEach((a: any) => {
       const fields = a.formAnswers?.fields;
       if (Array.isArray(fields)) {
-        for (const f of fields) if (!fieldMap.has(f.id)) fieldMap.set(f.id, f.label || f.id);
+        for (const f of fields) {
+          if (!fieldMap.has(f.id)) fieldMap.set(f.id, f.label || f.id);
+          if (!fieldDefs.has(f.id)) fieldDefs.set(f.id, f);
+        }
       }
     });
     const fieldEntries = [...fieldMap.entries()];
@@ -350,11 +355,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     const rows = attendees.map((a: any) => {
       const sale = findSaleForAttendee(a);
       const ans = a.formAnswers?.answer || {};
-      const cell = (id: string) => {
-        const v = ans[id];
-        if (v == null || v === "") return "";
-        return Array.isArray(v) ? v.join(", ") : String(v);
-      };
+      const cell = (id: string) => answerText(fieldDefs.get(id), ans[id]);
       return [
         a.name || a.user?.name || "",
         a.email || "",
