@@ -60,7 +60,7 @@ describe("FormStep — the modal's Save commits an open question", () => {
 
     await user.click(await screen.findByRole("button", { name: /Add question/i }));
     await user.click(screen.getByRole("button", { name: /Short Text/i }));
-    const label = (await screen.findByLabelText("Label")) as HTMLInputElement;
+    const label = (await screen.findByLabelText("Question")) as HTMLInputElement;
     await user.clear(label);
     await user.type(label, "Queres usar o Coworking?");
 
@@ -83,7 +83,7 @@ describe("FormStep — the modal's Save commits an open question", () => {
 
     await user.click(await screen.findByRole("button", { name: /Add question/i }));
     await user.click(screen.getByRole("button", { name: /Short Text/i }));
-    const label = (await screen.findByLabelText("Label")) as HTMLInputElement;
+    const label = (await screen.findByLabelText("Question")) as HTMLInputElement;
     await user.clear(label);
     await user.type(label, "Dieta");
     await user.click(screen.getByRole("button", { name: /Add question/i }));

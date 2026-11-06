@@ -34,9 +34,11 @@ describe("FormStep helpers — type metadata", () => {
 });
 
 describe("FormStep helpers — blank builders", () => {
-  it("makeBlankField uses the type's label", () => {
-    const f = makeBlankField("EMAIL");
-    expect(f.label).toBe("Email");
+  it("makeBlankField starts with an EMPTY question (not the type name)", () => {
+    // The type name used to pre-fill it, which read as an already-written
+    // question; a host put hers in Help text and attendees saw "Short Text".
+    expect(makeBlankField("EMAIL").label).toBe("");
+    expect(makeBlankField("SHORT_TEXT").label).toBe("");
   });
 
   it("makeBlankField marks EMAIL required by default", () => {

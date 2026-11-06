@@ -41,15 +41,24 @@ export function EditFieldFlow({
   draftRef.current = draft;
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  const typeLabelRef = useRef("");
   useEffect(() => {
     if (!registerPendingCommit) return;
     return registerPendingCommit(() => {
       if (!isNew && draftRef.current === field) return;
-      return onSaveRef.current(draftRef.current);
+      return onSaveRef.current(withQuestionText(draftRef.current, typeLabelRef.current));
     });
   }, [registerPendingCommit, isNew, field]);
+
+  // Shown when Add / Done is pressed with the question still empty.
+  const [labelMissing, setLabelMissing] = useState(false);
+  function confirm() {
+    if (!draft.label.trim()) { setLabelMissing(true); return; }
+    onSave({ ...draft, label: draft.label.trim() });
+  }
   const t = useEventT("eventsUi.manageUi.formSubFlows");
   const meta = fieldTypeMeta(draft.type);
+  typeLabelRef.current = meta?.label || draft.type;
   const showsOptions = fieldHasOptions(draft.type);
   const labelId = useId();
   const descriptionId = useId();
@@ -94,10 +103,14 @@ export function EditFieldFlow({
             id={labelId}
             type="text"
             value={draft.label}
-            onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+            onChange={(e) => { setDraft({ ...draft, label: e.target.value }); if (labelMissing) setLabelMissing(false); }}
             placeholder={t("labelPlaceholder")}
+            aria-invalid={labelMissing || undefined}
             autoFocus
           />
+          {labelMissing && (
+            <p role="alert" className="mt-1 text-[11px] text-red-600">{t("labelRequired")}</p>
+          )}
         </div>
 
         <div>
@@ -178,7 +191,7 @@ export function EditFieldFlow({
         ) : <span />}
         <button
           type="button"
-          onClick={() => onSave(draft)}
+          onClick={confirm}
           className="px-3 py-1.5 text-[12px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
         >
           {isNew ? t("addQuestion") : t("done")}
@@ -186,4 +199,17 @@ export function EditFieldFlow({
       </div>
     </div>
   );
+}
+
+/**
+ * The field as it should be committed when the modal's Save flushes an open
+ * question (see PendingCommitContext). A question with no text of its own
+ * takes its help text, which is where a host who skipped the question box
+ * wrote it; failing that, the type name, as before, so nothing is dropped.
+ */
+export function withQuestionText(f: FormField, typeLabel: string): FormField {
+  if (f.label.trim()) return { ...f, label: f.label.trim() };
+  const help = (f.description ?? "").trim();
+  if (help) return { ...f, label: help, description: undefined };
+  return { ...f, label: typeLabel || f.type };
 }

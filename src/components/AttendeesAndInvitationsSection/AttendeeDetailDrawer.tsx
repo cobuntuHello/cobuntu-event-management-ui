@@ -298,11 +298,16 @@ function FormAnswerValue({ field, value }: { field: FormField; value: unknown })
         </a>
       );
     }
+    // SINGLE_CHOICE / MULTIPLE_CHOICE are what the form builder writes; the
+    // RADIO / CHECKBOXES names predate it. Without them a host saw the raw
+    // option id ("opt-1") instead of the answer.
     case "DROPDOWN":
+    case "SINGLE_CHOICE":
     case "RADIO": {
       const opt = (field.options || []).find((o) => o.id === value);
       return <p className="text-sm text-zinc-800">{opt?.label || String(value)}</p>;
     }
+    case "MULTIPLE_CHOICE":
     case "CHECKBOXES": {
       if (!Array.isArray(value)) return <p className="text-sm text-zinc-800">{String(value)}</p>;
       const labels = (value as string[]).map(
