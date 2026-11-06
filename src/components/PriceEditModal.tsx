@@ -25,6 +25,7 @@ import {
   type DonationDraft,
   type DraftTier,
   type OriginalTierSnapshot,
+  type VatOptions,
   type Tier,
 } from "./PriceEditModal/types";
 import {
@@ -45,6 +46,7 @@ import { Switch, StepFade } from "./PriceEditModal/_primitives";
 import { type StepId } from "./PriceEditModal/steps";
 import { useEventT } from "../create-wizard/i18n";
 import { TierEditView } from "./PriceEditModal/TierEditView";
+import { vatRateFor, typedPriceFromStored } from "./PriceEditModal/vat";
 import { StepView } from "./PriceEditModal/StepView";
 import { FooterSlotContext, PendingCommitContext, type PendingCommit } from "./PriceEditModal/footer-slot";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
@@ -192,6 +194,8 @@ export function PriceEditModal({
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<DraftTier[]>([]);
   const [originalTiers, setOriginalTiers] = useState<Map<string, OriginalTierSnapshot>>(new Map());
+  // Seller VAT options for this event (undefined = loading, null = none/failed).
+  const [vatOptions, setVatOptions] = useState<VatOptions | null | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   /**
    * Why the modal keeps its own error state instead of relying on showToast:
@@ -315,8 +319,16 @@ export function PriceEditModal({
     }
     (async () => {
       try {
-        const tierRes = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { headers: authHeaders() });
+        const [tierRes, vatRes] = await Promise.all([
+          fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { headers: authHeaders() }),
+          // Seller VAT (backend docs/features/seller-vat.md). A failure only
+          // hides the VAT section; it never blocks editing tiers.
+          fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/vat-options`, { headers: authHeaders() })
+            .catch(() => null),
+        ]);
         const tiers: Tier[] = tierRes.ok ? await tierRes.json() : [];
+        const vat: VatOptions | null = vatRes && vatRes.ok ? await vatRes.json().catch(() => null) : null;
+        setVatOptions(vat);
         if (tiers.length === 0) {
           setDrafts([blankTier()]);
         } else {
@@ -331,8 +343,13 @@ export function PriceEditModal({
           const snapshot = new Map<string, OriginalTierSnapshot>();
           setDrafts(tiers.map((t, i) => {
             const fields = formChecks[i]?.formData?.fields || formChecks[i]?.fields || [];
-            const priceDisplay = String(toDisplay(t.products.price, t.products.currency));
-            snapshot.set(t.id, { name: t.name, price: priceDisplay, currency: t.products.currency });
+            const vatCategory = ((t.products as any).vatCategory ?? null) as DraftTier["vatCategory"];
+            const vatPriceEntry = (((t.products as any).vatPriceEntry ?? "INCLUDED") as DraftTier["vatPriceEntry"]);
+            // A price entered "before VAT" is shown back the same way.
+            const priceDisplay = typedPriceFromStored(
+              t.products.price, t.products.currency, vatPriceEntry, vatCategory, vatRateFor(vat, vatCategory),
+            );
+            snapshot.set(t.id, { name: t.name, price: priceDisplay, currency: t.products.currency, vatCategory, vatPriceEntry });
             return {
               localId: t.id,   // saved tiers reuse their backend id as the dnd key
               id: t.id,
@@ -360,6 +377,8 @@ export function PriceEditModal({
               autoScheduleEnabled: !!t.autoScheduleEnabled,
               salesStartAt: t.salesStartAt ?? "",
               salesEndAt: t.salesEndAt ?? "",
+              vatCategory,
+              vatPriceEntry,
             };
           }));
           setOriginalTiers(snapshot);
@@ -748,11 +767,14 @@ export function PriceEditModal({
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "DELETE", headers: authHeaders() });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || tx("failedToDeleteTier", { name: t.name })); }
         } else if (t.id) {
-          const body = buildTierBody(t, { notifyAttendees });
+          const orig = originalTiers.get(t.id);
+          const vatChanged = (t.vatCategory ?? null) !== (orig?.vatCategory ?? null)
+            || (t.vatPriceEntry ?? "INCLUDED") !== (orig?.vatPriceEntry ?? "INCLUDED");
+          const body = buildTierBody(t, { notifyAttendees, vatRate: vatRateFor(vatOptions, t.vatCategory), vatChanged });
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers/${t.id}`, { method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body) });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(describeSaveError(e, tx("failedToUpdateTier", { name: t.name }), isPersonalEvent)); }
         } else if (!t.deleted) {
-          const body = buildTierBody(t);
+          const body = buildTierBody(t, { vatRate: vatRateFor(vatOptions, t.vatCategory), vatChanged: !!t.vatCategory });
           const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(describeSaveError(e, tx("failedToCreateTier", { name: t.name }), isPersonalEvent)); }
         }
@@ -1029,6 +1051,7 @@ export function PriceEditModal({
               : undefined
           }
           showToast={showToast}
+          vatOptions={draftMode ? null : vatOptions}
           onTogglePublish={() => {
             const idx = activeIdx();
             if (idx != null) togglePublish(idx);

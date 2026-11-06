@@ -106,7 +106,26 @@ export const PRICING_MESSAGES_EN = {
         "donationAmountsRequired": "At least one donation amount is required when fixed mode is enabled.",
         "donationMinInvalid": "Minimum donation must be a non-negative number."
       },
+      "vatSection": {
+        "title": "VAT",
+        "help": "VAT on admission is charged where the event takes place ({country}). Buyers always see the final price; it is paid to you with the ticket and you declare it.",
+        "none": "No VAT",
+        "exempt": "Exempt (0%)",
+        "standard": "standard",
+        "intermediate": "intermediate",
+        "reduced": "reduced",
+        "superReduced": "super-reduced",
+        "entryLabel": "How you entered the price",
+        "included": "Price includes {label}",
+        "added": "Add {label} to the price",
+        "previewAdded": "Buyers pay {gross} ({net} + {label} {rate}% {vat}).",
+        "previewIncluded": "Buyers pay {gross}, including {label} {rate}% of {vat}.",
+        "previewExempt": "{label}-exempt ticket: buyers pay {gross}.",
+        "pwywNote": "Buyers choose the amount; {label} is included in what they pay.",
+        "lockedNote": "This ticket has sales, so its price and VAT are locked."
+      },
       "basicsStep": {
+        "priceBeforeVat": "Price before VAT",
         "pricingModelHelp": "Fixed price charges everyone the same. Pay-what-you-want lets each buyer choose their amount at checkout (with an optional minimum).",
         "pricingModel": "Pricing model",
         "fixedPrice": "Fixed price",

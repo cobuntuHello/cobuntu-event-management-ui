@@ -2,7 +2,8 @@
 
 import { ChevronRight, Calendar, ClipboardList, Lock, Eye, EyeOff, Info } from "lucide-react";
 import { Eyebrow, StepInput, StepTextarea, Stepper, Switch } from "./_primitives";
-import { TIER_NAME_MAX, TIER_DESCRIPTION_MAX, type DraftTier } from "./types";
+import { TIER_NAME_MAX, TIER_DESCRIPTION_MAX, type DraftTier, type VatOptions } from "./types";
+import { VatSection } from "./VatSection";
 import { isTierLocked } from "./helpers";
 import { BasicsStep } from "./steps/BasicsStep";
 import type { StepId } from "./steps";
@@ -31,6 +32,8 @@ export interface TierEditViewProps {
   publishToggling?: boolean;
   /** Create wizard: the listing does not exist yet, so publishing is staged. */
   draftMode?: boolean;
+  /** Seller VAT options for this event; undefined while loading, null when not offered. */
+  vatOptions?: VatOptions | null;
 }
 
 /** A settings row in the Advanced group — opens a sub-screen (Level 3). */
@@ -71,6 +74,7 @@ export function TierEditView({
   onTogglePublish,
   publishToggling,
   draftMode,
+  vatOptions,
 }: TierEditViewProps) {
   // `t` is the tier draft here, so the translator is `tx`.
   const tx = useEventT("eventsUi.manageUi.tierEditView");
@@ -176,6 +180,12 @@ export function TierEditView({
           />
         </div>
       </div>
+
+      {/* Seller VAT — paid tickets only; renders nothing until the event's
+          VAT options are known (and nothing in the create wizard). */}
+      {(t.priceMode === "pwyw" || parseFloat(t.price) > 0 || !!t.vatCategory) && (
+        <VatSection t={t} onUpdate={onUpdate} options={vatOptions} locked={locked} />
+      )}
 
       {/* Advanced — one hairline-divided card of rows that drill into a
           sub-screen. Matches the approved mockup. */}

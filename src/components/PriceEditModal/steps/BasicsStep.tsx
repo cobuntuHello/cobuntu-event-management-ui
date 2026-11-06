@@ -1,5 +1,6 @@
 "use client";
 
+import { entersNet } from "../vat";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../ui/select";
 import {
   BillingRadio,
@@ -110,7 +111,7 @@ export function BasicsStep({
       {/* Price + Currency */}
       <div className="grid grid-cols-[1fr_120px] gap-2.5">
         <div>
-          <Eyebrow>{t.priceMode === "pwyw" ? tx("suggestedPrice") : tx("price")}</Eyebrow>
+          <Eyebrow>{t.priceMode === "pwyw" ? tx("suggestedPrice") : entersNet(t) ? tx("priceBeforeVat") : tx("price")}</Eyebrow>
           <div className="mt-1">
             <StepInput
               type="number" min="0" step="0.01" value={t.price}
