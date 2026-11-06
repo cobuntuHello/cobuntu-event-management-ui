@@ -33,6 +33,9 @@ export const PRICING_MESSAGES_EN = {
         "modeFixedPrice": "Fixed price",
         "percent": "Percent",
         "amount": "Amount",
+        "amountBeforeVat": "Before VAT",
+        "membersPay": "Members pay {gross} ({net} + {label} {rate}% {vat}).",
+        "membersPayNothing": "Members pay nothing.",
         "priorityTitle": "Higher priority wins when a buyer is in multiple matching segments",
         "priority": "Priority"
       },

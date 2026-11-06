@@ -11,6 +11,28 @@
 import { toSmallestUnit, fromSmallestUnit } from "./helpers";
 import type { DraftTier, VatOptions } from "./types";
 
+export function money(minor: number, currency: string): string {
+  const n = Number(fromSmallestUnit(minor, currency));
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(n);
+  } catch {
+    return `${n.toFixed(2)} ${currency}`;
+  }
+}
+
+/**
+ * The rate to convert a typed amount with, or null when the amount typed is
+ * already the buyer's. Member amounts follow the ticket: on a ticket priced
+ * before VAT, a fixed member price or a flat discount is before VAT too, so one
+ * ticket never mixes two meanings of the same field.
+ */
+export function netEntryRate(
+  t: Pick<DraftTier, "vatCategory" | "vatPriceEntry" | "priceMode">,
+  rate: number | null,
+): number | null {
+  return entersNet(t) && rate != null ? rate : null;
+}
+
 export function vatRateFor(options: VatOptions | null | undefined, category: DraftTier["vatCategory"]): number | null {
   if (!category || !options?.available) return null;
   const hit = options.options.find((o) => o.category === category);

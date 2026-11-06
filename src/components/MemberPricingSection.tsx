@@ -2,11 +2,14 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import {
+  memberPricePreview,
   rowIsDirty,
   type MemberPricingMode,
   type MemberPricingRow,
   type MemberPricingTierState,
 } from "./PriceEditModal/member-pricing";
+import type { DraftTier } from "./PriceEditModal/types";
+import { entersNet, money } from "./PriceEditModal/vat";
 import { useEventT } from "../create-wizard/i18n";
 
 /**
@@ -29,6 +32,34 @@ export interface MemberPricingSectionProps {
   /** Notify the modal that row `idx` changed. */
   onRowChange: (idx: number, patch: Partial<MemberPricingRow>) => void;
   currencySymbol: string;
+  /** The ticket's VAT, when it has any: each row then says what the member pays. */
+  vat?: { tier: DraftTier; rate: number | null; label: string };
+}
+
+function MemberPays({
+  row,
+  vat,
+}: {
+  row: MemberPricingRow;
+  vat: NonNullable<MemberPricingSectionProps["vat"]>;
+}) {
+  const t = useEventT("eventsUi.manageUi.memberPricingSection");
+  const preview = memberPricePreview(row, vat.tier, vat.rate);
+  if (!preview) return null;
+  const currency = vat.tier.currency;
+  return (
+    <p className="col-span-3 text-[12px] text-zinc-600 leading-relaxed" data-testid="member-vat-preview">
+      {preview.gross === 0
+        ? t("membersPayNothing")
+        : t("membersPay", {
+            gross: money(preview.gross, currency),
+            net: money(preview.net, currency),
+            label: vat.label,
+            rate: String(vat.rate),
+            vat: money(preview.vat, currency),
+          })}
+    </p>
+  );
 }
 
 function Heading({ dirtyCount = 0 }: { dirtyCount?: number }) {
@@ -57,8 +88,10 @@ export function MemberPricingSection({
   state,
   onRowChange,
   currencySymbol,
+  vat,
 }: MemberPricingSectionProps) {
   const t = useEventT("eventsUi.manageUi.memberPricingSection");
+  const amountBeforeVat = !!vat && vat.rate != null && entersNet(vat.tier);
   if (state.loading) {
     return (
       <div>
@@ -130,7 +163,7 @@ export function MemberPricingSection({
                 </div>
                 <div>
                   <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-1">
-                    {r.mode === "PERCENT_OFF" ? t("percent") : t("amount")}
+                    {r.mode === "PERCENT_OFF" ? t("percent") : amountBeforeVat ? t("amountBeforeVat") : t("amount")}
                   </p>
                   <input
                     type="number" min="0" step={r.mode === "PERCENT_OFF" ? "1" : "0.01"}
@@ -150,6 +183,7 @@ export function MemberPricingSection({
                     className="w-full h-9 px-3 text-[12px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-lg bg-white focus:outline-none focus:border-zinc-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
+                {vat && <MemberPays row={r} vat={vat} />}
               </div>
             )}
           </div>

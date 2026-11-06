@@ -11,8 +11,8 @@
  */
 import { Eyebrow } from "./_primitives";
 import type { DraftTier, VatOptions, VatCategory } from "./types";
-import { vatRateFor, vatPreview } from "./vat";
-import { toSmallestUnit, fromSmallestUnit } from "./helpers";
+import { money, vatRateFor, vatPreview } from "./vat";
+import { toSmallestUnit } from "./helpers";
 import { useEventT } from "../../create-wizard/i18n";
 
 export interface VatSectionProps {
@@ -30,15 +30,6 @@ const CATEGORY_KEY: Record<VatCategory, string> = {
   SUPER_REDUCED: "superReduced",
   EXEMPT: "exempt",
 };
-
-function money(minor: number, currency: string): string {
-  const n = Number(fromSmallestUnit(minor, currency));
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(n);
-  } catch {
-    return `${n.toFixed(2)} ${currency}`;
-  }
-}
 
 export function VatSection({ t, onUpdate, options, locked }: VatSectionProps) {
   const tx = useEventT("eventsUi.manageUi.vatSection");

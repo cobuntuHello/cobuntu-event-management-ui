@@ -6,7 +6,7 @@ import {
   BillingRadio,
   type BillingMode,
 } from "@cobuntu/management-ui-shared";
-import { SUPPORTED_CURRENCIES, type DraftTier } from "../types";
+import { SUPPORTED_CURRENCIES, type DraftTier, type VatOptions } from "../types";
 import { getSymbol, isTierLocked } from "../helpers";
 import { Collapse, Eyebrow, StepInput } from "../_primitives";
 import { MembersStep } from "./MembersStep";
@@ -32,6 +32,8 @@ export interface BasicsStepProps {
   /** Create flow — lets the member-pricing rows stay editable for a tier that
    *  has no server id yet (folded into the create payload on Save). */
   draftMode?: boolean;
+  /** The event's VAT options, so member amounts follow the ticket's VAT. */
+  vatOptions?: VatOptions | null;
 }
 
 /**
@@ -57,6 +59,7 @@ export function BasicsStep({
   onMemberPricingRowChange,
   showToast,
   draftMode,
+  vatOptions,
 }: BasicsStepProps) {
   // `t` is the tier draft here, so the translator is `tx`.
   const tx = useEventT("eventsUi.manageUi.basicsStep");
@@ -302,6 +305,7 @@ export function BasicsStep({
             onMemberPricingRowChange={onMemberPricingRowChange}
             showToast={showToast ?? (() => {})}
             draftMode={draftMode}
+            vatOptions={vatOptions}
           />
         </div>
       )}
