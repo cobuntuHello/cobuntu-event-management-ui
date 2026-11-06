@@ -15,6 +15,8 @@
  */
 
 import { fromSmallestUnit, toSmallestUnit } from "./helpers";
+import type { DraftTier } from "./types";
+import { grossFromNetMinor, netEntryRate, vatFromGrossMinor, vatPreview } from "./vat";
 
 export type MemberPricingMode = "FREE" | "PERCENT_OFF" | "FLAT_OFF" | "FIXED_PRICE";
 
@@ -71,18 +73,26 @@ export type MemberPricingTierState =
 
 /** Builds the initial row set from the segments list + any existing
  *  overrides fetched from the backend. Mirrors what MemberPricingSection
- *  used to do on its own useEffect. */
+ *  used to do on its own useEffect.
+ *
+ *  The server stores money amounts on the buyer's side of VAT. `netRate`
+ *  (see netEntryRate) shows them back before VAT on a ticket priced that way,
+ *  the same way the ticket's own price is shown back. */
 export function buildRowsFromOverrides(
   segments: CommunitySegment[],
   overrides: Array<Record<string, any>>,
   currencyCode: string,
+  netRate: number | null = null,
 ): MemberPricingRow[] {
   const byId = new Map<string, any>(overrides.map((o) => [o.segmentId, o]));
   return segments.map((s) => {
     const o = byId.get(s.id);
     const valueRaw: string = o
       ? o.mode === "FLAT_OFF" || o.mode === "FIXED_PRICE"
-        ? fromSmallestUnit(o.value, currencyCode)
+        ? fromSmallestUnit(
+            netRate != null ? o.value - vatFromGrossMinor(o.value, netRate) : o.value,
+            currencyCode,
+          )
         : String(o.value ?? "")
       : "";
     const initial = {
@@ -148,18 +158,56 @@ export function resetRowsBaseline(rows: MemberPricingRow[]): MemberPricingRow[] 
   }));
 }
 
+/**
+ * What a member pays for this row, split for the editor's preview, or null when
+ * there is nothing certain to show: no VAT on the ticket, a buyer-chosen price,
+ * or an amount not typed yet. Same arithmetic as the backend's
+ * applyOverrideToPrice, so the host sees what the checkout will charge.
+ */
+export function memberPricePreview(
+  r: MemberPricingRow,
+  t: DraftTier,
+  rate: number | null,
+): { gross: number; net: number; vat: number } | null {
+  if (!r.enabled || rate == null || !(rate > 0) || t.priceMode === "pwyw") return null;
+  const list = vatPreview(t, rate)?.gross;
+  if (list == null) return null;
+
+  let gross: number;
+  if (r.mode === "FREE") {
+    gross = 0;
+  } else if (r.mode === "PERCENT_OFF") {
+    const percent = parseInt(r.value, 10);
+    if (!Number.isFinite(percent)) return null;
+    gross = Math.floor((list * (100 - percent)) / 100);
+  } else {
+    const typed = parseFloat(r.value);
+    if (!Number.isFinite(typed)) return null;
+    const netRate = netEntryRate(t, rate);
+    const minor = toSmallestUnit(typed, t.currency);
+    const amount = netRate != null ? grossFromNetMinor(minor, netRate) : minor;
+    gross = r.mode === "FLAT_OFF" ? Math.max(0, list - amount) : amount;
+  }
+  const vat = vatFromGrossMinor(gross, rate);
+  return { gross, net: gross - vat, vat };
+}
+
 /** Builds the upsert body the backend expects. Per-mode value
  *  conversion: FLAT_OFF / FIXED_PRICE expect smallest unit,
- *  PERCENT_OFF expects 1-100 (no conversion). */
+ *  PERCENT_OFF expects 1-100 (no conversion). With `netRate`, a money amount
+ *  typed before VAT is sent as the buyer's amount, which is what the server
+ *  charges from. */
 export function buildUpsertBody(
   r: MemberPricingRow,
   currencyCode: string,
+  netRate: number | null = null,
 ): MemberPricingUpsert {
   let backendValue = 0;
   if (r.mode === "PERCENT_OFF") {
     backendValue = parseInt(r.value, 10);
   } else if (r.mode === "FLAT_OFF" || r.mode === "FIXED_PRICE") {
-    backendValue = toSmallestUnit(parseFloat(r.value), currencyCode);
+    const typed = toSmallestUnit(parseFloat(r.value), currencyCode);
+    backendValue = netRate != null ? grossFromNetMinor(typed, netRate) : typed;
   }
   return {
     segmentId: r.segmentId,

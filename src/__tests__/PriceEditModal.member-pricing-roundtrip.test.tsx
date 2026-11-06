@@ -261,3 +261,87 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
     });
   });
 });
+
+/**
+ * The server keeps a member's amount on the buyer's side of VAT, worked out when
+ * the row was saved. If the ticket's VAT then moves, an untouched "€20 before
+ * VAT" row means a different buyer amount, and has to be sent again or the
+ * member keeps paying the old one.
+ */
+describe("PriceEditModal — member prices when the ticket's VAT changes", () => {
+  const vatTier = {
+    ...tier,
+    products: { id: "prod-1", price: 3690, currency: "EUR", vatCategory: "STANDARD", vatPriceEntry: "ADDED" },
+  };
+  const routes = () => [
+    { method: "GET", url: /\/api\/communities\/c-1\/events\/evt-1\/tiers$/, body: [vatTier] },
+    {
+      method: "GET",
+      url: /\/events\/evt-1\/vat-options$/,
+      body: {
+        available: true, reason: null, reasonText: null,
+        jurisdiction: { key: "PT", name: "Portugal", label: "IVA" },
+        options: [{ category: "STANDARD", rate: 23 }, { category: "REDUCED", rate: 6 }],
+      },
+    },
+    { method: "GET", url: /\/api\/communities\/c-1\/tiers\/tier-1\/form$/, status: 404, body: {} },
+    { method: "GET", url: /\/api\/communities\/c-1\/stripe\/connected$/, body: { connected: true, chargesEnabled: true } },
+    { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: segments },
+    {
+      method: "GET",
+      url: /\/api\/communities\/c-1\/tiers\/tier-1\/member-pricing$/,
+      body: [{ id: "ov-1", segmentId: "seg-1", mode: "FIXED_PRICE", value: 2460, priority: 0 }],
+    },
+    { method: "PUT", url: /\/tiers\/tier-1$/, body: vatTier },
+    { method: "POST", url: /\/api\/communities\/c-1\/tiers\/tier-1\/member-pricing$/, body: { id: "ov-1" } },
+  ];
+  const memberPosts = (fetchFn: ReturnType<typeof mockFetch>) =>
+    fetchFn.mock.calls.filter(
+      ([url, init]: any) => /\/tiers\/tier-1\/member-pricing$/.test(url.toString()) && init?.method === "POST",
+    );
+  const tierPut = (fetchFn: ReturnType<typeof mockFetch>) =>
+    fetchFn.mock.calls.some(([url, init]: any) => /\/tiers\/tier-1$/.test(url.toString()) && init?.method === "PUT");
+
+  it("shows the stored €24.60 back as the €20 the host typed, and says what the member pays", async () => {
+    const user = userEvent.setup();
+    mockFetch(routes());
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+
+    expect(await screen.findByText("Before VAT")).toBeInTheDocument();
+    const preview = await screen.findByTestId("member-vat-preview");
+    expect(preview.textContent).toContain("24.60");
+    expect(preview.textContent).toContain("IVA 23%");
+  });
+
+  it("sends an untouched row again at the new rate", async () => {
+    const user = userEvent.setup();
+    const fetchFn = mockFetch(routes());
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    await screen.findByTestId("member-vat-preview");
+
+    await user.click(screen.getByRole("radio", { name: /6%/ }));
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    await user.click(await screen.findByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(memberPosts(fetchFn)).toHaveLength(1));
+    const body = JSON.parse((memberPosts(fetchFn)[0][1] as RequestInit).body as string);
+    // €20.00 before VAT at 6%, no longer €24.60.
+    expect(body).toMatchObject({ segmentId: "seg-1", mode: "FIXED_PRICE", value: 2120 });
+  });
+
+  it("leaves the row alone when nothing about the VAT changed", async () => {
+    const user = userEvent.setup();
+    const fetchFn = mockFetch(routes());
+    renderWithConfig(<PriceEditModal {...baseProps()} />);
+    await user.click(await screen.findByRole("button", { name: /GA/ }));
+    await screen.findByTestId("member-vat-preview");
+
+    await user.click(screen.getByRole("button", { name: /^Back$/ }));
+    await user.click(await screen.findByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(tierPut(fetchFn)).toBe(true));
+    expect(memberPosts(fetchFn)).toHaveLength(0);
+  });
+});

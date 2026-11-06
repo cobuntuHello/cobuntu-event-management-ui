@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { DraftTier } from "./types";
+import type { DraftTier, VatOptions } from "./types";
 import type {
   MemberPricingRow,
   MemberPricingTierState,
@@ -28,6 +28,8 @@ export interface StepViewProps {
   showToast: (msg: string) => void;
   /** Create flow — the tier has no server id, so the form step edits draft state. */
   draftMode?: boolean;
+  /** Forwarded to the member-pricing block, which follows the ticket's VAT. */
+  vatOptions?: VatOptions | null;
 }
 
 /**
@@ -47,6 +49,7 @@ export function StepView({
   onMemberPricingRowChange,
   showToast,
   draftMode,
+  vatOptions,
 }: StepViewProps) {
   return (
     <div>
@@ -61,6 +64,7 @@ export function StepView({
           onMemberPricingRowChange={onMemberPricingRowChange}
           showToast={showToast}
           draftMode={draftMode}
+          vatOptions={vatOptions}
         />
       )}
       {/* key: local limited/unlimited state must reset when the modal moves

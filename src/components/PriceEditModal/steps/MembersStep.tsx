@@ -1,8 +1,9 @@
 "use client";
 
 import { MemberPricingSection } from "../../MemberPricingSection";
-import type { DraftTier } from "../types";
+import type { DraftTier, VatOptions } from "../types";
 import { getSymbol } from "../helpers";
+import { vatRateFor } from "../vat";
 import type { MemberPricingRow, MemberPricingTierState } from "../member-pricing";
 import { useEventT } from "../../../create-wizard/i18n";
 
@@ -22,6 +23,8 @@ export interface MembersStepProps {
    * "Save tier first" placeholder is therefore only shown OUTSIDE draftMode.
    */
   draftMode?: boolean;
+  /** The event's VAT options, so member amounts follow the ticket's VAT. */
+  vatOptions?: VatOptions | null;
 }
 
 /**
@@ -41,6 +44,7 @@ export function MembersStep({
   memberPricingState,
   onMemberPricingRowChange,
   draftMode,
+  vatOptions,
 }: MembersStepProps) {
   // `t` is the tier draft here, so the translator is `tx`.
   const tx = useEventT("eventsUi.manageUi.membersStep");
@@ -71,6 +75,11 @@ export function MembersStep({
       state={memberPricingState}
       onRowChange={(idx, patch) => onMemberPricingRowChange?.(idx, patch)}
       currencySymbol={sym}
+      vat={
+        vatOptions
+          ? { tier: t, rate: vatRateFor(vatOptions, t.vatCategory), label: vatOptions.jurisdiction?.label ?? "VAT" }
+          : undefined
+      }
     />
   );
 }
