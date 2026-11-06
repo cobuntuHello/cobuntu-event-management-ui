@@ -46,7 +46,7 @@ import { type StepId } from "./PriceEditModal/steps";
 import { useEventT } from "../create-wizard/i18n";
 import { TierEditView } from "./PriceEditModal/TierEditView";
 import { StepView } from "./PriceEditModal/StepView";
-import { FooterSlotContext } from "./PriceEditModal/footer-slot";
+import { FooterSlotContext, PendingCommitContext, type PendingCommit } from "./PriceEditModal/footer-slot";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
 import {
   buildRowsFromOverrides,
@@ -650,7 +650,18 @@ export function PriceEditModal({
   // only to receive COMMISSION, which the server checks at listing time where
   // it can see the rate.
 
+  // Uncommitted step work (an open question in the form builder) that Save
+  // must commit before the tier writes. See PendingCommitContext.
+  const pendingCommitsRef = useRef(new Set<PendingCommit>());
+  const registerPendingCommit = useCallback((fn: PendingCommit) => {
+    pendingCommitsRef.current.add(fn);
+    return () => { pendingCommitsRef.current.delete(fn); };
+  }, []);
+
   async function onSaveClicked() {
+    for (const commit of Array.from(pendingCommitsRef.current)) {
+      await commit();
+    }
     // In draftMode there's no notify-attendees prompt (no enrolled
     // attendees exist on an unsaved event). Skip straight to save().
     if (!draftMode && findTiersWithMaterialChanges(drafts, originalTiers).length > 0) {
@@ -927,6 +938,7 @@ export function PriceEditModal({
         when the body overflows. */}
     <ModalShell onClose={onClose} width="w-full sm:w-[600px]">
       <FooterSlotContext.Provider value={footerSlot}>
+      <PendingCommitContext.Provider value={registerPendingCommit}>
       <div className="relative flex flex-col max-h-[78vh]">
       {/* Circular close — muted bg, top-right of the modal. */}
       <button
@@ -1203,6 +1215,7 @@ export function PriceEditModal({
         </button>
       </div>
       </div>
+      </PendingCommitContext.Provider>
       </FooterSlotContext.Provider>
     </ModalShell>
 

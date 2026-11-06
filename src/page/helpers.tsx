@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getEventManagementConfig } from "../config";
 import { getEventT } from "../create-wizard/i18n";
 
@@ -184,9 +184,31 @@ export const CURRENCIES = [
 // Reusable modal wrapper — portaled to body to escape overflow containers
 import { createPortal } from "react-dom";
 
+/*
+ * The backdrop closes the modal only for a click that STARTED on the backdrop.
+ *
+ * A browser fires `click` on the nearest common ancestor of the mousedown and
+ * mouseup targets. Press inside the modal and release outside it -- selecting
+ * the text of a question label and overshooting, or the modal shrinking under
+ * the cursor as a sub-step swaps -- and that ancestor is the backdrop, so the
+ * old `onClick={onClose}` fired and threw away whatever was being typed. A
+ * host lost every question she wrote this way (Impact Hub Porto, 2026-11-06):
+ * the form builder saves a question only when it is confirmed, so the modal
+ * vanishing mid-edit left only the two default fields on the server.
+ */
 export function ModalShell({ children, onClose, width = "w-[420px]" }: { children: React.ReactNode; onClose: () => void; width?: string }) {
+  const downOnBackdrop = useRef(false);
   return createPortal(
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[120]" onClick={onClose}>
+    <div
+      data-testid="modal-backdrop"
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-[120]"
+      onMouseDown={(e) => { downOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        const startedHere = downOnBackdrop.current;
+        downOnBackdrop.current = false;
+        if (startedHere && e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className={`bg-white rounded-xl shadow-xl ${width} p-6 text-zinc-900`} onClick={e => e.stopPropagation()}>
         {children}
       </div>

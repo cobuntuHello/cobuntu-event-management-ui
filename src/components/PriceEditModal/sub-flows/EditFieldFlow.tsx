@@ -1,16 +1,17 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useContext, useEffect, useId, useRef, useState } from "react";
 import { ArrowLeft, Trash2, Plus } from "lucide-react";
 import { fieldHasOptions, fieldTypeMeta, type FormField } from "../_form-types";
 import { StepInput } from "../_primitives";
 import { useEventT } from "../../../create-wizard/i18n";
+import { PendingCommitContext } from "../footer-slot";
 
 export interface EditFieldFlowProps {
   field: FormField;
   /** Whether this field was newly added (no Cancel/back-to-list yet — confirms via Save). */
   isNew?: boolean;
-  onSave: (next: FormField) => void;
+  onSave: (next: FormField) => void | Promise<void>;
   onDelete: () => void;
   onBack: () => void;
 }
@@ -30,6 +31,23 @@ export function EditFieldFlow({
   onBack,
 }: EditFieldFlowProps) {
   const [draft, setDraft] = useState<FormField>(field);
+
+  // While this question is open, the modal's Save must commit it first: a new
+  // question always (the host picked its type), an existing one only if it was
+  // edited. Refs keep the registered callback stable while it reads the latest
+  // draft. See PendingCommitContext.
+  const registerPendingCommit = useContext(PendingCommitContext);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  useEffect(() => {
+    if (!registerPendingCommit) return;
+    return registerPendingCommit(() => {
+      if (!isNew && draftRef.current === field) return;
+      return onSaveRef.current(draftRef.current);
+    });
+  }, [registerPendingCommit, isNew, field]);
   const t = useEventT("eventsUi.manageUi.formSubFlows");
   const meta = fieldTypeMeta(draft.type);
   const showsOptions = fieldHasOptions(draft.type);
