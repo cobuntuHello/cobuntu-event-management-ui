@@ -6,6 +6,7 @@
  * isolation without mounting the whole modal.
  */
 
+import { buyerPriceToSend, entersNet } from "./vat";
 import {
   SUPPORTED_CURRENCIES,
   TIER_NAME_MAX,
@@ -250,7 +251,18 @@ export function hasPaidTier(drafts: DraftTier[]): boolean {
  *  lock-when-sold guards don't 400 on no-op saves. */
 export function buildTierBody(
   t: DraftTier,
-  extras: { notifyAttendees?: boolean } = {},
+  extras: {
+    notifyAttendees?: boolean;
+    /** Seller VAT rate for t.vatCategory in this event (null = unknown/none). */
+    vatRate?: number | null;
+    /**
+     * Send the VAT fields. Only when the host changed them: the server
+     * re-validates a VAT setting it receives, and an unrelated edit (capacity,
+     * name) must never be refused because, say, the seller's VAT registration
+     * lapsed since the ticket was set up.
+     */
+    vatChanged?: boolean;
+  } = {},
 ): Record<string, unknown> {
   const locked = isTierLocked(t);
   const pwywMinSmallest = t.priceMode === "pwyw" && t.pwywMin.trim()
@@ -289,7 +301,15 @@ export function buildTierBody(
   return {
     name: t.name.trim(),
     description: t.description.trim() || null,
-    ...(locked ? {} : { price: parseFloat(t.price), currency: t.currency }),
+    // Seller VAT: a price typed BEFORE VAT is sent as the buyer price
+    // (net + VAT); the server always stores what the buyer pays.
+    ...(locked ? {} : { price: buyerPriceToSend(t, extras.vatRate ?? null) ?? parseFloat(t.price), currency: t.currency }),
+    ...(extras.vatChanged
+      ? {
+          vatCategory: t.vatCategory ?? null,
+          vatPriceEntry: t.vatCategory ? (entersNet(t) ? "ADDED" : "INCLUDED") : null,
+        }
+      : {}),
     capacity: t.capacity ? parseInt(t.capacity, 10) : null,
     ...(locked ? {} : { priceMode: t.priceMode, pwywMinAmount: pwywMinSmallest }),
     ...installmentBody,

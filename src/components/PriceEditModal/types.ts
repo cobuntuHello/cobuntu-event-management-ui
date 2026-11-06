@@ -129,6 +129,26 @@ export interface DraftTier {
   autoScheduleEnabled: boolean;
   salesStartAt: string;
   salesEndAt: string;
+  /**
+   * Seller VAT (backend docs/features/seller-vat.md). null = no VAT on this
+   * ticket. When set, `price` above holds what the host TYPED: the buyer price
+   * when vatPriceEntry is INCLUDED, the price before VAT when ADDED. The body
+   * builder converts ADDED to the buyer price, which is what the server stores.
+   */
+  vatCategory?: VatCategory | null;
+  vatPriceEntry?: VatPriceEntry;
+}
+
+export type VatCategory = "STANDARD" | "INTERMEDIATE" | "REDUCED" | "SUPER_REDUCED" | "EXEMPT";
+export type VatPriceEntry = "INCLUDED" | "ADDED";
+
+/** GET /api/communities/:tag/events/:eventId/vat-options */
+export interface VatOptions {
+  available: boolean;
+  reason: string | null;
+  reasonText: string | null;
+  jurisdiction: { key: string; name: string; label: string } | null;
+  options: Array<{ category: VatCategory; rate: number }>;
 }
 
 /** Sidecar donation config — saved separately from tiers via PUT
@@ -152,6 +172,8 @@ export interface OriginalTierSnapshot {
   name: string;
   price: string;
   currency: string;
+  vatCategory?: VatCategory | null;
+  vatPriceEntry?: VatPriceEntry;
 }
 
 export interface SupportedCurrency {
