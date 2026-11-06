@@ -237,7 +237,8 @@ export function FormStep({ t, communityTag, showToast, draftMode, onDraftFormCha
       : items.map((i) => (i.id === next.id ? (next as Item) : i));
     setItems(updated);
     setView({ kind: "list" });
-    persist(updated, step0Label);
+    // Returned so the modal's Save can await it (PendingCommitContext).
+    return persist(updated, step0Label);
   }
 
   function commitFieldDelete(fieldId: string) {

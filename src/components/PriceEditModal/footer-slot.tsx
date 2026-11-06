@@ -18,3 +18,19 @@ import { createContext } from "react";
  * buttons participate directly in the footer's flex row.
  */
 export const FooterSlotContext = createContext<HTMLElement | null>(null);
+
+/**
+ * Work a step has started but not yet committed, which the modal's Save must
+ * commit FIRST. A step registers a callback while it holds such work and
+ * unregisters when it no longer does; Save awaits every registered callback
+ * before writing the tiers.
+ *
+ * Why it exists: the question editor confirms a question with its own small
+ * "Add question" button, but the modal's big Save sits under it, pinned and
+ * always visible. A host who wrote a question and pressed Save got the tier
+ * saved and the modal closed, with the question silently dropped (Impact Hub
+ * Porto, 2026-11-06). Save now means "save what I am looking at", question
+ * included.
+ */
+export type PendingCommit = () => void | Promise<void>;
+export const PendingCommitContext = createContext<((fn: PendingCommit) => () => void) | null>(null);
