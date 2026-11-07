@@ -51,20 +51,12 @@ export function VatSection({ t, onUpdate, options, locked }: VatSectionProps) {
   const rate = vatRateFor(options, t.vatCategory);
   const pwyw = t.priceMode === "pwyw";
   const exempt = t.vatCategory === "EXEMPT";
-  const entry = t.vatPriceEntry ?? "INCLUDED";
 
-  // The typed number never changes by itself: the choices below only say what
-  // it MEANS (buyer price, or price before VAT), and the preview always states
-  // what buyers will pay. Converting it silently turned a host's "€30 + VAT"
-  // into €24.39.
+  // The price is always before VAT: choosing a rate never changes it, and the
+  // preview states what buyers pay at checkout.
   const setCategory = (next: VatCategory | null) => {
     if (locked) return;
-    onUpdate({ vatCategory: next, vatPriceEntry: next ? entry : "INCLUDED" });
-  };
-
-  const setEntry = (next: "INCLUDED" | "ADDED") => {
-    if (locked || pwyw || !t.vatCategory || exempt) return;
-    onUpdate({ vatPriceEntry: next });
+    onUpdate({ vatCategory: next, vatPriceEntry: "ADDED" });
   };
 
   const preview = t.vatCategory && !exempt ? vatPreview(t, rate) : null;
@@ -104,40 +96,15 @@ export function VatSection({ t, onUpdate, options, locked }: VatSectionProps) {
         })}
       </div>
 
-      {t.vatCategory && !exempt && !pwyw && (
-        <div className="mt-2 inline-flex rounded-lg bg-zinc-100 p-0.5" role="radiogroup" aria-label={tx("entryLabel")}>
-          {(["INCLUDED", "ADDED"] as const).map((e) => (
-            <button
-              key={e}
-              type="button"
-              role="radio"
-              aria-checked={entry === e}
-              disabled={locked}
-              onClick={() => setEntry(e)}
-              className={`px-3 py-1 rounded-md text-[12px] transition-colors cursor-pointer disabled:cursor-not-allowed ${entry === e ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
-            >
-              {e === "INCLUDED" ? tx("included", { label }) : tx("added", { label })}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {preview && (
+      {preview && !pwyw && (
         <p className="text-[12px] text-zinc-600 mt-2 leading-relaxed" data-testid="vat-preview">
-          {entry === "ADDED" && !pwyw
-            ? tx("previewAdded", {
-                gross: money(preview.gross, t.currency),
-                net: money(preview.net, t.currency),
-                label,
-                rate: String(rate),
-                vat: money(preview.vat, t.currency),
-              })
-            : tx("previewIncluded", {
-                gross: money(preview.gross, t.currency),
-                label,
-                rate: String(rate),
-                vat: money(preview.vat, t.currency),
-              })}
+          {tx("previewAdded", {
+            gross: money(preview.gross, t.currency),
+            net: money(preview.net, t.currency),
+            label,
+            rate: String(rate),
+            vat: money(preview.vat, t.currency),
+          })}
         </p>
       )}
       {pwyw && t.vatCategory && !exempt && (
