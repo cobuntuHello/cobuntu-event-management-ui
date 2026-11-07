@@ -78,6 +78,27 @@ export const OVERVIEW_MESSAGES_EN = {
         invoiceFailedTitle: "Final invoice failed",
         invoiceFailedBody: "Stripe will retry automatically over the next few days. This screen updates once it resolves.",
       },
+      eventAddonsModal: {
+        // feat/event-addon-charging — see
+        // docs/features/event-addon-charging.md in cobuntu-backend-monorepo
+        // for the design this UI implements.
+        errLoadFailed: "Failed to load add-ons",
+        errSaveFailed: "Failed to save your selection",
+        errPayFailed: "Failed to start checkout",
+        title: "Event add-ons",
+        subtitle: "Pick what the house brings to this event. Charged upfront, in full, when you publish — not refundable.",
+        noneOffered: "This community hasn't published any add-ons yet.",
+        free: "Free",
+        paidBadge: "paid",
+        saving: "Saving…",
+        saveSelection: "Save selection",
+        paying: "Starting checkout…",
+        payNow: "Pay {amount} now",
+        linkReadyTitle: "Checkout link ready",
+        linkReadyBody: "Open this to pay — once it's confirmed, the event can be published.",
+        lockedTitle: "Add-ons paid",
+        lockedBody: "This selection is locked — it can't be changed once paid. Create a new event for a different set.",
+      },
       deleteModal: {
         title: "Delete event",
         registeredCount: "{count, plural, one {# person is registered} other {# people are registered}}",
@@ -293,6 +314,7 @@ export const OVERVIEW_MESSAGES_EN = {
         groupChatActive: "Group chat active",
         createGroupChat: "Create group chat",
         privateHire: "Private Hire",
+        eventAddons: "Add-ons",
         unpublish: "Unpublish",
         publish: "Publish",
         delete: "Delete Event",
