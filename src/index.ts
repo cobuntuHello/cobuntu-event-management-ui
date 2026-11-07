@@ -81,6 +81,7 @@ export { DistributionEditModal, type DistributionEditModalProps } from "./compon
 export { AfterCheckoutEditModal, type AfterCheckoutEditModalProps } from "./components/AfterCheckoutEditModal";
 export { ShareModal } from "./components/ShareModal";
 export { PrivateHireModal } from "./components/PrivateHireModal";
+export { EventAddonsModal } from "./components/EventAddonsModal";
 export { PublishModal } from "./components/PublishModal";
 export { DeleteModal } from "./components/DeleteModal";
 

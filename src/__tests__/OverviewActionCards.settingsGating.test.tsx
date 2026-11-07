@@ -28,6 +28,7 @@ const actions = {
   onDelete: vi.fn(),
   onGroupChat: vi.fn(),
   onPrivateHire: vi.fn(),
+  onEventAddons: vi.fn(),
 };
 
 const base = {

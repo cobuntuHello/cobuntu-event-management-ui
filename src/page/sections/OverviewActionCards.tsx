@@ -58,6 +58,11 @@ interface Props {
    * modal's own doc comment for the design this implements.
    */
   onPrivateHire: () => void;
+  /**
+   * feat/event-addon-charging — opens EventAddonsModal. Visible on every
+   * event for now, same "no feature flag yet" stance as onPrivateHire.
+   */
+  onEventAddons: () => void;
 }
 
 /**
@@ -71,7 +76,7 @@ export function OverviewActionCards({
   isPublished, isEventPast, isEventLive, hasPaidAttendees,
   canConfigureSettings = true,
   onShare, onEdit, onDuplicate, onPublish, onUnpublish, onDelete,
-  groupChatExists, onGroupChat, onPrivateHire,
+  groupChatExists, onGroupChat, onPrivateHire, onEventAddons,
 }: Props) {
   const t = useEventT("eventsUi.manageUi.overviewActionCards");
   const publishDisabled = isEventPast || (isPublished && isEventLive);
@@ -122,6 +127,13 @@ export function OverviewActionCards({
       iconBg: "bg-amber-50",
       iconColor: "text-amber-600",
       onClick: onPrivateHire,
+    },
+    {
+      label: t("eventAddons"),
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+      iconBg: "bg-rose-50",
+      iconColor: "text-rose-500",
+      onClick: onEventAddons,
     },
     {
       label: isPublished ? t("unpublish") : t("publish"),

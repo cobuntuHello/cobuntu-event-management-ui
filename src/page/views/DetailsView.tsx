@@ -17,6 +17,7 @@ import {
   SlugEditModal,
   ShareModal,
   PrivateHireModal,
+  EventAddonsModal,
   PublishModal,
   DeleteModal,
   DuplicateModal,
@@ -47,7 +48,7 @@ import { useEventT } from "../../create-wizard/i18n";
 // feat/manage-event-restructure: "distribution" removed from EventModal —
 // it now lives inside the SettingsDrawer (along with viewability, accessibility,
 // and the refund policy), invoked by the Settings quick action card.
-export type EventModal = "name" | "datetime" | "location" | "price" | "slug" | "tags" | "share" | "publish" | "unpublish" | "delete" | "duplicate" | "groupChat" | "privateHire" | null;
+export type EventModal = "name" | "datetime" | "location" | "price" | "slug" | "tags" | "share" | "publish" | "unpublish" | "delete" | "duplicate" | "groupChat" | "privateHire" | "eventAddons" | null;
 
 interface GroupChatState {
   conversationId: string | null;
@@ -178,6 +179,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
         // create modal. No chat yet → open the create flow unchanged.
         onGroupChat={() => (groupChat?.conversationId ? openGroupChat() : setModal("groupChat"))}
         onPrivateHire={() => setModal("privateHire")}
+        onEventAddons={() => setModal("eventAddons")}
       />
 
       {groupChat?.conversationId && (
@@ -279,6 +281,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
           Distribution row is clicked. No separate top-level mount needed. */}
       {modal === "share" && <ShareModal event={event} communityTag={communityTag} onClose={close} />}
       {modal === "privateHire" && <PrivateHireModal event={event} communityTag={communityTag} onClose={close} />}
+      {modal === "eventAddons" && <EventAddonsModal event={event} communityTag={communityTag} onClose={close} />}
       {modal === "groupChat" && (
         <CreateGroupChatModal
           event={event}
