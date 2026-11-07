@@ -34,7 +34,7 @@ export const PRICING_MESSAGES_EN = {
         "percent": "Percent",
         "amount": "Amount",
         "amountBeforeVat": "Before VAT",
-        "membersPay": "Members pay {gross} ({net} + {label} {rate}% {vat}).",
+        "membersPay": "Members pay {gross} at checkout ({net} + {label} {rate}% {vat}).",
         "membersPayNothing": "Members pay nothing.",
         "priorityTitle": "Higher priority wins when a buyer is in multiple matching segments",
         "priority": "Priority"
@@ -111,20 +111,16 @@ export const PRICING_MESSAGES_EN = {
       },
       "vatSection": {
         "title": "VAT",
-        "help": "VAT on admission is charged where the event takes place ({country}). Buyers always see the final price; it is paid to you with the ticket and you declare it.",
+        "help": "VAT on admission is charged where the event takes place ({country}). Enter the price before VAT: buyers see that price, the VAT is added at checkout and paid to you with the ticket, and you declare it.",
         "none": "No VAT",
         "exempt": "Exempt (0%)",
         "standard": "standard",
         "intermediate": "intermediate",
         "reduced": "reduced",
         "superReduced": "super-reduced",
-        "entryLabel": "How you entered the price",
-        "included": "Price includes {label}",
-        "added": "Add {label} to the price",
-        "previewAdded": "Buyers pay {gross} ({net} + {label} {rate}% {vat}).",
-        "previewIncluded": "Buyers pay {gross}, including {label} {rate}% of {vat}.",
+        "previewAdded": "Buyers see {net} and pay {gross} at checkout, with {label} {rate}% of {vat} added.",
         "previewExempt": "{label}-exempt ticket: buyers pay {gross}.",
-        "pwywNote": "Buyers choose the amount; {label} is included in what they pay.",
+        "pwywNote": "Buyers choose an amount before VAT; {label} is added at checkout.",
         "lockedNote": "This ticket has sales, so its price and VAT are locked."
       },
       "basicsStep": {

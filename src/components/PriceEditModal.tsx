@@ -46,7 +46,7 @@ import { Switch, StepFade } from "./PriceEditModal/_primitives";
 import { type StepId } from "./PriceEditModal/steps";
 import { useEventT } from "../create-wizard/i18n";
 import { TierEditView } from "./PriceEditModal/TierEditView";
-import { netEntryRate, vatRateFor, typedPriceFromStored } from "./PriceEditModal/vat";
+import { typedPriceFromStored, vatRateFor } from "./PriceEditModal/vat";
 import { StepView } from "./PriceEditModal/StepView";
 import { FooterSlotContext, PendingCommitContext, type PendingCommit } from "./PriceEditModal/footer-slot";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
@@ -346,9 +346,7 @@ export function PriceEditModal({
             const vatCategory = ((t.products as any).vatCategory ?? null) as DraftTier["vatCategory"];
             const vatPriceEntry = (((t.products as any).vatPriceEntry ?? "INCLUDED") as DraftTier["vatPriceEntry"]);
             // A price entered "before VAT" is shown back the same way.
-            const priceDisplay = typedPriceFromStored(
-              t.products.price, t.products.currency, vatPriceEntry, vatCategory, vatRateFor(vat, vatCategory),
-            );
+            const priceDisplay = typedPriceFromStored(t.products.price, t.products.currency);
             snapshot.set(t.id, { name: t.name, price: priceDisplay, currency: t.products.currency, vatCategory, vatPriceEntry });
             return {
               localId: t.id,   // saved tiers reuse their backend id as the dnd key
@@ -461,8 +459,7 @@ export function PriceEditModal({
             { headers: authHeaders() },
           );
           const overrides: any[] = res.ok ? await res.json() : [];
-          const netRate = tier ? netEntryRate(tier, vatRateFor(vatOptions, tier.vatCategory)) : null;
-          const rows = buildRowsFromOverrides(memberPricingSegments, overrides, currency, netRate);
+          const rows = buildRowsFromOverrides(memberPricingSegments, overrides, currency);
           setMemberPricingByTier((prev) => {
             const next = new Map(prev);
             next.set(tierId, { loading: false, error: null, rows });
@@ -794,18 +791,7 @@ export function PriceEditModal({
         const valErr = findFirstValidationError(tierState.rows);
         if (valErr) throw new Error(valErr);
         const tier = drafts.find((d) => d.id === tierId);
-        const orig = originalTiers.get(tierId);
-        const netRate = tier ? netEntryRate(tier, vatRateFor(vatOptions, tier.vatCategory)) : null;
-        // The server keeps the buyer's amount, worked out from the ticket's VAT
-        // when the row was saved. If that VAT moved, an untouched "€20 before
-        // VAT" row now means a different buyer amount, so it is sent again.
-        const vatMoved = !!tier && !!orig && (
-          (tier.vatCategory ?? null) !== (orig.vatCategory ?? null)
-          || (tier.vatPriceEntry ?? "INCLUDED") !== (orig.vatPriceEntry ?? "INCLUDED")
-        );
-        const dirtyRows = tierState.rows.filter((r) =>
-          rowIsDirty(r) || (vatMoved && r.enabled && (r.mode === "FLAT_OFF" || r.mode === "FIXED_PRICE")),
-        );
+        const dirtyRows = tierState.rows.filter(rowIsDirty);
         if (dirtyRows.length === 0) continue;
 
         const currency = tier?.currency ?? "EUR";
@@ -825,7 +811,7 @@ export function PriceEditModal({
           // Enabled (new or updated) → POST upsert. Backend dedupes by
           // (tierId, segmentId).
           if (r.enabled) {
-            const body = buildUpsertBody(r, currency, netRate);
+            const body = buildUpsertBody(r, currency);
             const res = await fetch(
               `${apiBaseUrl}/api/communities/${communityTag}/tiers/${tierId}/member-pricing`,
               { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) },
