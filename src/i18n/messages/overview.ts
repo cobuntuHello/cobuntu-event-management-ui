@@ -329,6 +329,7 @@ export const OVERVIEW_MESSAGES_EN = {
         listings: "Listings",
         agenda: "Agenda",
         attendees: "Attendees",
+        reviews: "Reviews",
         activity: "Activity",
         updates: "WhatsApp Updates (Coming Soon)",
         comingSoon: "Coming soon",
