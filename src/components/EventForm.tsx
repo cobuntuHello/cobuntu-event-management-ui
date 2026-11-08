@@ -1860,6 +1860,28 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 onClick={e => e.stopPropagation()} />
             </div>
           </div>
+          {/*
+            * A hidden event must be IMPOSSIBLE to miss. This switch sits near the
+            * bottom of a long form behind small grey help text, and the row
+            * toggles on any tap, so a host can turn it off without noticing and
+            * then wonder why the event is on no list (a real founder event
+            * stayed off her own website for a week this way, 2 Nov 2026). The
+            * outcome is stated in plain words, at reading size, with the one
+            * action that undoes it right beside it.
+            */}
+          {!listed && (
+            <div role="alert"
+              className="mt-3 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[15px] font-semibold text-amber-900">{tf("unlistedWarningTitle")}</p>
+                <p className="text-[14px] text-amber-800 mt-1">{tf("unlistedWarningBody")}</p>
+              </div>
+              <button type="button" onClick={() => setListed(true)}
+                className="shrink-0 rounded-xl bg-amber-900 text-white px-4 py-2 text-[14px] font-semibold hover:opacity-90">
+                {tf("unlistedWarningAction")}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Refunds.
