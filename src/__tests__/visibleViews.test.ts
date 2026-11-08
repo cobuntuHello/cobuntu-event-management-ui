@@ -114,9 +114,14 @@ describe("the tab order", () => {
          * the product manage page uses, so an owner who learns one strip can
          * read the other.
          */
-        expect(SECTION_KEYS.slice(0, 8)).toEqual([
-            "overview", "details", "pricing", "hosts", "referrals", "attendees", "agenda", "ledger",
+        expect(SECTION_KEYS.slice(0, 9)).toEqual([
+            "overview", "details", "pricing", "hosts", "referrals", "attendees", "reviews", "agenda", "ledger",
         ]);
+    });
+
+    it("puts Reviews right after Attendees: the people who came, then what they said", () => {
+        const i = (k: string) => SECTION_KEYS.indexOf(k as never);
+        expect(i("reviews")).toBe(i("attendees") + 1);
     });
 
     it("keeps the three people tabs together, uninterrupted by money", () => {
@@ -135,5 +140,16 @@ describe("the tab order", () => {
         // Money is the outcome; it used to sit second, in front of everything
         // that produces it.
         expect(SECTION_KEYS.indexOf("ledger")).toBeGreaterThan(SECTION_KEYS.indexOf("agenda"));
+    });
+});
+
+describe("the Reviews tab (event reviews)", () => {
+    const event = { hosts: [{ userId: "host" }] };
+    it("appears only when the host app passes a Reviews panel", () => {
+        expect(visibleViews({ event, viewerUserId: "host" })).not.toContain("reviews");
+        expect(visibleViews({ event, viewerUserId: "host", hasReviews: true })).toContain("reviews");
+    });
+    it("is a host tab: a host and a moderator both get it", () => {
+        expect(visibleViews({ event, viewerUserId: "someone-else", hasReviews: true })).toContain("reviews");
     });
 });

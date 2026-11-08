@@ -13,7 +13,7 @@ import { useEventT, type NamespacedT } from "../../create-wizard/i18n";
 // keyboard-style event-update broadcasts have low pickup vs members
 // already in WhatsApp groups, so we're betting on integrating with
 // where the conversation already lives.
-export type ViewKey = "overview" | "ledger" | "details" | "pricing" | "hosts" | "referrals" | "listings" | "agenda" | "attendees" | "activity" | "updates";
+export type ViewKey = "overview" | "ledger" | "details" | "pricing" | "hosts" | "referrals" | "listings" | "agenda" | "attendees" | "reviews" | "activity" | "updates";
 
 interface Section {
   label: string;
@@ -100,6 +100,13 @@ const SECTIONS: Section[] = [
    */
   { label: "Referrals", key: "referrals" },
   { label: "Attendees", key: "attendees" },
+  /*
+   * Reviews comes right after Attendees: the people who came, then what they
+   * said. A host SLOT like the ledger and referrals (the host app owns the
+   * panel), so it appears only where the host passes one. Listed HERE as well
+   * as in visibleViews -- the nav renders the intersection.
+   */
+  { label: "Reviews", key: "reviews" },
   /*
    * "listings" is still a valid KEY, but no longer a TAB: Overview carries one
    * section per community with that listing's own numbers and terms, plus the
@@ -276,6 +283,7 @@ function sectionLabel(t: NamespacedT, key: ViewKey): string {
     case "listings": return t("listings");
     case "agenda": return t("agenda");
     case "attendees": return t("attendees");
+    case "reviews": return t("reviews");
     case "activity": return t("activity");
     case "updates": return t("updates");
   }

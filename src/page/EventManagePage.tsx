@@ -68,6 +68,8 @@ export function visibleViews(opts: {
   hasLedger?: boolean;
   /** The host passed a Referrals slot, so the tab can appear. */
   hasReferrals?: boolean;
+  /** The host passed a Reviews slot (event reviews), so the tab can appear. */
+  hasReviews?: boolean;
 }): ViewKey[] {
   /*
    * "details" MUST be here, not only in the nav's SECTIONS list. SectionsNav
@@ -86,7 +88,10 @@ export function visibleViews(opts: {
     ...(opts.hasLedger ? (["ledger"] as ViewKey[]) : []),
     // Host slot, same rule as the ledger: listed HERE as well as in SECTIONS.
     ...(opts.hasReferrals ? (["referrals"] as ViewKey[]) : []),
-    "attendees", "hosts", "agenda",
+    "attendees",
+    // Host slot like the ledger and referrals: listed HERE as well as in SECTIONS.
+    ...(opts.hasReviews ? (["reviews"] as ViewKey[]) : []),
+    "hosts", "agenda",
   ];
   const isHost = !!opts.viewerUserId
     && (opts.event?.hosts ?? []).some((h: any) => h?.userId === opts.viewerUserId);
@@ -112,6 +117,12 @@ export interface EventManagePageProps {
   ledgerSlot?: React.ReactNode;
   /** The Referrals tab. A slot like the ledger: the host fetches and renders it. */
   referralsSlot?: React.ReactNode;
+  /**
+   * The Reviews tab (event reviews: read, reply, hide, turn off). A slot like
+   * the ledger: the host app fetches and renders it, so its API and copy live
+   * with the rest of the reviews UI.
+   */
+  reviewsSlot?: React.ReactNode;
   communityTag: string;
   /** Slug or id, whichever the host app routes on. */
   eventId: string;
@@ -162,6 +173,7 @@ export function EventManagePage({
   overviewSlot,
   ledgerSlot,
   referralsSlot,
+  reviewsSlot,
   communityTag,
   eventId,
   event,
@@ -185,8 +197,8 @@ export function EventManagePage({
   getEventManagementConfig();
 
   const allowed = React.useMemo(
-    () => visibleViews({ event, viewerUserId, forceModerator, hasLedger: !!ledgerSlot, hasReferrals: !!referralsSlot }),
-    [event, viewerUserId, forceModerator, ledgerSlot, referralsSlot],
+    () => visibleViews({ event, viewerUserId, forceModerator, hasLedger: !!ledgerSlot, hasReferrals: !!referralsSlot, hasReviews: !!reviewsSlot }),
+    [event, viewerUserId, forceModerator, ledgerSlot, referralsSlot, reviewsSlot],
   );
 
   // A ?view= the viewer may not use falls back rather than rendering an empty
@@ -263,6 +275,9 @@ export function EventManagePage({
       content = ledgerSlot ?? null;
       break;
 
+    case "reviews":
+      content = reviewsSlot ?? null;
+      break;
     case "referrals":
       /* A slot too: the host owns the API client and the clipboard. */
       content = referralsSlot ?? null;
