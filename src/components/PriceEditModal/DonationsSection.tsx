@@ -23,5 +23,6 @@ export interface DonationsSectionProps {
  */
 export function DonationsSection(props: DonationsSectionProps) {
   const t = useEventT("eventsUi.manageUi.donationsAdapter");
-  return <SharedDonationsSection {...props} symbolFor={getSymbol} tierNoun={t("tierNoun")} />;
+  // Always an event here: offer "When to ask" (sign-up / after the event).
+  return <SharedDonationsSection {...props} symbolFor={getSymbol} tierNoun={t("tierNoun")} showMoments />;
 }

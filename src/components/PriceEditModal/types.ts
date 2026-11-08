@@ -162,6 +162,9 @@ export interface DonationDraft {
   minAmount: string;
   currency: string;
   label: string;
+  /** When the event asks: at sign-up, after the event (review screen), or both.
+   *  Absent = both (how an event's donations behaved before this choice). */
+  moments?: { checkout: boolean; afterEvent: boolean };
 }
 
 /** Snapshot of an existing tier captured at load time. Used to decide

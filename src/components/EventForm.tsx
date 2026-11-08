@@ -1439,6 +1439,19 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             setDonation((d) => ({ ...d, ...patch }));
           }}
           defaultCurrency={tiers[0]?.currency || "EUR"}
+          /*
+           * Donations need somewhere to land. While the status is still
+           * loading (or unknown) the row behaves as before; once known and
+           * not connected, it offers "Connect Stripe", the same redirect the
+           * "Free with donations" preset already uses.
+           */
+          receive={stripeStatus.known ? {
+            ready: !!stripeStatus.connected,
+            onConnect: () => {
+              const url = stripeStatusOverride?.connectUrl ?? (stripeConnectUrl ? stripeConnectUrl(communityTag) : undefined);
+              if (url) setPendingStripeLeaveUrl(url);
+            },
+          } : undefined}
         />
       </div>
 
