@@ -10,6 +10,9 @@ export interface DonationsFieldProps {
   donation: DonationDraft;
   onUpdate: (patch: Partial<DonationDraft>) => void;
   defaultCurrency: string;
+  /** Can the host receive money now (Stripe taking charges)? Same shape as the
+   *  shared editor's `receive`: not ready = "Connect Stripe" instead of a switch. */
+  receive?: { ready: boolean; onConnect?: () => void };
 }
 
 /**
@@ -45,6 +48,7 @@ export function DonationsField(props: DonationsFieldProps) {
       symbolFor={getSymbol}
       tierNoun={t("tierNoun")}
       modalShell={ModalShell}
+      showMoments
     />
   );
 }

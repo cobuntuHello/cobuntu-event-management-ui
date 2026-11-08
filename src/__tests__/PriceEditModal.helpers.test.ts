@@ -620,3 +620,34 @@ describe("PriceEditModal helpers — blank builders", () => {
     expect(blankDonation().amounts).toEqual(["5", "10", "25"]);
   });
 });
+
+/*
+ * An event's donations ask at sign-up, after the event (the review screen),
+ * or both. A new event asks at both; an event saved before the choice
+ * existed reads as both, which is how it behaved.
+ */
+describe("PriceEditModal helpers — donation moments", () => {
+  it("a new event asks at both moments", () => {
+    expect(blankDonation().moments).toEqual({ checkout: true, afterEvent: true });
+  });
+
+  it("an event saved without moments loads as both", () => {
+    const d = loadDonationFromEvent({ donationConfig: { enabled: true, mode: "pwyw", currency: "EUR" } });
+    expect(d.moments).toEqual({ checkout: true, afterEvent: true });
+  });
+
+  it("loads and saves the host's choice", () => {
+    const d = loadDonationFromEvent({
+      donationConfig: { enabled: true, mode: "pwyw", currency: "EUR", moments: { checkout: false, afterEvent: true } },
+    });
+    expect(d.moments).toEqual({ checkout: false, afterEvent: true });
+    expect(buildDonationBody({ ...d, enabled: true }, "EUR")).toMatchObject({ moments: { checkout: false, afterEvent: true } });
+  });
+
+  it("never sends the read-only availability the event page receives", () => {
+    const d = loadDonationFromEvent({
+      donationConfig: { enabled: true, mode: "pwyw", currency: "EUR", available: { checkout: true, afterEvent: false } },
+    });
+    expect(buildDonationBody(d, "EUR")).not.toHaveProperty("available");
+  });
+});

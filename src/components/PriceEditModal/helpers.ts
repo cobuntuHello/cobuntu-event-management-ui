@@ -124,6 +124,9 @@ export function blankDonation(currency = "EUR"): DonationDraft {
     minAmount: "",
     currency,
     label: "",
+    // A new event asks at both moments by default (product decision
+    // 2026-11-08): sign-up, and the "How was it?" review after the event.
+    moments: { checkout: true, afterEvent: true },
   };
 }
 
@@ -148,6 +151,12 @@ export function loadDonationFromEvent(event: { donationConfig?: unknown; currenc
     minAmount,
     currency,
     label: cfg.label || "",
+    // Absent on events saved before moments existed = both, which is how
+    // they behaved; the editor shows it, and the next save writes it down.
+    moments: {
+      checkout: cfg.moments?.checkout !== false,
+      afterEvent: cfg.moments?.afterEvent !== false,
+    },
   };
 }
 
@@ -346,6 +355,7 @@ export function buildDonationBody(
     }
   }
   if (d.label.trim()) base.label = d.label.trim();
+  if (d.moments) base.moments = { checkout: d.moments.checkout, afterEvent: d.moments.afterEvent };
   return base;
 }
 
