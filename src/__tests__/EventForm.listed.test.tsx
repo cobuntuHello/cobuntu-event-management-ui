@@ -100,3 +100,25 @@ describe("EventForm carries the discovery choice", () => {
     expect(screen.queryByText(/anyone with the link can still register/i)).toBeNull();
   });
 });
+
+describe("EventForm warns loudly when an event is hidden", () => {
+  it("shows no warning while the event is listed", async () => {
+    renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Show on the calendar")).toBeInTheDocument());
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows the warning for an unlisted event, and its button relists it", async () => {
+    const onChange = vi.fn();
+    renderWithConfig(
+      <EventForm communityTag="c-1" onChange={onChange} initialData={{ listed: false }} />,
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("This event is hidden");
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Show on the calendar" })[0]);
+    await waitFor(() => expect(lastEmit(onChange)?.listed).toBe(true));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
