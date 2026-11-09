@@ -17,7 +17,7 @@ import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
   Users, Image as ImageIcon, X,
   Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
-  PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield,
+  PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield, ListChecks,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { MemberPricingScope } from "./MemberPricingSection";
@@ -55,6 +55,10 @@ import {
   type RefundPolicyValue,
   DiscardPrompt,
   ConfirmLeaveModal,
+  ValueLinesModal,
+  sumValueLines,
+  formatMoney,
+  type ValueLine,
 } from "@cobuntu/management-ui-shared";
 
 // ─── Currencies ────────────────────────────────────────────────
@@ -255,6 +259,12 @@ export interface EventFormData {
   /** The host's refund policy. null = Standard (platform default window);
    *  { mode:'default', customBuyerWindowDays:0 } = no self-service refunds. */
   refundPolicy?: RefundPolicyValue;
+  /**
+   * What buyers get, each line with a value in cents (PBN feedback L2). The
+   * event page and the order summary show them as a value stack ending with
+   * the member discount from member pricing. Same editor as products.
+   */
+  valueLines?: ValueLine[];
   /**
    * Who may see the attendee roster on the customer-facing portal.
    *
@@ -638,6 +648,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [locationSubmitted, setLocationSubmitted] = useState(false);
   const locationRowErrors = locationErrors(locations);
   const [isTagsOpen, setIsTagsOpen] = useState(false);
+  const [valueLines, setValueLines] = useState<ValueLine[]>(initialData?.valueLines ?? []);
+  const [isValueLinesOpen, setIsValueLinesOpen] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   // Which tier the modal opens on. The tier LIST lives inline in this form now,
   // so the modal jumps straight to the per-tier edit screen.
@@ -889,6 +901,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       viewTierIds: viewResolved.tierIds,
       buyTierIds: buyResolved.tierIds,
       requiresApproval, listed, refundPolicy, attendeeVisibility, locationVisibility, tiers: submittableTiers, tags,
+      // Only when set: an untouched create must not send an empty list.
+      ...(valueLines.length > 0 ? { valueLines } : {}),
       categoryId, subCategoryId,
       /*
        * Donation sidecar — emitted so the create clients can PUT it to
@@ -901,7 +915,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl, locationsPayload,
       viewAccess, buyAccess, requiresApproval, listed, refundPolicy, attendeeVisibility, locationVisibility, submittableTiers, tags,
-      categoryId, subCategoryId, donation]); // eslint-disable-line react-hooks/exhaustive-deps
+      categoryId, subCategoryId, donation, valueLines]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /*
    * ── Preset gate + derived highlight ───────────────────────────────────
@@ -1229,6 +1243,28 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                     no hint of what it's for. */}
                 <span className="block text-[12.5px] text-zinc-500 truncate">
                   {tags.length > 0 ? tags.map(t => t.name).join(" · ") : tf("addTagsHint")}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+            </button>
+
+            {/* What buyers get, each with a value (PBN feedback L2): shown on
+                the event page and the order summary as a value stack. */}
+            <button type="button" onClick={() => setIsValueLinesOpen(true)}
+              className="group w-full flex items-center gap-3 rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 px-4 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:ring-zinc-200 hover:shadow-[0_10px_22px_-16px_rgba(60,40,30,0.5)] active:translate-y-0 cursor-pointer">
+              {valueLines.length > 0 ? (
+                <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-3 w-3" strokeWidth={3.5} /></span>
+              ) : (
+                <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-emerald-100 shrink-0">
+                  <ListChecks className="h-[13px] w-[13px] text-emerald-600" />
+                </span>
+              )}
+              <span className="flex-1 min-w-0">
+                <span className={`block text-sm truncate ${valueLines.length > 0 ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{valueLines.length > 0 ? tf("whatBuyersGet") : tf("addWhatBuyersGet")}</span>
+                <span className="block text-[12.5px] text-zinc-500 truncate">
+                  {valueLines.length > 0
+                    ? tf("whatBuyersGetSummary", { count: valueLines.length, total: formatMoney(sumValueLines(valueLines), tiers[0]?.currency || "EUR") })
+                    : tf("addWhatBuyersGetHint")}
                 </span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
@@ -2064,6 +2100,15 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isValueLinesOpen && (
+        <ValueLinesModal
+          initial={valueLines}
+          currency={tiers[0]?.currency || "EUR"}
+          onSave={(lines) => { setValueLines(lines); setIsValueLinesOpen(false); }}
+          onClose={() => setIsValueLinesOpen(false)}
+        />
+      )}
 
       {/* ─── Tags Modal ─── */}
       <Dialog open={isTagsOpen} onOpenChange={setIsTagsOpen}>
