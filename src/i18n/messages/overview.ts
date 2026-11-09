@@ -356,6 +356,9 @@ export const OVERVIEW_MESSAGES_EN = {
       agendaView: {
         added: "Added",
         failedToAdd: "Failed to add",
+        outsideEvent: "Agenda items have to fit inside the event, between {start} and {end}. Shorten the item or change the event's times.",
+        outsideEventDays: "Agenda items have to fit inside the event's dates and times.",
+        endAfterStart: "The end time has to be after the start time.",
         updated: "Updated",
         failedToSave: "Failed to save",
         failedToRemove: "Failed to remove",

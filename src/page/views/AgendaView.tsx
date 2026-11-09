@@ -86,22 +86,54 @@ function localHhmm(iso: string): string {
  * day so a late start cannot produce an end the picker refuses to show (it
  * only offers slots strictly after the start).
  */
-function defaultTimesFor(
+export function defaultTimesFor(
   items: { endTime: string; order: number }[],
   eventStartDate?: string | null,
+  eventEndDate?: string | null,
 ): { start: string; end: string } {
   const last = items.length > 0
     ? [...items].sort((a, b) => a.order - b.order)[items.length - 1]
     : null;
 
-  const start = last
+  let start = last
     ? snapToSlot(localHhmm(last.endTime))
     : eventStartDate
       ? snapToSlot(localHhmm(eventStartDate))
       : FALLBACK_START;
 
-  const end = toHhmm(Math.min(toMinutes(start) + 60, LAST_SLOT_MINUTES));
+  /*
+   * Never default past the event's end.
+   *
+   * The backend refuses an item outside the event (AgendaService: "Agenda
+   * item times must be within the event duration"). An 18:00-22:00 event
+   * whose fourth item ended at 21:35 offered 21:35-22:35 for the fifth, so
+   * every Add failed with a bare "Failed to add" and the agenda looked broken
+   * (PBN, Bug 2b, 2026-11-05). Cap the end at the event's end; when the
+   * schedule already reaches it, start the block before the end instead.
+   */
+  const win = eventWindow(eventStartDate, eventEndDate);
+  const cap = win ? win.end : LAST_SLOT_MINUTES;
+  if (toMinutes(start) >= cap) start = toHhmm(Math.max(win?.start ?? 0, cap - 30));
+  const end = toHhmm(Math.min(toMinutes(start) + 60, cap));
   return { start, end };
+}
+
+/**
+ * The event's start and end as minutes of its first day, when it starts and
+ * ends on the same day. Null for a multi-day event or missing dates: agenda
+ * times are picked on the start day only, so there is no single-day window
+ * to hold them to here (the server still checks the real range).
+ */
+export function eventWindow(
+  eventStartDate?: string | null,
+  eventEndDate?: string | null,
+): { start: number; end: number } | null {
+  if (!eventStartDate || !eventEndDate) return null;
+  const s = new Date(eventStartDate);
+  const e = new Date(eventEndDate);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null;
+  if (s.toDateString() !== e.toDateString()) return null;
+  return { start: toMinutes(localHhmm(eventStartDate)), end: toMinutes(localHhmm(eventEndDate)) };
 }
 
 interface Props {
@@ -142,7 +174,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
    * first render, so this is the event-start case; resetForm recomputes with
    * the loaded schedule every time the form is opened.
    */
-  const initialTimes = defaultTimesFor([], event?.startDate);
+  const initialTimes = defaultTimesFor([], event?.startDate, event?.endDate);
   const [startTime, setStartTime] = useState(initialTimes.start);
   const [endTime, setEndTime] = useState(initialTimes.end);
 
@@ -169,7 +201,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
      * the time someone adds a third item the schedule has moved, and the
      * useful default moved with it.
      */
-    const next = defaultTimesFor(items, event?.startDate);
+    const next = defaultTimesFor(items, event?.startDate, event?.endDate);
     setEditingId(null); setTitle(""); setDescription("");
     setStartTime(next.start); setEndTime(next.end);
   }
@@ -181,8 +213,34 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
     setEditingId(item.id);
   }
 
+  /** The reason an item can't be saved, worded for the host, or null. */
+  function timesProblem(): string | null {
+    if (toMinutes(endTime) <= toMinutes(startTime)) return tr("endAfterStart");
+    const w = eventWindow(event?.startDate, event?.endDate);
+    if (w && (toMinutes(startTime) < w.start || toMinutes(endTime) > w.end)) {
+      return tr("outsideEvent", { start: toHhmm(w.start), end: toHhmm(w.end) });
+    }
+    return null;
+  }
+
+  /** The server's own reason when it refuses, instead of a bare "failed". */
+  async function refusal(res: Response, fallback: string): Promise<string> {
+    const body = await res.json().catch(() => null);
+    const msg: string = typeof body?.error === "string" ? body.error : "";
+    if (/within the event duration/i.test(msg)) {
+      const w = eventWindow(event?.startDate, event?.endDate);
+      return w ? tr("outsideEvent", { start: toHhmm(w.start), end: toHhmm(w.end) }) : tr("outsideEventDays");
+    }
+    if (/end time must be after start time/i.test(msg)) return tr("endAfterStart");
+    return fallback;
+  }
+
   async function handleSave() {
     if (!title.trim() || !event) return;
+    // Say what is wrong before asking the server, which would refuse it
+    // anyway (PBN, Bug 2b: the refusal used to surface as "Failed to add").
+    const problem = timesProblem();
+    if (problem) { showToast(problem); return; }
     setSaving(true);
     const eventDate = new Date(event.startDate);
     const [sh, sm] = startTime.split(":").map(Number);
@@ -203,7 +261,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
           if (created?.id) setItems(prev => [...prev, created]);
           else await loadAgenda(); // fallback if response shape surprises us
           showToast(tr("added")); resetForm();
-        } else showToast(tr("failedToAdd"));
+        } else showToast(await refusal(res, tr("failedToAdd")));
       } else {
         const res = await fetch(`${apiBase()}/api/communities/${communityTag}/events/${eventId}/agenda/${editingId}`, {
           method: "PUT", headers: { "Content-Type": "application/json", ...headers() }, body: JSON.stringify(body),
@@ -215,7 +273,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
           if (updated?.id) setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
           else await loadAgenda();
           showToast(tr("updated")); resetForm();
-        } else showToast(tc("failedToUpdate"));
+        } else showToast(await refusal(res, tc("failedToUpdate")));
       }
     } catch { showToast(tr("failedToSave")); }
     finally { setSaving(false); }

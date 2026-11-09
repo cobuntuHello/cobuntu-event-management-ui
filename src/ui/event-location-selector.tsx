@@ -7,6 +7,7 @@ import { cn } from "./utils";
 import {
   searchLocations,
   getLocationDetails,
+  placeAddress,
   isValidUrl,
   isVideoConferencingUrl,
   isGoogleMapsConfigured,
@@ -91,7 +92,7 @@ export function EventLocationSelector({
     try {
       const details = await getLocationDetails(suggestion.place_id);
       if (details) {
-        onPhysicalLocationChange(details.formatted_address);
+        onPhysicalLocationChange(placeAddress(details));
         onCoordinatesChange?.(details.geometry.location.lat, details.geometry.location.lng);
       } else {
         onPhysicalLocationChange(suggestion.description);

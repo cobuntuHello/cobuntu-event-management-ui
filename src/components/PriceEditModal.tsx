@@ -734,7 +734,17 @@ export function PriceEditModal({
       // isolation (PriceEditModal.helpers.test.ts).
       for (const t of drafts.filter(x => !x.deleted)) {
         const err = validateTier(t);
-        if (err) throw new Error(err);
+        if (err) {
+          // Open the tier that failed. Opened straight onto ANOTHER tier (the
+          // wizard's "Add tier" does exactly that), the failing one is not on
+          // screen, and "Price required for Standard" pointed at nothing the
+          // host could see or reach (PBN, Bug 1, 2026-11-05: "Paid entry"
+          // blanks the seeded Standard tier's price, then the host adds and
+          // prices their own tier and Save refuses). Now the error sits next
+          // to the field it is about.
+          setActiveTier(t.localId);
+          throw new Error(err);
+        }
       }
 
       const donationErr = validateDonation(donation);

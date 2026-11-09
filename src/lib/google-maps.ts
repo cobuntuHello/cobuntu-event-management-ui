@@ -245,6 +245,25 @@ export const getLocationDetails = async (placeId: string): Promise<LocationDetai
   } catch { return null; }
 };
 
+/**
+ * The address to store for a picked place, keeping its NAME.
+ *
+ * `formatted_address` alone drops what the host picked: choosing "ISLA Gaia"
+ * saved only "R. Diogo Macedo 192, 4400-107 Vila Nova de Gaia" (PBN, Bug 2a,
+ * 2026-11-05), so the event no longer said where it was. A named place
+ * (a venue, a business) is stored as "Name, address". A plain street result,
+ * whose name IS the start of its address, is stored as the address alone, so
+ * nothing is said twice.
+ */
+export function placeAddress(d: Pick<LocationDetails, "name" | "formatted_address">): string {
+  const name = (d.name || "").trim();
+  const address = (d.formatted_address || "").trim();
+  if (!name) return address;
+  if (!address) return name;
+  if (address.toLowerCase().startsWith(name.toLowerCase())) return address;
+  return `${name}, ${address}`;
+}
+
 export const isValidUrl = (str: string): boolean => {
   try { const u = new URL(str); return u.protocol === "http:" || u.protocol === "https:"; } catch { return false; }
 };

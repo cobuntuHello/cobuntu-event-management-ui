@@ -1395,7 +1395,14 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-semibold text-zinc-800 truncate">{t.name || tf("unnamedTier")}</p>
-                        <p className="text-[12px] text-zinc-400 mt-0.5 truncate">{t.price && parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : tf("free")}</p>
+                        {/* A BLANK price is not free: "Paid entry" blanks it on
+                            purpose so the host types one, and Save refuses it.
+                            Showing "Free" hid the one tier that needed attention. */}
+                        {(t.price ?? "").trim() === "" ? (
+                          <p className="text-[12px] font-medium text-amber-700 mt-0.5 truncate">{tf("priceNeeded")}</p>
+                        ) : (
+                          <p className="text-[12px] text-zinc-400 mt-0.5 truncate">{parseFloat(t.price) > 0 ? formatPrice(parseFloat(t.price), t.currency) : tf("free")}</p>
+                        )}
                       </div>
                       <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
                     </div>

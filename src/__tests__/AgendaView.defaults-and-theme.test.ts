@@ -30,8 +30,10 @@ describe("a new agenda item starts somewhere sensible", () => {
          * someone adds a third item the schedule has moved, and the useful
          * default moved with it.
          */
-        expect(view).toContain("defaultTimesFor(items, event?.startDate)");
-        expect(view).toContain("defaultTimesFor([], event?.startDate)");
+        // The event's END rides along too (PBN Bug 2b): defaults are capped
+        // at it. Behaviour pinned in pbn-event-bugs.test.ts.
+        expect(view).toContain("defaultTimesFor(items, event?.startDate, event?.endDate)");
+        expect(view).toContain("defaultTimesFor([], event?.startDate, event?.endDate)");
     });
 
     it("continues from the last item when there is one", () => {
