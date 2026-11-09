@@ -930,8 +930,15 @@ function WizardInner({
                 }}
                 showErrors={showErrors}
                 hideVisibility
-                /* Per-tier member pricing only for a community-owned event. */
-                showMemberPricing={effectiveOwnership === "community"}
+                /* Per-tier member pricing. A community-owned event: the
+                   leaders' prices. A host's own event submitted here: their
+                   discount for this community's members (its public tiers),
+                   approved with the listing. Off on a personal-only surface
+                   (an embed site with no community listing), where there is
+                   no community to price for. See user-owned-member-pricing.md
+                   in the backend repo. */
+                showMemberPricing={effectiveOwnership === "community" || ownershipMode !== "personalOnly"}
+                memberPricingScope={effectiveOwnership === "community" ? "community" : "seller"}
                 communityName={communityName}
                 initialData={draftInitial}
                 stripeStatusOverride={stripeStatusOverride}
