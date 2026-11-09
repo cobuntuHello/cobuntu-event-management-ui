@@ -128,6 +128,14 @@ export interface EventManagePageProps {
   eventId: string;
   /** The loaded event. The host app owns the fetch so it can gate the route. */
   event: any;
+  /**
+   * True when this is the host's OWN event (no owning community) with an
+   * open submission (pending, live or paused) in `communityTag`. The host
+   * app knows the listing status; the event payload here does not carry it.
+   * Turns on the seller's member pricing (memberPricingScope "seller").
+   * See docs/features/user-owned-member-pricing.md in the backend repo.
+   */
+  sellerMemberPricing?: boolean;
   /** Re-fetch after a mutation. */
   onUpdate: () => void | Promise<void>;
   onDelete: () => void | Promise<void>;
@@ -177,6 +185,7 @@ export function EventManagePage({
   communityTag,
   eventId,
   event,
+  sellerMemberPricing,
   onUpdate,
   onDelete,
   showToast,
@@ -254,6 +263,7 @@ export function EventManagePage({
           onUpdate={onUpdate}
           onDelete={onDelete}
           showToast={showToast}
+          sellerMemberPricing={sellerMemberPricing}
         />
       );
       break;
@@ -266,6 +276,7 @@ export function EventManagePage({
           eventId={eventId}
           onUpdate={onUpdate}
           showToast={showToast}
+          sellerMemberPricing={sellerMemberPricing}
         />
       );
       break;

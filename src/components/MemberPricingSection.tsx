@@ -1,5 +1,6 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import {
   memberPricePreview,
@@ -25,6 +26,17 @@ import { useEventT } from "../create-wizard/i18n";
  * PriceEditModal via ./PriceEditModal/member-pricing.ts; this is a pure
  * prop-driven render that calls `onRowChange` on edit.
  */
+
+/**
+ * Whose member prices the section edits. "community" for a community-owned
+ * event (default, unchanged); "seller" for a host's own event priced for the
+ * community it is submitted to, where the community approves the prices with
+ * the listing. Provided by PriceEditModal (`memberPricingScope`) as context,
+ * so the steps in between need no new props; it only changes the copy.
+ * Backend: docs/features/user-owned-member-pricing.md.
+ */
+export type MemberPricingScope = "community" | "seller";
+export const MemberPricingScopeContext = createContext<MemberPricingScope>("community");
 
 export interface MemberPricingSectionProps {
   /** The per-tier slot from PriceEditModal's modal-level state map. */
@@ -64,12 +76,13 @@ function MemberPays({
 
 function Heading({ dirtyCount = 0 }: { dirtyCount?: number }) {
   const t = useEventT("eventsUi.manageUi.memberPricingSection");
+  const scope = useContext(MemberPricingScopeContext);
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="text-[12px] font-medium text-zinc-700">{t("heading")}</p>
         <p className="text-[11px] text-zinc-500 mt-0.5">
-          {t("subheading")}
+          {scope === "seller" ? t("subheadingSeller") : t("subheading")}
         </p>
       </div>
       {dirtyCount > 0 && (
@@ -91,6 +104,7 @@ export function MemberPricingSection({
   vat,
 }: MemberPricingSectionProps) {
   const t = useEventT("eventsUi.manageUi.memberPricingSection");
+  const scope = useContext(MemberPricingScopeContext);
   const amountBeforeVat = !!vat && vat.rate != null && entersNet(vat.tier);
   if (state.loading) {
     return (
@@ -119,7 +133,7 @@ export function MemberPricingSection({
         <Heading />
         <div className="mt-2 rounded-lg border border-dashed border-zinc-200 px-3 py-4 text-center">
           <p className="text-[11px] text-zinc-500">
-            {t("noSegments")}
+            {scope === "seller" ? t("noSegmentsSeller") : t("noSegments")}
           </p>
         </div>
       </div>
