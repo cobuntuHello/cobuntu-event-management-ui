@@ -7,6 +7,7 @@ import { cn } from "./utils";
 import {
   searchLocations,
   getLocationDetails,
+  placeAddress,
   isValidUrl,
   isGoogleMapsConfigured,
   type LocationSuggestion,
@@ -390,7 +391,7 @@ function PhysicalInput({ row, disabled, onPatch }: { row: EventLocationValue; di
   const pick = async (s: LocationSuggestion) => {
     try {
       const d = await getLocationDetails(s.place_id);
-      if (d) onPatch({ address: d.formatted_address, latitude: d.geometry.location.lat, longitude: d.geometry.location.lng });
+      if (d) onPatch({ address: placeAddress(d), latitude: d.geometry.location.lat, longitude: d.geometry.location.lng });
       else onPatch({ address: s.description, latitude: null, longitude: null });
     } catch { onPatch({ address: s.description, latitude: null, longitude: null }); }
     setOpen(false);

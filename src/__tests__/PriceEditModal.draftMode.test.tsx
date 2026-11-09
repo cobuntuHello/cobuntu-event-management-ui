@@ -359,3 +359,31 @@ describe("PriceEditModal — draftMode registration form", () => {
     expect(committed.tiers[0].draftForm.fields).toHaveLength(1);
   });
 });
+
+describe("PriceEditModal — a failing tier that is not on screen gets opened (PBN Bug 1)", () => {
+  it("Save on VIP with a blank-priced Standard opens Standard and says why", async () => {
+    /*
+     * The PBN path: "Paid entry" blanks the seeded Standard tier's price, the
+     * host adds and prices their own tier, and the wizard opens the modal
+     * straight onto that tier. Save validates every tier and used to fail on
+     * one the host could not see ("There is no 'Standard' to set a price for").
+     */
+    mockFetch([]);
+    const user = userEvent.setup();
+    const standard = { ...blankTier(), localId: "std", name: "Standard", price: "" };
+    const vip = { ...blankTier(), localId: "vip", name: "VIP+ Experience", price: "65" };
+    const props = baseProps({ initialDraftTiers: [standard, vip], openTierLocalId: "vip" });
+    renderWithConfig(<PriceEditModal {...props} />);
+
+    expect(await screen.findByDisplayValue("VIP+ Experience")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Standard")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() =>
+      expect(props.showToast).toHaveBeenCalledWith(expect.stringMatching(/Price required for "Standard"/)),
+    );
+    expect(await screen.findByDisplayValue("Standard")).toBeInTheDocument();
+    expect(props.onDraftCommit).not.toHaveBeenCalled();
+  });
+});

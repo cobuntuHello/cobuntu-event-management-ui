@@ -56,6 +56,7 @@ export const FORM_MESSAGES_EN = {
         popular: "Popular",
         unnamedTier: "Unnamed tier",
         free: "Free",
+        priceNeeded: "Price needed",
         capacity: "Capacity",
         spots: "{count} spots",
         unlimited: "Unlimited",
