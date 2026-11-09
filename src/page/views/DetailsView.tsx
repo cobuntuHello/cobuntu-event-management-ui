@@ -66,9 +66,17 @@ interface Props {
   onUpdate: () => void;
   onDelete: () => void;
   showToast: (msg: string) => void;
+  /**
+   * True when this is the host's OWN event (no owning community) with an
+   * open submission (pending, live or paused) in `communityTag`. The host
+   * app knows the listing status; the event payload here does not carry it.
+   * Turns on the seller's member pricing (memberPricingScope "seller").
+   * See docs/features/user-owned-member-pricing.md in the backend repo.
+   */
+  sellerMemberPricing?: boolean;
 }
 
-export function DetailsView({ event, communityTag, eventId, isPublished, onUpdate, onDelete, showToast }: Props) {
+export function DetailsView({ event, communityTag, eventId, isPublished, onUpdate, onDelete, showToast, sellerMemberPricing }: Props) {
   const router = useRouter();
   const [modal, setModalState] = useState<EventModal>(null);
   const [drawerOpen, setDrawerOpenState] = useState(false);
@@ -257,14 +265,13 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
           // legacy onOpenTierForm prop is gone from the package
           // surface (Phase C of the redesign rollout).
           //
-          // Member pricing is a COMMUNITY-owned-only feature (segments
-          // are community-scoped; MemberPricingService rejects overrides
-          // on a personal event). Gate on the event's ownership rather
-          // than hardcoding true — this view is shared, so a user-owned
-          // event rendered here must NOT surface the per-segment editor.
-          // The shared pkg also hides the section per-tier for unsaved
-          // drafts (no tier id yet).
-          showMemberPricing={!!event?.communityId}
+          // Member pricing: a community-owned event (the leaders' prices),
+          // or the host's own event with an open submission in this
+          // community (sellerMemberPricing; their discount for its
+          // members). Shared view, so the gate is ownership-aware. The
+          // section still hides per tier for unsaved drafts (no tier id).
+          showMemberPricing={!!event?.communityId || !!sellerMemberPricing}
+          memberPricingScope={event?.communityId ? "community" : "seller"}
         />
       )}
       {modal === "slug" && (

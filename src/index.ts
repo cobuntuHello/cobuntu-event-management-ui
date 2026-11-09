@@ -296,3 +296,4 @@ export * from "./create-wizard";
  * host's own parity test can check its message files against.
  */
 export { EVENT_MANAGEMENT_MESSAGES_EN, flattenMessageKeys, useEventT, getEventT } from "./i18n";
+export type { MemberPricingScope } from "./components/MemberPricingSection";

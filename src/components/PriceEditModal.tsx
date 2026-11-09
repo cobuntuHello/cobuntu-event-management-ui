@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, X } from "lucide-react";
+import { MemberPricingScopeContext, type MemberPricingScope } from "./MemberPricingSection";
 import {
   DndContext,
   closestCenter,
@@ -118,6 +119,16 @@ export interface PriceEditModalProps {
    */
   showMemberPricing?: boolean;
   /**
+   * Whose member prices these are (2026-11-09). "community" (default): a
+   * community-owned event, the leaders' segment list, unchanged. "seller": a
+   * host's own event priced for `communityTag`, the community it is submitted
+   * to; tiers come from GET /member-pricing/segments (its public tiers; a
+   * member gets 403 on the leaders' list), the prices apply once the community
+   * approves the listing, and a change to a live listing sends it back for
+   * review, which the save toast reports.
+   */
+  memberPricingScope?: MemberPricingScope;
+  /**
    * Draft mode — no fetches on mount, no backend writes on Save. Used
    * by create-event flows where the event doesn't exist yet, so the
    * parent owns the draft state and posts it as part of the
@@ -176,6 +187,7 @@ export function PriceEditModal({
   onSaved,
   showToast,
   showMemberPricing,
+  memberPricingScope = "community",
   draftMode,
   initialDraftTiers,
   initialDraftDonation,
@@ -398,8 +410,11 @@ export function PriceEditModal({
     let cancelled = false;
     (async () => {
       try {
+        // A host can't read the leaders' list (COMMUNITY_MANAGE_TIERS), so a
+        // seller's tiers come from the public-tiers route. See memberPricingScope.
+        const path = memberPricingScope === "seller" ? "member-pricing/segments" : "segments";
         const res = await fetch(
-          `${apiBaseUrl}/api/communities/${communityTag}/segments`,
+          `${apiBaseUrl}/api/communities/${communityTag}/${path}`,
           { headers: authHeaders() },
         );
         if (cancelled || !res.ok) return;
@@ -409,7 +424,7 @@ export function PriceEditModal({
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showMemberPricing, communityTag, apiBaseUrl]);
+  }, [showMemberPricing, memberPricingScope, communityTag, apiBaseUrl]);
 
   // Once segments are loaded, fetch overrides for each saved tier and
   // populate the per-tier state map. Lazy per-tier: only fires for
@@ -786,6 +801,9 @@ export function PriceEditModal({
       // concern (we iterate by tierId; new tiers without an id don't
       // appear in the map).
       const memberPricingResets: Array<[string, MemberPricingRow[]]> = [];
+      // Seller scope: the backend answers sentForReview when a change sent
+      // the live listing back to the community's review queue.
+      let sentForReview = false;
       for (const [tierId, tierState] of memberPricingByTier) {
         if (tierState.loading || tierState.error) continue;
         const valErr = findFirstValidationError(tierState.rows);
@@ -806,6 +824,7 @@ export function PriceEditModal({
               const e = await res.json().catch(() => ({}));
               throw new Error(e.error || tx("failedToRemoveOverride", { segment: r.segmentName }));
             }
+            if ((await res.json().catch(() => null))?.sentForReview) sentForReview = true;
             continue;
           }
           // Enabled (new or updated) → POST upsert. Backend dedupes by
@@ -820,6 +839,7 @@ export function PriceEditModal({
               const e = await res.json().catch(() => ({}));
               throw new Error(e.error || tx("failedToSaveOverride", { segment: r.segmentName }));
             }
+            if ((await res.json().catch(() => null))?.sentForReview) sentForReview = true;
           }
         }
         memberPricingResets.push([tierId, resetRowsBaseline(tierState.rows)]);
@@ -851,7 +871,7 @@ export function PriceEditModal({
         }
       }
 
-      if (!opts.suppressFinalToast) showToast(tx("pricingUpdated"));
+      if (!opts.suppressFinalToast) showToast(sentForReview ? tx("pricingUpdatedSentForReview") : tx("pricingUpdated"));
       onSavedPending = true;
       }
     } catch (e: any) {
@@ -957,6 +977,7 @@ export function PriceEditModal({
         header + footer pinned (shrink-0) so the footer stays visible even
         when the body overflows. */}
     <ModalShell onClose={onClose} width="w-full sm:w-[600px]">
+      <MemberPricingScopeContext.Provider value={memberPricingScope}>
       <FooterSlotContext.Provider value={footerSlot}>
       <PendingCommitContext.Provider value={registerPendingCommit}>
       <div className="relative flex flex-col max-h-[78vh]">
@@ -1239,6 +1260,7 @@ export function PriceEditModal({
       </div>
       </PendingCommitContext.Provider>
       </FooterSlotContext.Provider>
+      </MemberPricingScopeContext.Provider>
     </ModalShell>
 
     {/* ─── Notify-attendees confirmation ─────────────────────────

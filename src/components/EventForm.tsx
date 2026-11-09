@@ -20,6 +20,7 @@ import {
   PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
+import type { MemberPricingScope } from "./MemberPricingSection";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
 import type { MemberPricingUpsert } from "./PriceEditModal/member-pricing";
 import { blankTier, blankDonation } from "./PriceEditModal/helpers";
@@ -386,8 +387,13 @@ interface EventFormProps {
    * (e.g. `ownership === "community"`). Off → the section is not rendered,
    * matching a member creating their own event. Default false. Mirrors
    * ProductForm's `showMemberPricing`.
+   *
+   * Since 2026-11-09 a host's own event can carry member prices for the
+   * community it is submitted to; pass `memberPricingScope="seller"` with it.
    */
   showMemberPricing?: boolean;
+  /** Whose member prices the tier editor sets; see PriceEditModal. Default "community". */
+  memberPricingScope?: MemberPricingScope;
   /**
    * Lets the host app hand this form a USER-scoped Stripe-readiness answer it
    * already computed, instead of trusting the internal `useStripeStatus`
@@ -408,7 +414,7 @@ export type { EventFormProps };
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false, stripeStatusOverride, houseRefundBands, houseRefundTitle }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false, memberPricingScope = "community", stripeStatusOverride, houseRefundBands, houseRefundTitle }: EventFormProps) {
   // Which part of the form this render shows. Default "all" → all true, so the
   // one-page consumers (manage/edit drawer, admin single-page) are unchanged.
   // The wizard splits across pages: "listing", "commerce" (tickets + donations +
@@ -1969,10 +1975,11 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
            */
           showToast={(msg) => console.warn("[EventForm tier modal]", msg)}
           draftMode
-          // Community-owned events surface member (tier) pricing in the create
-          // wizard; the overrides ride the create-event payload. Off for member
-          // submissions (they can't set community pricing).
+          // Member (tier) pricing in the create wizard; the overrides ride the
+          // create-event payload. Community-owned events as before, and since
+          // 2026-11-09 a host's own submission (memberPricingScope "seller").
           showMemberPricing={showMemberPricing}
+          memberPricingScope={memberPricingScope}
           initialDraftTiers={tiersToDrafts(pendingNewTier ? [...tiers, pendingNewTier] : tiers)}
           openTierLocalId={editTierLocalId}
           onDraftCommit={handleTiersCommit}

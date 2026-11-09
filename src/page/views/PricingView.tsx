@@ -65,6 +65,14 @@ export interface PricingViewProps {
   /** Refetch the event after a write, so cards reflect what was saved. */
   onUpdate: () => void;
   showToast: (msg: string) => void;
+  /**
+   * True when this is the host's OWN event (no owning community) with an
+   * open submission (pending, live or paused) in `communityTag`. The host
+   * app knows the listing status; the event payload here does not carry it.
+   * Turns on the seller's member pricing (memberPricingScope "seller").
+   * See docs/features/user-owned-member-pricing.md in the backend repo.
+   */
+  sellerMemberPricing?: boolean;
 }
 
 /** One fact-strip cell. Always rendered, even when unset, so a host
@@ -87,6 +95,7 @@ export function PricingView({
   eventId,
   onUpdate,
   showToast,
+  sellerMemberPricing,
 }: PricingViewProps) {
   /** Which tier's editor is open: a tier id, "__new__", or null. */
   const [editingTier, setEditingTier] = useState<string | null>(null);
@@ -312,11 +321,12 @@ export function PricingView({
              opens it, which is what the wizard's Add does. */
           openTierLocalId={editingTier === "__new__" ? undefined : editingTier}
           openNewTier={editingTier === "__new__"}
-          /* Member pricing is community-owned-only: segments are
-             community-scoped and MemberPricingService rejects overrides on a
-             personal event. Gated on ownership, exactly as DetailsView does,
-             because this view is shared between both host apps. */
-          showMemberPricing={!!event?.communityId}
+          /* Member pricing: a community-owned event (the leaders' prices),
+             or the host's own event with an open submission here (their
+             discount for this community's members, see sellerMemberPricing).
+             Same gate as DetailsView; this view is shared by both host apps. */
+          showMemberPricing={!!event?.communityId || !!sellerMemberPricing}
+          memberPricingScope={event?.communityId ? "community" : "seller"}
         />
       )}
     </div>
