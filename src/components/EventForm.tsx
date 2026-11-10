@@ -17,8 +17,10 @@ import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
   Users, Image as ImageIcon, X,
   Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
-  PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield, ListChecks, CalendarClock,
+  PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield, ListChecks, CalendarClock, BadgePercent,
 } from "lucide-react";
+import { memberPricingSummary, ticketTakesMemberPricing } from "./memberPricesRow";
+import type { CommunitySegment } from "./PriceEditModal/member-pricing";
 import { PriceEditModal } from "./PriceEditModal";
 import type { MemberPricingScope } from "./MemberPricingSection";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -731,11 +733,36 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   }
 
   /** Open the per-tier edit screen for an existing tier (edit) or a freshly
-   *  appended blank tier (add). Ungated, per openTierModal above. */
-  function openTierEditor(localId: string) {
+   *  appended blank tier (add). Ungated, per openTierModal above.
+   *  `atMemberPricing`: scrolled to its Member pricing section (the step's
+   *  "Member prices" row) rather than the top. */
+  const [focusMemberPricing, setFocusMemberPricing] = useState(false);
+  function openTierEditor(localId: string, atMemberPricing = false) {
     setEditTierLocalId(localId);
+    setFocusMemberPricing(atMemberPricing);
     setShowTierModal(true);
   }
+
+  /*
+   * The community's tiers, for the "Member prices" row: it shows only when
+   * there is a tier to price for, and names them in its summary. The same
+   * read the ticket editor makes (a host's own submission reads the
+   * community's public tiers; a leader, its own list).
+   */
+  const { apiBaseUrl: memberPricingApiBase, authHeaders: memberPricingAuthHeaders } = useEventManagementConfig();
+  const [pricingSegments, setPricingSegments] = useState<CommunitySegment[]>([]);
+  useEffect(() => {
+    if (!showMemberPricing || !communityTag) return;
+    if (!(page === "all" || page === "commerce")) return;
+    let cancelled = false;
+    const path = memberPricingScope === "seller" ? "member-pricing/segments" : "segments";
+    fetch(`${memberPricingApiBase}/api/communities/${encodeURIComponent(communityTag)}/${path}`, { headers: memberPricingAuthHeaders() })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => { if (!cancelled && Array.isArray(d)) setPricingSegments(d); })
+      .catch(() => { /* no row is the safe fallback: the editor still has the section */ });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMemberPricing, communityTag, page, memberPricingScope, memberPricingApiBase]);
   /**
    * A tier being added but not yet committed.
    *
@@ -770,6 +797,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     setShowTierModal(false);
     setPendingNewTier(null);
     setEditTierLocalId(undefined);
+    setFocusMemberPricing(false);
   }
 
   function handleTiersCommit({ tiers: drafts }: { tiers: DraftTier[]; donation: DonationDraft }) {
@@ -1495,6 +1523,43 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               {tf("addTicketTier")}
             </button>
+
+            {/* ── Member prices ── on the step itself (2026-11-10: sellers
+                never found member pricing at the bottom of each ticket's
+                editor). One row per ticket that charges; each opens that
+                ticket's editor AT its Member pricing section. Shown only
+                when the community has a tier to price for. */}
+            {(() => {
+              const priced = tiers.filter((t) => t.name.trim() && ticketTakesMemberPricing(t));
+              if (!showMemberPricing || pricingSegments.length === 0 || priced.length === 0) return null;
+              return (
+                <div className="mt-3 rounded-2xl bg-zinc-50 overflow-hidden divide-y divide-zinc-100">
+                  {priced.map((t) => {
+                    const summary = memberPricingSummary(t, pricingSegments);
+                    const title = priced.length > 1
+                      ? tf("memberPricesFor", { tier: t.name.trim() })
+                      : summary ? tf("memberPrices") : tf("addMemberPrices");
+                    return (
+                      <button key={t.localId} type="button" onClick={() => openTierEditor(t.localId, true)}
+                        className="group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-zinc-100 cursor-pointer">
+                        {summary ? (
+                          <span className="flex items-center justify-center w-[30px] h-[30px] rounded-full text-white shrink-0" style={{ background: "var(--brand-color, #18181b)" }}><Check className="h-4 w-4" strokeWidth={3.5} /></span>
+                        ) : (
+                          <span className="flex items-center justify-center w-[30px] h-[30px] rounded-full bg-amber-100 text-amber-600 shrink-0"><BadgePercent className="h-4 w-4" /></span>
+                        )}
+                        <span className="flex-1 min-w-0">
+                          <span className={`block text-sm truncate ${summary ? "font-medium text-zinc-800" : "text-zinc-500"}`}>{title}</span>
+                          <span className={`block text-[12.5px] truncate ${summary ? "text-zinc-500" : "text-zinc-400"}`}>
+                            {summary ?? (memberPricingScope === "seller" ? tf("memberPricesHintSeller") : tf("memberPricesHintCommunity"))}
+                          </span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
         </div>
 
       {/* ─── Donations ─── listing-level; its own row that opens a modal
@@ -2050,6 +2115,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           memberPricingScope={memberPricingScope}
           initialDraftTiers={tiersToDrafts(pendingNewTier ? [...tiers, pendingNewTier] : tiers)}
           openTierLocalId={editTierLocalId}
+          focusMemberPricing={focusMemberPricing}
           onDraftCommit={handleTiersCommit}
         />
       )}
