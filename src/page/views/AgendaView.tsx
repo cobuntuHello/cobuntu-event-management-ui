@@ -146,6 +146,8 @@ interface Props {
 export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
   const tr = useEventT("eventsUi.manageUi.agendaView");
   const tc = useEventT("eventsUi.manageUi.overviewCommon");
+  // "Date to be announced" (T-320): no day to put agenda times on yet.
+  const hasDate = !!event?.startDate;
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -237,6 +239,10 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
 
   async function handleSave() {
     if (!title.trim() || !event) return;
+    // T-320: times are anchored to the event's day; without one they would land
+    // on 1 January 1970. Covers editing an item kept from before the dates
+    // were cleared, which the hidden "Add item" button does not.
+    if (!hasDate) { showToast(tr("needDate")); return; }
     // Say what is wrong before asking the server, which would refuse it
     // anyway (PBN, Bug 2b: the refusal used to surface as "Failed to add").
     const problem = timesProblem();
@@ -367,11 +373,19 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
           <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>{tr("title")}</h2>
           <p className="text-[12px] mt-0.5" style={muted(0.5)}>{tr("subtitle")}</p>
         </div>
-        {editingId !== "new" && (
+        {editingId !== "new" && hasDate && (
           <button onClick={openAdd} className="px-4 py-2 text-[13px] font-medium cursor-pointer hover:opacity-90"
             style={{ background: theme.brand, color: theme.onBrand, borderRadius: theme.buttonRadius }}>{tr("addItem")}</button>
         )}
       </div>
+
+      {/* T-320: agenda items are times ON the event's day, so a "Date to be
+          announced" event has nowhere to put them (saving used to anchor them
+          to 1 January 1970). Adding waits for a date; existing items still
+          show below. */}
+      {!hasDate && (
+        <p className="text-[13px] mb-4" style={muted(0.6)}>{tr("needDate")}</p>
+      )}
 
       {/* Card. The redundant "Event Schedule (N items)" sub-header that
           used to live inside this card was dropped — the section header

@@ -554,8 +554,11 @@ function WizardInner({
     if (!d || !d.name.trim()) return t("eventNameRequired");
     // The API rejects a name over LISTING_NAME_MAX; say so before the last step.
     if (listingNameTooLong(d.name)) return t("errNameTooLong", { max: LISTING_NAME_MAX });
-    if (!d.startDate) return t("startDateRequired");
-    if (!d.endDate) return t("endDateRequired");
+    // "Date to be announced" (T-320) is a complete answer, not a missing one.
+    if (!d.dateTba) {
+      if (!d.startDate) return t("startDateRequired");
+      if (!d.endDate) return t("endDateRequired");
+    }
     return null;
   }
 
@@ -570,19 +573,27 @@ function WizardInner({
    * own visibility is hidden, so its values are untouched defaults).
    */
   function buildBody(d: EventFormData): Record<string, unknown> {
-    const sd = new Date(d.startDate!);
-    const [sh, sm] = d.startTime.split(":").map(Number);
-    sd.setHours(sh, sm, 0, 0);
-    const ed = new Date(d.endDate!);
-    const [eh, em] = d.endTime.split(":").map(Number);
-    ed.setHours(eh, em, 0, 0);
+    /*
+     * "Date to be announced" (T-320): no dates at all, omitted rather than
+     * null (create stores an absent date as null). The timezone still goes:
+     * the server requires one on every non-draft event, dated or not.
+     */
+    let schedule: { startDate?: string; endDate?: string } = {};
+    if (!d.dateTba) {
+      const sd = new Date(d.startDate!);
+      const [sh, sm] = d.startTime.split(":").map(Number);
+      sd.setHours(sh, sm, 0, 0);
+      const ed = new Date(d.endDate!);
+      const [eh, em] = d.endTime.split(":").map(Number);
+      ed.setHours(eh, em, 0, 0);
+      schedule = { startDate: sd.toISOString(), endDate: ed.toISOString() };
+    }
 
     return {
       name: d.name.trim(),
       description: d.description.trim() || undefined,
       bannerUrl: d.bannerUrl || undefined,
-      startDate: sd.toISOString(),
-      endDate: ed.toISOString(),
+      ...schedule,
       timezone: d.timezone,
       physicalLocation: d.physicalLocation.trim() || undefined,
       // The map pin, omitted rather than null when there is none.

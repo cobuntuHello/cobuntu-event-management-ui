@@ -171,6 +171,34 @@ describe("transport", () => {
     expect(navigate).toHaveBeenCalledWith("/events/supper-club");
   });
 
+  /*
+   * T-320. "Date to be announced" is a complete answer on the details step:
+   * no date errors, and the create carries NO dates (omitted, not null, so
+   * the server stores the event dateless) but keeps the timezone, which the
+   * server requires of every non-draft event.
+   */
+  it("creates a Date to be announced event with no dates and its timezone", async () => {
+    h.fake = fake({ dateTba: true, startDate: null, endDate: null });
+    const { tr } = renderWizard({ initialDrafts: [], canCreateForCommunity: false });
+    await screen.findByTestId("event-form");
+    walk();
+    press("Create & Request Listing");
+    await waitFor(() => expect(tr.createEvent).toHaveBeenCalledTimes(1));
+    const body = (tr.createEvent as any).mock.calls[0][0];
+    expect(body).not.toHaveProperty("startDate");
+    expect(body).not.toHaveProperty("endDate");
+    expect(body.timezone).toBe("Europe/Lisbon");
+  });
+
+  it("still requires both dates when Date to be announced is off", async () => {
+    h.fake = fake({ dateTba: false, startDate: null, endDate: null });
+    const { tr } = renderWizard({ initialDrafts: [], canCreateForCommunity: false });
+    await screen.findByTestId("event-form");
+    walk();
+    expect(tr.createEvent).not.toHaveBeenCalled();
+    expect(screen.getAllByText("Start date is required").length).toBeGreaterThan(0);
+  });
+
   it("a STRIPE_REQUIRED result shows the Stripe notice with the host's connect link", async () => {
     renderWizard({
       initialDrafts: [], canCreateForCommunity: false,

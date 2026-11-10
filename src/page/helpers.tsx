@@ -133,9 +133,12 @@ export function getEventStatus(event: any) {
   // prices. Mirror the BE check here so the UI gates the Publish
   // CTA upfront. RSVP-only events (no tiers at all) are not
   // affected — they're free + always publishable.
+  //
+  // Dated events only (T-320): the server exempts a "Date to be announced"
+  // event from the tier requirement, because it sells nothing until dated.
   const tiers: any[] = Array.isArray(event?.tiers) ? event.tiers : [];
   const activeTiers = tiers.filter((t: any) => !t.archivedAt);
-  if (activeTiers.length > 0 && !activeTiers.some((t: any) => t.publishedAt)) {
+  if (startDate && activeTiers.length > 0 && !activeTiers.some((t: any) => t.publishedAt)) {
     missingRequirements.push("publish at least one ticket tier");
   }
 

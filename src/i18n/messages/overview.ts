@@ -290,7 +290,7 @@ export const OVERVIEW_MESSAGES_EN = {
         notSet: "Not set",
         locationNeverSet: "Location was never set",
         locationTba: "Location to be announced",
-        noDate: "No date set",
+        noDate: "Date to be announced", // T-320: the one label for an undated event
         live: "Live",
         ended: "Ended",
         tags: "Tags",
@@ -354,6 +354,8 @@ export const OVERVIEW_MESSAGES_EN = {
         imageTitle: "Event Image",
       },
       agendaView: {
+        // T-320: shown instead of "Add item" while the event has no date.
+        needDate: "Set the event's date to build its agenda.",
         added: "Added",
         failedToAdd: "Failed to add",
         outsideEvent: "Agenda items have to fit inside the event, between {start} and {end}. Shorten the item or change the event's times.",

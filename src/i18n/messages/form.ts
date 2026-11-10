@@ -49,6 +49,9 @@ export const FORM_MESSAGES_EN = {
         framePhoto: "Frame your photo",
         businessModelTitle: "Configure your event's business model",
         businessModelBody: "Choose how people can get access. You can change these later.",
+        // T-320: shown on the pricing step while "Date to be announced" is on.
+        tbaTicketsTitle: "Tickets open once you set a date",
+        tbaTicketsBody: "You can set up tickets now. Nobody can buy one or sign up until the event has a date.",
         presetFreeTitle: "Free entry",
         presetFreeBody: "Anyone who can see the event can RSVP, no approval needed.",
         presetPaidTitle: "Paid entry",
@@ -187,6 +190,9 @@ export const FORM_MESSAGES_EN = {
         invalidUrl: "Invalid URL format",
       },
       eventTimestamps: {
+        // T-320: a dateless event is display only until it has a date.
+        tbaLabel: "Date to be announced",
+        tbaHint: "The event shows \"Date to be announced\". Nobody can sign up or buy a ticket until you set a date.",
         selectDate: "Select date",
         select: "Select",
         start: "Start",
