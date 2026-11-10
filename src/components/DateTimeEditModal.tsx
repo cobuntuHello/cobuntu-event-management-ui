@@ -133,18 +133,25 @@ export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showT
   const [endTime, setEndTime] = useState(formatTimeInTimezone(event.endDate, tz));
   const [timezone, setTimezone] = useState(tz);
   const [saving, setSaving] = useState(false);
+  // "Date to be announced" (T-320): on when the event has no start date yet.
+  const [tba, setTba] = useState<boolean>(!event.startDate);
 
   async function save() {
-    if (!startDate || !endDate) return;
+    if (!tba && (!startDate || !endDate)) return;
     setSaving(true);
     try {
-      const startDateUTC = dateTimeToUTC(startDate, startTime, timezone);
-      const endDateUTC = dateTimeToUTC(endDate, endTime, timezone);
-      await updateEvent(communityTag, event.id, {
-        startDate: startDateUTC,
-        endDate: endDateUTC,
-        timezone,
-      });
+      /*
+       * BOTH dates as null is the server's "clear the schedule" signal; a single
+       * null still means "no change" there. The server refuses the clear while
+       * anyone but a host holds a place, and that message is shown as-is.
+       */
+      const schedule = tba
+        ? { startDate: null, endDate: null }
+        : {
+            startDate: dateTimeToUTC(startDate!, startTime, timezone),
+            endDate: dateTimeToUTC(endDate!, endTime, timezone),
+          };
+      await updateEvent(communityTag, event.id, { ...schedule, timezone });
       showToast(t("updated"));
       onSaved();
     } catch (err: any) {
@@ -168,12 +175,14 @@ export function DateTimeEditModal({ event, communityTag, onClose, onSaved, showT
         onStartTimeChange={setStartTime}
         onEndTimeChange={setEndTime}
         onTimezoneChange={setTimezone}
+        tba={tba}
+        onTbaChange={setTba}
       />
       <div className="flex justify-end gap-2 mt-5">
         <button onClick={onClose} className="px-4 py-2 text-[13px] text-zinc-500 rounded-lg hover:bg-zinc-100 cursor-pointer">{tc("cancel")}</button>
         <button
           onClick={save}
-          disabled={saving || !startDate || !endDate}
+          disabled={saving || (!tba && (!startDate || !endDate))}
           className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer"
         >
           {saving ? tc("savingDots") : tc("save")}

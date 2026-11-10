@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { CalendarClock } from "lucide-react";
 import { formatEventDate, formatEventTime, getTimezoneAbbr, PencilIcon, missingRequirementLabel } from "../helpers";
 import { useEventT } from "../../create-wizard/i18n";
 import { EventBannerPlaceholder } from "../../ui/event-banner-placeholder";
@@ -137,16 +138,24 @@ export function EventCard({
             <InfoRow onClick={!isPast ? onEditDateTime : undefined} disabled={isPast}
               customIcon={
                 <div className="shrink-0 w-11 h-11 rounded-lg border border-zinc-200 overflow-hidden flex flex-col relative">
-                  <div className="flex flex-col w-full h-full group-hover:opacity-0 transition-opacity">
-                    <div className="bg-zinc-100 px-1.5 py-0.5 flex items-center justify-center">
-                      <span className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
-                        {startDate ? startDate.toLocaleDateString("en-US", { month: "short" }) : "---"}
-                      </span>
+                  {startDate ? (
+                    <div className="flex flex-col w-full h-full group-hover:opacity-0 transition-opacity">
+                      <div className="bg-zinc-100 px-1.5 py-0.5 flex items-center justify-center">
+                        <span className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
+                          {startDate.toLocaleDateString("en-US", { month: "short" })}
+                        </span>
+                      </div>
+                      <div className="flex-1 flex items-center justify-center bg-white">
+                        <span className="text-lg font-bold text-zinc-900 leading-none">{startDate.getDate()}</span>
+                      </div>
                     </div>
-                    <div className="flex-1 flex items-center justify-center bg-white">
-                      <span className="text-lg font-bold text-zinc-900 leading-none">{startDate ? startDate.getDate() : "?"}</span>
+                  ) : (
+                    /* "Date to be announced" (T-320): an icon, not "---" over
+                       "?", which read as a broken badge on a normal state. */
+                    <div className="flex w-full h-full items-center justify-center bg-white group-hover:opacity-0 transition-opacity">
+                      <CalendarClock className="h-5 w-5 text-zinc-400" strokeWidth={2} />
                     </div>
-                  </div>
+                  )}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-100"><PencilIcon /></div>
                 </div>
               }>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Globe, Search, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { Button } from "./button";
+import { Switch } from "./switch";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Calendar } from "./calendar";
 import { cn } from "./utils";
@@ -34,6 +35,16 @@ interface EventTimestampsProps {
    * render this on white, where a bordered control is the right call.
    */
   flat?: boolean;
+  /**
+   * "Date to be announced" (T-320). Opt-in: pass `onTbaChange` and a switch
+   * appears under the pickers. While `tba` is on, the pickers are hidden and a
+   * note says the event is display only until it has a date (the server
+   * refuses every place on a dateless event, EVENT_NOT_SCHEDULED). The caller
+   * decides what "on" sends: the create wizard omits both dates, the manage
+   * modal sends both as null.
+   */
+  tba?: boolean;
+  onTbaChange?: (tba: boolean) => void;
 }
 
 // 30-min time slots
@@ -71,7 +82,7 @@ const TIMEZONE_OPTIONS = [
 export function EventTimestamps({
   startDate, endDate, startTime, endTime, timezone,
   onStartDateChange, onEndDateChange, onStartTimeChange, onEndTimeChange, onTimezoneChange,
-  className, disabled = false, errors, flat = false,
+  className, disabled = false, errors, flat = false, tba = false, onTbaChange,
 }: EventTimestampsProps) {
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
   const [isEndDateOpen, setIsEndDateOpen] = useState(false);
@@ -165,6 +176,7 @@ export function EventTimestamps({
           line under the date/time inputs. Desktop's single-row layout is
           the target on every width now; the trigger widths/gaps below
           shrink responsively instead so the row actually fits a phone. */}
+      {!tba && (
       <div className="flex flex-row items-start gap-1.5 sm:gap-3">
         {/* Date/Time Inputs */}
         <div className="flex flex-col gap-2 sm:gap-2 flex-grow min-w-0 sm:w-auto">
@@ -304,6 +316,20 @@ export function EventTimestamps({
           </PopoverContent>
         </Popover>
       </div>
+      )}
+
+      {/* "Date to be announced" (T-320). A label wrapping the switch, so the
+          whole row is the tap target; the note only shows while it is on,
+          because that is when it is true. */}
+      {onTbaChange && (
+        <div className={cn(!tba && "mt-2.5 pt-2.5")}>
+          <label className={cn("flex items-center justify-between gap-3 cursor-pointer select-none", disabled && "opacity-50 cursor-not-allowed")}>
+            <span className="text-sm font-medium text-zinc-700">{t("tbaLabel")}</span>
+            <Switch checked={tba} onCheckedChange={(v) => onTbaChange(!!v)} disabled={disabled} aria-label={t("tbaLabel")} />
+          </label>
+          {tba && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{t("tbaHint")}</p>}
+        </div>
+      )}
     </div>
   );
 }

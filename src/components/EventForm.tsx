@@ -17,7 +17,7 @@ import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
   Users, Image as ImageIcon, X,
   Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
-  PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield, ListChecks,
+  PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield, ListChecks, CalendarClock,
 } from "lucide-react";
 import { PriceEditModal } from "./PriceEditModal";
 import type { MemberPricingScope } from "./MemberPricingSection";
@@ -206,6 +206,13 @@ export interface EventFormData {
   bannerUrl: string;
   startDate: Date | null;
   endDate: Date | null;
+  /**
+   * "Date to be announced" (T-320). When true the host chose NOT to date the
+   * event yet: callers send no dates (the pickers keep their values only so
+   * switching back does not lose them). The server keeps a dateless event
+   * display only until a date is saved.
+   */
+  dateTba?: boolean;
   startTime: string;
   endTime: string;
   timezone: string;
@@ -446,6 +453,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [bannerUrl, setBannerUrl] = useState(initialData?.bannerUrl || "");
   const [startDate, setStartDate] = useState<Date | null>(initialData?.startDate || null);
   const [endDate, setEndDate] = useState<Date | null>(initialData?.endDate || null);
+  // T-320. Off unless the caller says so: a fresh form starts dated (today,
+  // pre-filled below) and the host opts in to "Date to be announced".
+  const [dateTba, setDateTba] = useState<boolean>(initialData?.dateTba === true);
   const [startTime, setStartTime] = useState(initialData?.startTime || "15:00");
   const [endTime, setEndTime] = useState(initialData?.endTime || "16:00");
   const [timezone, setTimezone] = useState(initialData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -878,7 +888,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   onChangeRef.current = onChange;
   useLayoutEffect(() => {
     onChangeRef.current?.({
-      name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
+      name, description, bannerUrl, startDate, endDate, dateTba, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
       // Phase 2: the full set. The flat fields above stay as the primary mirror.
       locations: locationsPayload,
@@ -912,7 +922,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
        */
       donation,
     });
-  }, [name, description, bannerUrl, startDate, endDate, startTime, endTime, timezone,
+  }, [name, description, bannerUrl, startDate, endDate, dateTba, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl, locationsPayload,
       viewAccess, buyAccess, requiresApproval, listed, refundPolicy, attendeeVisibility, locationVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation, valueLines]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1170,6 +1180,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
               onEndTimeChange={setEndTime}
               onTimezoneChange={setTimezone}
               errors={formErrors}
+              tba={dateTba}
+              onTbaChange={setDateTba}
             />
           </div>
 
@@ -1316,6 +1328,19 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           icon={<Wallet className="h-[12px] w-[12px]" strokeWidth={2.6} />}
           className="mb-3"
         />
+
+        {/* T-320: tickets can be prepared on a dateless event, but nothing
+            sells until it has a date. Said HERE, where the host sets prices,
+            so a "Date to be announced" event is never mistaken for one on
+            sale. */}
+        {dateTba && (
+          <InfoBanner
+            title={tf("tbaTicketsTitle")}
+            body={tf("tbaTicketsBody")}
+            icon={<CalendarClock className="h-[12px] w-[12px]" strokeWidth={2.6} />}
+            className="mb-3"
+          />
+        )}
 
         {/*
           ── Pricing presets ──────────────────────────────────────────────
