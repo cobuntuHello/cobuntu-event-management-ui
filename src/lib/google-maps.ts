@@ -44,10 +44,41 @@ const getApiKey = getGoogleMapsApiKey;
 
 export const isGoogleMapsConfigured = (): boolean => !!getApiKey();
 
+/**
+ * The Maps script, loaded once per page.
+ *
+ * Shared, and forgotten on failure. It used to be a fresh promise per call that
+ * appended ANOTHER <script> whenever `google.maps` was not there yet, so every
+ * keystroke typed while the script was still loading on a slow phone added a
+ * copy. A failed load is dropped from the cache so the next search tries again
+ * instead of failing for the rest of the page's life.
+ *
+ * A script another loader already put on the page (the map preview in
+ * styled-map.tsx, the host app's own map) is waited on rather than duplicated.
+ */
+let mapsScript: Promise<void> | null = null;
+
+const MAPS_LOAD_TIMEOUT_MS = 15_000;
+
 const loadGoogleMapsAPI = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") { reject(new Error("Server-side")); return; }
-    if ((window as any).google?.maps) { resolve(); return; }
+  if (typeof window === "undefined") return Promise.reject(new Error("Server-side"));
+  if ((window as any).google?.maps) return Promise.resolve();
+  if (mapsScript) return mapsScript;
+
+  mapsScript = new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("Google Maps API load timed out")), MAPS_LOAD_TIMEOUT_MS);
+    const done = () => { window.clearTimeout(timer); resolve(); };
+    const fail = () => { window.clearTimeout(timer); reject(new Error("Failed to load Google Maps API")); };
+
+    const existing = document.querySelector<HTMLScriptElement>('script[src*="maps.googleapis.com/maps/api/js"]');
+    if (existing) {
+      existing.addEventListener("load", done, { once: true });
+      existing.addEventListener("error", fail, { once: true });
+      // It may have finished between the check above and now.
+      if ((window as any).google?.maps) done();
+      return;
+    }
+
     const script = document.createElement("script");
     /*
      * `loading=async` is what Google asks for and what silences the
@@ -60,10 +91,45 @@ const loadGoogleMapsAPI = (): Promise<void> => {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${getApiKey()}&libraries=places&loading=async&v=weekly`;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps API"));
+    script.onload = done;
+    script.onerror = fail;
     document.head.appendChild(script);
-  });
+  }).catch((err) => { mapsScript = null; throw err; });
+
+  return mapsScript;
+};
+
+/**
+ * The Places library, READY, or null when it cannot be had.
+ *
+ * Why this exists (2026-11-10, a host on Pathseekers saw "Place search is
+ * unavailable right now" while Google recorded no failed request at all):
+ * the script's `onload` does not mean Places is ready.
+ *   - With `loading=async` the libraries arrive after the bootstrap, so a
+ *     search that ran right after `onload` (a slow phone, a fast typist)
+ *     found no `google.maps.places` and reported the search unavailable.
+ *   - The map preview (styled-map.tsx) loads the script WITHOUT `places`.
+ *     On a page that showed a map first, `google.maps` existed, the loader
+ *     returned at once, and Places was never loaded at all.
+ * `importLibrary("places")` loads the library on demand and resolves when it
+ * is usable, whichever way the script got onto the page. The short poll is
+ * for a bootstrap too old to have importLibrary.
+ */
+const loadPlacesLibrary = async (): Promise<any | null> => {
+  await loadGoogleMapsAPI();
+  const maps = (window as any).google?.maps;
+  if (typeof maps?.importLibrary === "function") {
+    try {
+      const lib = await maps.importLibrary("places");
+      return lib ?? maps.places ?? null;
+    } catch {
+      // Fall through to whatever the namespace already holds.
+    }
+  }
+  for (let i = 0; i < 20 && !(window as any).google?.maps?.places; i++) {
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return (window as any).google?.maps?.places ?? null;
 };
 
 const EXCLUDED_LOCATION_TYPES = ["country", "administrative_area_level_1", "administrative_area_level_2", "administrative_area_level_3", "colloquial_area"];
@@ -148,9 +214,8 @@ function fromPlacePrediction(p: any): LocationSuggestion {
  */
 export const searchLocations = async (query: string): Promise<LocationSuggestion[]> => {
   if (!isGoogleMapsConfigured() || !query.trim()) return [];
-  await loadGoogleMapsAPI();
-
-  const places = (window as any).google?.maps?.places;
+  // Ready, not merely "script loaded": see loadPlacesLibrary.
+  const places = await loadPlacesLibrary();
 
   // ── Preferred: Places API (New) ──
   if (places?.AutocompleteSuggestion?.fetchAutocompleteSuggestions) {
@@ -197,7 +262,8 @@ export const searchLocations = async (query: string): Promise<LocationSuggestion
 
 export const getLocationDetails = async (placeId: string): Promise<LocationDetails | null> => {
   if (!isGoogleMapsConfigured()) return null;
-  await loadGoogleMapsAPI();
+  const places = await loadPlacesLibrary().catch(() => null);
+  if (!places) return null;
 
   /*
    * The new Places API first, for the same reason autocomplete prefers it: a
@@ -207,7 +273,7 @@ export const getLocationDetails = async (placeId: string): Promise<LocationDetai
    * caller falls back to the typed address with no coordinates, which is the
    * documented degraded mode.
    */
-  const Place = (window as any).google?.maps?.places?.Place;
+  const Place = places.Place;
   if (Place) {
     try {
       const place = new Place({ id: placeId });
@@ -228,7 +294,7 @@ export const getLocationDetails = async (placeId: string): Promise<LocationDetai
     const div = document.createElement("div");
     div.style.display = "none";
     document.body.appendChild(div);
-    const service = new (window as any).google.maps.places.PlacesService(div);
+    const service = new places.PlacesService(div);
     return new Promise((resolve, reject) => {
       service.getDetails({ placeId, fields: ["place_id", "formatted_address", "name", "geometry", "types"] }, (place: any, status: string) => {
         document.body.removeChild(div);
