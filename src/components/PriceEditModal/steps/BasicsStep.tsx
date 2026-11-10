@@ -298,7 +298,9 @@ export function BasicsStep({
       {/* Member pricing — community-only per-segment discount overrides.
           Folded in here so this step owns ALL pricing config. */}
       {showMemberPricing && (
-        <div className="pt-3 border-t border-zinc-100">
+        /* data-member-pricing-anchor: where PriceEditModal's
+           focusMemberPricing scrolls to (the wizard's "Member prices" row). */
+        <div className="pt-3 border-t border-zinc-100 scroll-mt-4" data-member-pricing-anchor="">
           <MembersStep
             t={t}
             memberPricingState={memberPricingState}

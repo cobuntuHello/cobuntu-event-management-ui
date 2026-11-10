@@ -178,6 +178,13 @@ export interface PriceEditModalProps {
    * untouched blank was never persisted.
    */
   openNewTier?: boolean;
+  /**
+   * With `openTierLocalId`: open that ticket's editor scrolled to its Member
+   * pricing section instead of the top. The create wizard's "Member prices"
+   * row uses it; the section sits below the price and billing setup, where
+   * hosts never found it.
+   */
+  focusMemberPricing?: boolean;
 }
 
 export function PriceEditModal({
@@ -194,6 +201,7 @@ export function PriceEditModal({
   onDraftCommit,
   openTierLocalId,
   openNewTier,
+  focusMemberPricing,
 }: PriceEditModalProps) {
   // `t` names a tier draft throughout this file, so the translator is `tx`.
   const tx = useEventT("eventsUi.manageUi.priceEditModal");
@@ -286,6 +294,26 @@ export function PriceEditModal({
   // map below keyed by tier id.
   const [memberPricingSegments, setMemberPricingSegments] = useState<CommunitySegment[]>([]);
   const [memberPricingByTier, setMemberPricingByTier] = useState<Map<string, MemberPricingTierState>>(new Map());
+
+  /*
+   * focusMemberPricing: once the ticket's edit screen is up AND its Member
+   * pricing section has rendered (it needs the community's tiers and the
+   * ticket's rows), scroll it to the top of the modal. Once per opening; the
+   * effect re-runs as those arrive and stops as soon as the section is found.
+   */
+  const focusedMemberPricingRef = useRef(false);
+  useEffect(() => {
+    if (!focusMemberPricing || focusedMemberPricingRef.current) return;
+    if (!activeTier || memberPricingSegments.length === 0) return;
+    const timer = window.setTimeout(() => {
+      const section = document.querySelector("[data-member-pricing-anchor]");
+      if (section) {
+        focusedMemberPricingRef.current = true;
+        section.scrollIntoView({ block: "start", behavior: "smooth" });
+      }
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [focusMemberPricing, activeTier, memberPricingSegments.length, memberPricingByTier]);
 
   // Key the per-tier member-pricing map by the tier's server id on the manage
   // page, but by its localId in draftMode — a draft tier has no server id yet,

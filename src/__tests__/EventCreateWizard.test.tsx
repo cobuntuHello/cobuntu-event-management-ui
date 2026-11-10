@@ -172,6 +172,33 @@ describe("transport", () => {
   });
 
   /*
+   * "What buyers get" (value lines). The form collected them on the create
+   * screen, but buildBody's list never sent them, so lines added while
+   * creating an event were lost on save (found 2026-11-10).
+   */
+  it("sends what buyers get, added while creating", async () => {
+    h.fake = fake({ valueLines: [{ label: "Keynotes", value: 12000 }, { label: "Brunch", value: 6000 }] });
+    const { tr } = renderWizard({ initialDrafts: [], canCreateForCommunity: false });
+    await screen.findByTestId("event-form");
+    walk();
+    press("Create & Request Listing");
+    await waitFor(() => expect(tr.createEvent).toHaveBeenCalledTimes(1));
+    expect((tr.createEvent as any).mock.calls[0][0].valueLines).toEqual([
+      { label: "Keynotes", value: 12000 }, { label: "Brunch", value: 6000 },
+    ]);
+  });
+
+  it("sends no valueLines when none were added", async () => {
+    h.fake = fake({ valueLines: [] });
+    const { tr } = renderWizard({ initialDrafts: [], canCreateForCommunity: false });
+    await screen.findByTestId("event-form");
+    walk();
+    press("Create & Request Listing");
+    await waitFor(() => expect(tr.createEvent).toHaveBeenCalledTimes(1));
+    expect((tr.createEvent as any).mock.calls[0][0]).not.toHaveProperty("valueLines");
+  });
+
+  /*
    * T-320. "Date to be announced" is a complete answer on the details step:
    * no date errors, and the create carries NO dates (omitted, not null, so
    * the server stores the event dateless) but keeps the timezone, which the

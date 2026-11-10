@@ -625,6 +625,11 @@ function WizardInner({
       categoryId: d.categoryId || undefined,
       subCategoryId: d.subCategoryId || undefined,
       tagIds: d.tags.map((tag) => tag.id),
+      // "What buyers get" (value lines, PBN feedback L2). The form collected
+      // them on the create screen but this list never sent them, so lines
+      // added while creating were lost on save (found 2026-11-10). Omitted
+      // when empty, like the form's own emit.
+      ...(d.valueLines && d.valueLines.length > 0 ? { valueLines: d.valueLines } : {}),
       communityOwnership: effectiveOwnership === "community",
       ownership: effectiveOwnership,
       communityId,
