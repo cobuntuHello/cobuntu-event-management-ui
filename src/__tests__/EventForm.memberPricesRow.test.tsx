@@ -26,7 +26,7 @@ const ticket = (o: Partial<TierItem> = {}): TierItem => ({
 function setup(tiers: TierItem[], { segments = SEGMENTS, scope = "seller" as "seller" | "community" } = {}) {
   const fetchSpy = mockFetch([
     { url: /\/stripe\/connected/, body: { connected: true } },
-    { url: /\/(member-pricing\/)?segments$/, body: segments },
+    { url: /\/member-pricing\/segments(\?scope=community)?$/, body: segments },
   ]);
   renderWithConfig(
     <EventForm communityTag="pbn" page="commerce" showMemberPricing memberPricingScope={scope}
@@ -86,11 +86,11 @@ describe("EventForm — Member prices row", () => {
     expect(screen.queryByText("Add member prices")).not.toBeInTheDocument();
   });
 
-  it("a leader's community-owned event reads the community's own tier list", async () => {
+  it("a leader's community-owned event reads every tier with scope=community, not the leaders' admin list", async () => {
     const fetchSpy = setup([ticket()], { scope: "community" });
     await screen.findByText("Add member prices");
     const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => u.endsWith("/api/communities/pbn/segments"))).toBe(true);
-    expect(urls.some((u) => u.includes("member-pricing/segments"))).toBe(false);
+    expect(urls.some((u) => u.endsWith("/api/communities/pbn/member-pricing/segments?scope=community"))).toBe(true);
+    expect(urls.some((u) => u.endsWith("/api/communities/pbn/segments"))).toBe(false);
   });
 });

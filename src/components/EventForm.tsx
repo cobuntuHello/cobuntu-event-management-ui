@@ -20,7 +20,8 @@ import {
   PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield, ListChecks, CalendarClock, BadgePercent,
 } from "lucide-react";
 import { memberPricingSummary, ticketTakesMemberPricing } from "./memberPricesRow";
-import type { CommunitySegment } from "./PriceEditModal/member-pricing";
+import { buildRowsFromOverrides, buildUpsertBody, type CommunitySegment, type MemberPricingRow } from "./PriceEditModal/member-pricing";
+import { MemberPricesStep, memberPriceRowError, MEMBER_PRICES_NS, type MemberPricesSegmentsStatus } from "./MemberPricesStep";
 import { PriceEditModal } from "./PriceEditModal";
 import type { MemberPricingScope } from "./MemberPricingSection";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -61,6 +62,7 @@ import {
   sumValueLines,
   formatMoney,
   type ValueLine,
+  useSharedT,
 } from "@cobuntu/management-ui-shared";
 
 // ─── Currencies ────────────────────────────────────────────────
@@ -310,6 +312,12 @@ export interface EventFormData {
   buyTierIds: string[];
   tiers: TierItem[];
   /**
+   * The first problem with a member price on the "Member prices" step (a
+   * ticked tier with no amount, a percentage over 100), or null. Only ever set
+   * when `memberPricesStep` is on; the wizard refuses Next and submit on it.
+   */
+  memberPricingError?: string | null;
+  /**
    * Event-level donation sidecar (independent of tiers). Optional on the type
    * so consumers written before donations shipped still type-check. The
    * create flow does NOT accept a donationConfig inline (unlike products); the
@@ -397,7 +405,17 @@ interface EventFormProps {
    * (visibility) is unaffected — it stays gated by `hideVisibility` and, in the
    * wizard, lives on its own access step.
    */
-  page?: "listing" | "commerce" | "settings" | "all";
+  page?: "listing" | "commerce" | "settings" | "members" | "all";
+  /**
+   * The create wizard has a "Member prices" step of its own (the shared
+   * resolveCreateSteps' `withMembersStep`). On: `page="members"` renders it,
+   * and the two older ways in step aside so there is ONE place to set a member
+   * price while creating: the "Member prices" row under the tickets, and the
+   * member section inside each ticket's editor. Off (the default): unchanged,
+   * for hosts that have not added the step (the admin app). Mirrors
+   * ProductForm's prop of the same name.
+   */
+  memberPricesStep?: boolean;
   /**
    * Surfaces community member (tier) pricing inside the draftMode tier wizard
    * so per-segment discount overrides can be configured at CREATE time (they
@@ -433,7 +451,7 @@ export type { EventFormProps };
 
 // ─── Component ─────────────────────────────────────────────────
 
-export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false, memberPricingScope = "community", stripeStatusOverride, houseRefundBands, houseRefundTitle }: EventFormProps) {
+export function EventForm({ communityTag, initialData, onChange, showErrors, ownership, onOwnershipChange, communityName, communityIcon, userName, userAvatar, hideVisibility, categories, membershipTiers = [], initialViewTierIds, initialBuyTierIds, maxWidthClassName = "max-w-3xl", page = "all", showMemberPricing = false, memberPricingScope = "community", memberPricesStep = false, stripeStatusOverride, houseRefundBands, houseRefundTitle }: EventFormProps) {
   // Which part of the form this render shows. Default "all" → all true, so the
   // one-page consumers (manage/edit drawer, admin single-page) are unchanged.
   // The wizard splits across pages: "listing", "commerce" (tickets + donations +
@@ -750,19 +768,117 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    * community's public tiers; a leader, its own list).
    */
   const { apiBaseUrl: memberPricingApiBase, authHeaders: memberPricingAuthHeaders } = useEventManagementConfig();
+  /*
+   * A leader's list is `member-pricing/segments?scope=community`, NOT the
+   * leaders' `segments` route: that one is the tier ADMIN list and needs
+   * COMMUNITY_MANAGE_TIERS, while creating the event needs only EVENTS_CREATE,
+   * so a leader who could create it got a 403 here and member pricing hid
+   * itself without a word (Pathseekers, 2026-11-12).
+   *
+   * Read ONCE per community and scope rather than on every page switch, and
+   * with a status, so the "Member prices" step can tell "still loading" and
+   * "did not load" from "this community has no tiers".
+   */
   const [pricingSegments, setPricingSegments] = useState<CommunitySegment[]>([]);
+  const [segmentsStatus, setSegmentsStatus] = useState<MemberPricesSegmentsStatus>("loading");
+  const [segmentsReload, setSegmentsReload] = useState(0);
+  const fetchedSegmentsKey = useRef<string | null>(null);
+  const wantsSegments = !!showMemberPricing && !!communityTag
+    && (page === "all" || page === "commerce" || page === "members");
+  const segmentsKey = `${communityTag}|${memberPricingScope}|${segmentsReload}`;
   useEffect(() => {
-    if (!showMemberPricing || !communityTag) return;
-    if (!(page === "all" || page === "commerce")) return;
+    if (!wantsSegments || fetchedSegmentsKey.current === segmentsKey) return;
+    fetchedSegmentsKey.current = segmentsKey;
     let cancelled = false;
-    const path = memberPricingScope === "seller" ? "member-pricing/segments" : "segments";
+    let done = false;
+    setSegmentsStatus("loading");
+    const path = memberPricingScope === "seller"
+      ? "member-pricing/segments"
+      : "member-pricing/segments?scope=community";
     fetch(`${memberPricingApiBase}/api/communities/${encodeURIComponent(communityTag)}/${path}`, { headers: memberPricingAuthHeaders() })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => { if (!cancelled && Array.isArray(d)) setPricingSegments(d); })
-      .catch(() => { /* no row is the safe fallback: the editor still has the section */ });
-    return () => { cancelled = true; };
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => {
+        done = true;
+        if (cancelled) return;
+        setPricingSegments(Array.isArray(d) ? d : []);
+        setSegmentsStatus("ready");
+      })
+      .catch(() => {
+        done = true;
+        if (cancelled) return;
+        // Not remembered as fetched, so "Try again" (or coming back) re-reads.
+        fetchedSegmentsKey.current = null;
+        setSegmentsStatus("error");
+      });
+    return () => {
+      cancelled = true;
+      // Left mid-flight (a page switch): forget it, so the next visit reads again.
+      if (!done) fetchedSegmentsKey.current = null;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showMemberPricing, communityTag, page, memberPricingScope, memberPricingApiBase]);
+  }, [wantsSegments, segmentsKey, memberPricingApiBase]);
+
+  /*
+   * The "Member prices" step's rows, one list per ticket (keyed by localId),
+   * seeded from the ticket's own draftMemberPricing once the tiers are in.
+   *
+   * Kept here rather than in the step so they survive moving between steps,
+   * and kept apart from `tiers` because a row can be mid-edit and invalid (a
+   * ticked tier with no amount yet). Only a VALID set of rows is folded back
+   * into the ticket's draftMemberPricing, which is what the create payload
+   * carries; until then the ticket keeps its last valid member prices and
+   * `memberPricingError` holds the wizard on this step.
+   */
+  // The step's copy (shared.managementUi.memberPricesStep), translated by the host.
+  const tMP = useSharedT(MEMBER_PRICES_NS);
+  const [memberRowsByTier, setMemberRowsByTier] = useState<Map<string, MemberPricingRow[]>>(() => new Map());
+  useEffect(() => {
+    if (!memberPricesStep || segmentsStatus !== "ready" || pricingSegments.length === 0) return;
+    setMemberRowsByTier((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const t of tiers) {
+        if (next.has(t.localId)) continue;
+        next.set(t.localId, buildRowsFromOverrides(pricingSegments, t.draftMemberPricing ?? [], t.currency || "EUR"));
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [memberPricesStep, segmentsStatus, pricingSegments, tiers]);
+
+  const handleMemberRowChange = (localId: string, segmentId: string, patch: Partial<MemberPricingRow>) => {
+    const rows = memberRowsByTier.get(localId);
+    if (!rows) return;
+    const nextRows = rows.map((r) => (r.segmentId === segmentId ? { ...r, ...patch } : r));
+    setMemberRowsByTier((prev) => {
+      const next = new Map(prev);
+      next.set(localId, nextRows);
+      return next;
+    });
+    if (nextRows.some((r) => memberPriceRowError(r, tMP))) return;
+    setTiers((ts) => ts.map((t) => {
+      if (t.localId !== localId) return t;
+      // The same conversion the ticket editor's save uses (cents, whole percentages).
+      const folded = nextRows.filter((r) => r.enabled).map((r) => buildUpsertBody(r, t.currency || "EUR"));
+      return { ...t, draftMemberPricing: folded.length ? folded : null };
+    }));
+  };
+
+  /** The tickets the step lists: named, and charging (or PWYW). */
+  const memberPricedTickets = tiers.filter((t) => t.name.trim() && ticketTakesMemberPricing(t));
+
+  /** First problem on the step's visible tickets, or null (see EventFormData). */
+  const memberPricingError = useMemo(() => {
+    if (!memberPricesStep) return null;
+    for (const t of tiers) {
+      if (!t.name.trim() || !ticketTakesMemberPricing(t)) continue;
+      for (const r of memberRowsByTier.get(t.localId) ?? []) {
+        const e = memberPriceRowError(r, tMP);
+        if (e) return e;
+      }
+    }
+    return null;
+  }, [memberPricesStep, tiers, memberRowsByTier, tMP]);
   /**
    * A tier being added but not yet committed.
    *
@@ -910,7 +1026,18 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    * Still memoised (now effectively `tiers` itself) so the emit effect below
    * keeps a stable dependency rather than firing on every render.
    */
-  const submittableTiers = useMemo(() => tiers, [tiers]);
+  /*
+   * A ticket that stopped charging (set back to free after its member prices
+   * were set) is not listed on the "Member prices" step, so its rows could
+   * neither be seen nor removed there: dropped from the emitted tiers. Set a
+   * price again and they come back (state keeps them).
+   */
+  const submittableTiers = useMemo(
+    () => (memberPricesStep
+      ? tiers.map((t) => (t.draftMemberPricing && !ticketTakesMemberPricing(t) ? { ...t, draftMemberPricing: null } : t))
+      : tiers),
+    [tiers, memberPricesStep],
+  );
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -949,11 +1076,12 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
        * via donationDraftToPayload on the consumer side. Mirrors ProductForm.
        */
       donation,
+      memberPricingError,
     });
   }, [name, description, bannerUrl, startDate, endDate, dateTba, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl, locationsPayload,
       viewAccess, buyAccess, requiresApproval, listed, refundPolicy, attendeeVisibility, locationVisibility, submittableTiers, tags,
-      categoryId, subCategoryId, donation, valueLines]); // eslint-disable-line react-hooks/exhaustive-deps
+      categoryId, subCategoryId, donation, valueLines, memberPricingError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /*
    * ── Preset gate + derived highlight ───────────────────────────────────
@@ -1531,7 +1659,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 when the community has a tier to price for. */}
             {(() => {
               const priced = tiers.filter((t) => t.name.trim() && ticketTakesMemberPricing(t));
-              if (!showMemberPricing || pricingSegments.length === 0 || priced.length === 0) return null;
+              if (!showMemberPricing || memberPricesStep || pricingSegments.length === 0 || priced.length === 0) return null;
               return (
                 <div className="mt-3 rounded-2xl bg-zinc-50 overflow-hidden divide-y divide-zinc-100">
                   {priced.map((t) => {
@@ -2064,6 +2192,23 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       </div>
       )}
 
+      {/* ─── Member prices ─── the create wizard's own step (memberPricesStep).
+          See MemberPricesStep for why it is a step and not a row. */}
+      {page === "members" && memberPricesStep && (
+        <div className={`${maxWidthClassName} mt-8`}>
+          <MemberPricesStep
+            scope={memberPricingScope}
+            status={showMemberPricing ? segmentsStatus : "ready"}
+            segments={showMemberPricing ? pricingSegments : []}
+            tiers={memberPricedTickets}
+            rowsByTier={memberRowsByTier}
+            showErrors={!!showErrors}
+            onRowChange={handleMemberRowChange}
+            onRetry={() => setSegmentsReload((n) => n + 1)}
+          />
+        </div>
+      )}
+
       {/* ─── Description Editor Dialog ─── */}
       {/* The shared dialog (events, products and courses use the same one).
           It edits a draft, so Cancel now really discards: the old dialog wrote
@@ -2110,7 +2255,10 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           // Member (tier) pricing in the create wizard; the overrides ride the
           // create-event payload. Community-owned events as before, and since
           // 2026-11-09 a host's own submission (memberPricingScope "seller").
-          showMemberPricing={showMemberPricing}
+          // With the "Member prices" step on, the step is the one place to set
+          // them: the ticket editor's section steps aside (Save then leaves
+          // draftMemberPricing exactly as the step set it).
+          showMemberPricing={showMemberPricing && !memberPricesStep}
           memberPricingScope={memberPricingScope}
           initialDraftTiers={tiersToDrafts(pendingNewTier ? [...tiers, pendingNewTier] : tiers)}
           openTierLocalId={editTierLocalId}

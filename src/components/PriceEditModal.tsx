@@ -440,7 +440,14 @@ export function PriceEditModal({
       try {
         // A host can't read the leaders' list (COMMUNITY_MANAGE_TIERS), so a
         // seller's tiers come from the public-tiers route. See memberPricingScope.
-        const path = memberPricingScope === "seller" ? "member-pricing/segments" : "segments";
+        // A leader's come from the same route with scope=community: the
+        // leaders' `segments` list needs COMMUNITY_MANAGE_TIERS, which a leader
+        // who may create and price events (EVENTS_CREATE / MARKETPLACE_CREATE)
+        // often lacks, so the section said "No segments configured yet" to
+        // them (2026-11-12).
+        const path = memberPricingScope === "seller"
+          ? "member-pricing/segments"
+          : "member-pricing/segments?scope=community";
         const res = await fetch(
           `${apiBaseUrl}/api/communities/${communityTag}/${path}`,
           { headers: authHeaders() },

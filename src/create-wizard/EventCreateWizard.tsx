@@ -189,7 +189,7 @@ type InnerProps = Omit<EventCreateWizardProps, "initialDrafts" | "canCreateForCo
 };
 
 function WizardInner({
-  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep, disableNextOnInvalidExtraStep, ownershipMode = "choice",
+  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep, disableNextOnInvalidExtraStep, ownershipMode = "choice", withMemberPricesStep = false,
   isLeader: isLeaderHere, drafts: myDrafts, draftId, draftStepFromUrl,
   syncStepToUrl = true, onLocalResume,
 }: InnerProps) {
@@ -218,7 +218,7 @@ function WizardInner({
   const drafts = (draftId ? [] : myDrafts).filter((d) => !discarded.includes(d.id));
   const hasDrafts = !dismissedResume && drafts.length > 0;
 
-  const baseSteps = resolveCreateSteps({ canChooseOwnership: isLeaderHere, ownership: effectiveOwnership, hasPackages: packages.length > 0, packageCount: packages.length, hasDrafts, withCommerceStep: true, withSettingsStep: true });
+  const baseSteps = resolveCreateSteps({ canChooseOwnership: isLeaderHere, ownership: effectiveOwnership, hasPackages: packages.length > 0, packageCount: packages.length, hasDrafts, withCommerceStep: true, withSettingsStep: true, withMembersStep: withMemberPricesStep });
 
   /* ── Host-defined steps, after the last Cobuntu step and before submit ── */
   const extraIds = extraSteps.map((s) => s.id);
@@ -363,6 +363,7 @@ function WizardInner({
             ownership: leader ? owned : "personal",
             withCommerceStep: true,
             withSettingsStep: true,
+            withMembersStep: withMemberPricesStep,
           });
           const target = resumeStep(stepFromUrlRef.current ?? row.draftStep ?? null, steps);
           if (target) setStep(target);
@@ -679,6 +680,12 @@ function WizardInner({
      * reworded: there is no "need a configured tier" rule to express here,
      * because there isn't one.
      */
+    if (step === "members") {
+      // A ticked tier with no amount, or a percentage over 100 (EventForm's
+      // memberPricingError): the price would be refused, so stay and say which.
+      const mv = formDataRef.current?.memberPricingError;
+      if (mv) { setShowErrors(true); setError(mv); return; }
+    }
     if (currentExtra) {
       const v = validateExtra(currentExtra.id);
       if (v) { setExtraErrors((e) => ({ ...e, [currentExtra.id]: true })); setError(v); return; }
@@ -713,6 +720,12 @@ function WizardInner({
     if (v) {
       setShowErrors(true);
       if (d?.name?.trim()) setError(v);
+      return;
+    }
+    if (d?.memberPricingError && steps.includes("members")) {
+      setShowErrors(true);
+      setError(d.memberPricingError);
+      if (step !== "members") goToStep("members");
       return;
     }
     for (const s of extraSteps) {
@@ -924,14 +937,14 @@ function WizardInner({
           {/* Details + pricing + policies share ONE mounted EventForm; `page`
               flips the half that renders. A plain div, hidden when inactive,
               NOT a StepPane: unmounting would discard the form's own state. */}
-          <div className={step === "details" || step === "commerce" || step === "settings" ? "mt-2" : "hidden"}>
+          <div className={step === "details" || step === "commerce" || step === "members" || step === "settings" ? "mt-2" : "hidden"}>
             {draftPending ? (
               <p className="text-sm opacity-60">{t("draftOpening")}</p>
             ) : (
               <EventForm
                 /* Re-mounted when the draft lands: the form seeds from initialData once. */
                 key={draftRow?.id ?? "fresh"}
-                page={step === "commerce" ? "commerce" : step === "settings" ? "settings" : "listing"}
+                page={step === "commerce" ? "commerce" : step === "members" ? "members" : step === "settings" ? "settings" : "listing"}
                 membershipTiers={membershipTiers}
                 communityTag={communityTag}
                 categories={categories}
@@ -955,6 +968,10 @@ function WizardInner({
                    in the backend repo. */
                 showMemberPricing={effectiveOwnership === "community" || ownershipMode !== "personalOnly"}
                 memberPricingScope={effectiveOwnership === "community" ? "community" : "seller"}
+                /* Its own step when the host asked for it (withMemberPricesStep):
+                   the row under the tickets and the ticket editor's section
+                   then step aside, so there is one place to set member prices. */
+                memberPricesStep={withMemberPricesStep}
                 communityName={communityName}
                 initialData={draftInitial}
                 stripeStatusOverride={stripeStatusOverride}

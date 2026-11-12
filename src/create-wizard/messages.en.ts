@@ -41,6 +41,8 @@ export const EVENT_WIZARD_MESSAGES_EN = {
       "stepDetailsSubtitle": "When it happens, where it is, and how you describe it.",
       "stepCommerceTitle": "Pricing",
       "stepCommerceSubtitle": "Set your ticket tiers.",
+      "stepMembersTitle": "Member prices",
+      "stepMembersSubtitle": "Optional. Let members of {community} pay less than everyone else.",
       "stepSettingsTitle": "Policies & access",
       "stepSettingsSubtitle": "The optional extras: whether you approve people before they register.",
       "stepAccessTitle": "Who is this for?",
