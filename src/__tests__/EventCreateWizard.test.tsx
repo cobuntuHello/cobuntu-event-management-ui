@@ -355,6 +355,41 @@ describe("extra steps", () => {
   });
 });
 
+/*
+ * The "Member prices" step (2026-11-12): sellers missed member pricing in each
+ * ticket's editor and then as a row under the tickets, so the community app
+ * asks for a step of its own, right after Pricing. Opt-in per host.
+ */
+describe("withMemberPricesStep", () => {
+  it("adds Member prices right after Pricing", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, withMemberPricesStep: true });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Pricing", "Member prices", "Policies & access", "Commission"]);
+  });
+
+  it("is absent unless the host asks for it", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false });
+    await screen.findByTestId("event-form");
+    expect(walk()).not.toContain("Member prices");
+  });
+
+  it("hands the form its members page on that step, with the step switched on", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, withMemberPricesStep: true });
+    await screen.findByTestId("event-form");
+    walk();
+    expect(h.props.some((p) => p.page === "members" && p.memberPricesStep === true)).toBe(true);
+  });
+
+  it("holds Next on the step while a member price is invalid, and says which", async () => {
+    h.fake = fake({ memberPricingError: "Community: the discount must be a whole number from 1 to 100." });
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, withMemberPricesStep: true });
+    await screen.findByTestId("event-form");
+    const seen = walk();
+    expect(seen[seen.length - 1]).toBe("Member prices");
+    expect(screen.getByText("Community: the discount must be a whole number from 1 to 100.")).toBeInTheDocument();
+  });
+});
+
 describe("extraStepsAfter", () => {
   const extraSteps = [{ id: "about-you", label: "About you", title: "Tell us about you", render: () => <div /> }];
 

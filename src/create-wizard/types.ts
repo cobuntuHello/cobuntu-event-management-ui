@@ -296,6 +296,16 @@ export interface EventCreateWizardProps {
    * something rather than standing in for a removed control.
    */
   ownershipMode?: "choice" | "personalOnly";
+  /**
+   * Add the "Member prices" step right after Pricing: a lower price per
+   * membership tier on each ticket that charges (EventForm memberPricesStep).
+   *
+   * Opt-in so a host that has not asked for it (an embedded venue flow) keeps
+   * its steps exactly as they are. The community app turns it on: member
+   * pricing at the bottom of each ticket's editor, and then as a row under the
+   * tickets, were both missed by the sellers looking for it (2026-11-12).
+   */
+  withMemberPricesStep?: boolean;
   extraSteps?: EventCreateWizardExtraStep<any>[];
   /**
    * Where `extraSteps` go: right after this built-in step id (e.g. "details").

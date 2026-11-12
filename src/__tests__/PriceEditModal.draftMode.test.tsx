@@ -42,7 +42,7 @@ describe("PriceEditModal — draftMode", () => {
     // no id yet. Segments are community-wide and exist before the event, so
     // this one GET is expected — /tiers and /stripe still must not fire.
     const fetchFn = mockFetch([
-      { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: [] },
+      { method: "GET", url: /\/api\/communities\/c-1\/member-pricing\/segments\?scope=community$/, body: [] },
     ]);
     renderWithConfig(<PriceEditModal {...baseProps()} showMemberPricing />);
 
@@ -50,7 +50,7 @@ describe("PriceEditModal — draftMode", () => {
     await waitFor(() => expect(fetchFn).toHaveBeenCalled());
 
     const urls = fetchFn.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => /\/segments$/.test(u))).toBe(true);
+    expect(urls.some((u) => /\/member-pricing\/segments\?scope=community$/.test(u))).toBe(true);
     expect(urls.some((u) => /\/tiers$/.test(u))).toBe(false);
     expect(urls.some((u) => /\/stripe\/connected$/.test(u))).toBe(false);
   });
@@ -64,7 +64,7 @@ describe("PriceEditModal — draftMode", () => {
     const user = userEvent.setup();
     const onDraftCommit = vi.fn();
     mockFetch([
-      { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: [{ id: "seg-1", name: "VIPs" }] },
+      { method: "GET", url: /\/api\/communities\/c-1\/member-pricing\/segments\?scope=community$/, body: [{ id: "seg-1", name: "VIPs" }] },
     ]);
     renderWithConfig(
       <PriceEditModal

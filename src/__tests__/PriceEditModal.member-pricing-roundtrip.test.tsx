@@ -58,7 +58,7 @@ function stubLoadRoutes() {
       url: /\/api\/communities\/c-1\/stripe\/connected$/,
       body: { connected: true, chargesEnabled: true },
     },
-    { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: segments },
+    { method: "GET", url: /\/api\/communities\/c-1\/member-pricing\/segments\?scope=community$/, body: segments },
     {
       method: "GET",
       url: /\/api\/communities\/c-1\/tiers\/tier-1\/member-pricing$/,
@@ -87,7 +87,7 @@ describe("PriceEditModal — Member Pricing round-trip", () => {
       { method: "GET", url: /\/api\/communities\/c-1\/events\/evt-1\/tiers$/, body: [tier] },
       { method: "GET", url: /\/api\/communities\/c-1\/tiers\/tier-1\/form$/, status: 404, body: {} },
       { method: "GET", url: /\/api\/communities\/c-1\/stripe\/connected$/, body: { connected: true, chargesEnabled: true } },
-      { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: [] }, // NO segments
+      { method: "GET", url: /\/api\/communities\/c-1\/member-pricing\/segments\?scope=community$/, body: [] }, // NO segments
     ]);
     renderWithConfig(<PriceEditModal {...baseProps()} />);
     const saveBtn = await screen.findByRole("button", { name: /^save$/i });
@@ -284,7 +284,7 @@ describe("PriceEditModal — member prices on a ticket with VAT", () => {
     },
     { method: "GET", url: /\/api\/communities\/c-1\/tiers\/tier-1\/form$/, status: 404, body: {} },
     { method: "GET", url: /\/api\/communities\/c-1\/stripe\/connected$/, body: { connected: true, chargesEnabled: true } },
-    { method: "GET", url: /\/api\/communities\/c-1\/segments$/, body: segments },
+    { method: "GET", url: /\/api\/communities\/c-1\/member-pricing\/segments\?scope=community$/, body: segments },
     {
       method: "GET",
       url: /\/api\/communities\/c-1\/tiers\/tier-1\/member-pricing$/,

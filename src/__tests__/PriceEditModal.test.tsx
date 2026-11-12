@@ -283,7 +283,7 @@ describe("PriceEditModal — save flow correctness", () => {
       if (/\/api\/communities\/c-1\/stripe\/connected$/.test(url)) {
         return new Response(JSON.stringify({ connected: true, chargesEnabled: true }), { status: 200 });
       }
-      if (/\/api\/communities\/c-1\/segments$/.test(url)) {
+      if (/\/api\/communities\/c-1\/member-pricing\/segments\?scope=community$/.test(url)) {
         return new Response(JSON.stringify([{ id: "seg-1", name: "VIPs" }]), { status: 200 });
       }
       if (/\/tiers\/tier-1\/member-pricing$/.test(url) && method === "GET") {

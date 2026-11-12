@@ -43,7 +43,7 @@ function routes() {
     { method: "GET", url: /\/api\/communities\/pbn\/tiers\/tier-1\/form$/, status: 404, body: {} },
     { method: "GET", url: /\/api\/communities\/pbn\/stripe\/connected$/, body: { connected: true, chargesEnabled: true } },
     { method: "GET", url: /\/api\/communities\/pbn\/member-pricing\/segments$/, body: [{ id: "seg-1", name: "Community" }] },
-    { method: "GET", url: /\/api\/communities\/pbn\/segments$/, body: [{ id: "seg-1", name: "Community" }] },
+    { method: "GET", url: /\/api\/communities\/pbn\/member-pricing\/segments\?scope=community$/, body: [{ id: "seg-1", name: "Community" }] },
     { method: "GET", url: /\/api\/communities\/pbn\/tiers\/tier-1\/member-pricing$/, body: [] },
   ];
 }
@@ -61,12 +61,14 @@ describe("PriceEditModal (event): seller member pricing", () => {
     expect(await screen.findByRole("button", { name: /^save$/i })).toBeInTheDocument();
   });
 
-  it("community scope (the default) still reads the leaders' list", async () => {
+  it("community scope (the default) reads every tier with scope=community, never the leaders' admin list", async () => {
+    // The leaders' list needs COMMUNITY_MANAGE_TIERS; a leader who may create
+    // and price events often lacks it, and the 403 hid member pricing (2026-11-12).
     const fetchFn = mockFetch(routes());
     renderWithConfig(<PriceEditModal {...props()} />);
     await waitFor(() => {
-      expect(calledUrls(fetchFn).some((u: string) => /\/pbn\/segments$/.test(u))).toBe(true);
+      expect(calledUrls(fetchFn).some((u: string) => /\/pbn\/member-pricing\/segments\?scope=community$/.test(u))).toBe(true);
     });
-    expect(calledUrls(fetchFn).some((u: string) => /\/member-pricing\/segments$/.test(u))).toBe(false);
+    expect(calledUrls(fetchFn).some((u: string) => /\/pbn\/segments$/.test(u))).toBe(false);
   });
 });
