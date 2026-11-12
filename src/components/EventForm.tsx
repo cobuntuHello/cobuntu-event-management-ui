@@ -11,7 +11,7 @@ import { LISTING_NAME_MAX, NAME_COUNTER_FROM, listingNameTooLong } from "../lib/
 import { EventLocationsField, LocationAddButtons, addLocation, makeLocation, locationErrors, type EventLocationValue } from "../ui/event-locations-field";
 import { EventTags } from "../ui/event-tags";
 import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
-import { MarkdownEditor } from "../ui/markdown-editor";
+import { DescriptionDialog } from "@cobuntu/management-ui-shared";
 import { markdownToPlainText } from "../lib/htmlToPlainText";
 import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
@@ -2065,21 +2065,20 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       )}
 
       {/* ─── Description Editor Dialog ─── */}
-      <Dialog open={isDescriptionOpen} onOpenChange={setIsDescriptionOpen}>
-        <DialogContent className="sm:max-w-3xl h-[640px] max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>{tf("descriptionDialogTitle")}</DialogTitle>
-            <DialogDescription>{tf("descriptionDialogBody")}</DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <MarkdownEditor value={description} onChange={setDescription} placeholder={tf("descriptionPlaceholder")} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDescriptionOpen(false)}>{tf("cancel")}</Button>
-            <Button onClick={() => setIsDescriptionOpen(false)}>{tf("done")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* The shared dialog (events, products and courses use the same one).
+          It edits a draft, so Cancel now really discards: the old dialog wrote
+          every keystroke straight into the form, and Cancel did what Done did. */}
+      <DescriptionDialog
+        open={isDescriptionOpen}
+        title={tf("descriptionDialogTitle")}
+        subtitle={tf("descriptionDialogBody")}
+        value={description}
+        placeholder={tf("descriptionPlaceholder")}
+        cancelLabel={tf("cancel")}
+        doneLabel={tf("done")}
+        onCancel={() => setIsDescriptionOpen(false)}
+        onDone={(next) => { setDescription(next); setIsDescriptionOpen(false); }}
+      />
 
       {/* ─── Tier Manager Modal ───
           Uses the shared PriceEditModal in draftMode so the create-event
