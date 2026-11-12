@@ -46,6 +46,8 @@ describe("EventForm: the Member prices step", () => {
     expect(await screen.findAllByLabelText("Offer Community a member price")).toHaveLength(2);
     expect(screen.getByText("€275.00")).toBeInTheDocument();
     expect(screen.getByText("€400.00")).toBeInTheDocument();
+    // A host's own event: the one line the page heading does not already say.
+    expect(screen.getByText("The community approves your member prices along with your listing.")).toBeInTheDocument();
     const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.endsWith("/api/communities/pbn/member-pricing/segments"))).toBe(true);
   });
@@ -56,6 +58,8 @@ describe("EventForm: the Member prices step", () => {
     const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.endsWith("/api/communities/pbn/member-pricing/segments?scope=community"))).toBe(true);
     expect(urls.some((u) => u.endsWith("/api/communities/pbn/segments"))).toBe(false);
+    // A community's own event gets no second line under the heading.
+    expect(screen.queryByText(/approves your member prices/)).not.toBeInTheDocument();
   });
 
   it("a ticked tier starts at % off, and typing an amount puts it on the ticket the create payload carries", async () => {

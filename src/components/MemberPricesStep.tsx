@@ -205,7 +205,10 @@ export function MemberPricesStep({
 
   return (
     <section className="space-y-4" data-testid="member-prices-step">
-      <p className="text-sm text-zinc-500">{t(scope === "seller" ? "introSeller" : "introCommunity")}</p>
+      {/* The page heading already says what this step is and that it is
+          optional. Only a seller's own item has something to add: the
+          community approves the price with the listing. */}
+      {scope === "seller" && <p className="text-sm text-zinc-500">{t("introSeller")}</p>}
       {body}
     </section>
   );
