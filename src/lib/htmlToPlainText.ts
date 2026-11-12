@@ -1,3 +1,5 @@
+import { richTextToPlain } from "@cobuntu/management-ui-shared";
+
 /**
  * Flatten an HTML rich-text string into a plain-text preview: strip tags
  * AND decode the common entities a WYSIWYG editor emits (&nbsp;, &amp;,
@@ -47,7 +49,8 @@ function safeCodePoint(cp: number): string {
  */
 export function markdownToPlainText(markdown: string | null | undefined): string {
   if (!markdown) return "";
-  return markdown
+  // A mention reads as @Name and an image disappears, not their stored syntax.
+  return richTextToPlain(markdown)
     .split("\n")
     .map((line) => line.replace(/^\s*(#{1,3}|[-*]|\d+\.|>)\s+/, ""))
     .join(" ")
