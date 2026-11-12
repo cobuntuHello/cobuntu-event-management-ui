@@ -55,7 +55,10 @@ describe("a new agenda item starts somewhere sensible", () => {
     it("keeps the end inside the day", () => {
         // The end picker only offers slots strictly after the start, so a late
         // start could otherwise produce an end it refuses to show.
-        expect(view).toContain("Math.min(toMinutes(start) + 60, LAST_SLOT_MINUTES)");
+        // Since 2026-11-09 the cap is the event's own window when it has one,
+        // else the last slot of the day.
+        expect(view).toContain("const cap = win ? win.end : LAST_SLOT_MINUTES;");
+        expect(view).toContain("Math.min(toMinutes(start) + 60, cap)");
     });
 
     it("derives the option list from the same step it snaps to", () => {

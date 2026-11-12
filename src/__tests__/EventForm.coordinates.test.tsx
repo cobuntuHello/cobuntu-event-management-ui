@@ -26,7 +26,12 @@ const LISBON = { lat: 38.7223, lng: -9.1393 };
 const getLocationDetails = vi.fn();
 const searchLocations = vi.fn();
 
-vi.mock("../lib/google-maps", () => ({
+// The real module, with the network-facing calls replaced. A hand-written
+// mock went stale on 2026-11-09 when the picker started using placeAddress()
+// from this module: the missing export threw inside the handler, which fell
+// back to the raw description with no coordinates.
+vi.mock("../lib/google-maps", async () => ({
+  ...(await vi.importActual<typeof import("../lib/google-maps")>("../lib/google-maps")),
   isGoogleMapsConfigured: () => true,
   searchLocations: (q: string) => searchLocations(q),
   getLocationDetails: (id: string) => getLocationDetails(id),
