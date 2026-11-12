@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { BadgePercent } from "lucide-react";
-import { formatMoney } from "@cobuntu/management-ui-shared";
+import { formatMoney, useSharedT } from "@cobuntu/management-ui-shared";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { getSymbol, toSmallestUnit } from "./PriceEditModal/helpers";
 import type { CommunitySegment, MemberPricingMode, MemberPricingRow } from "./PriceEditModal/member-pricing";
@@ -27,11 +27,14 @@ import type { TierItem } from "./EventForm";
  * folded back on every valid change), the tier list and its loading state, so
  * moving between steps keeps everything.
  *
- * Copy is under eventsUi.manageUi.eventForm.memberPricesStep (messages/form.ts),
- * read through the form's own translator so the app's locales apply.
+ * Copy is shared.managementUi.memberPricesStep, in the shared package's
+ * messages: one source for this step and the products one, translated by the
+ * host through ManagementCopyProvider.
  */
 
-/** The form's translator, already scoped to eventsUi.manageUi.eventForm. */
+export const MEMBER_PRICES_NS = "shared.managementUi.memberPricesStep";
+
+/** A translator scoped to MEMBER_PRICES_NS (useSharedT), or a stand-in in tests. */
 export type MemberPricesT = (key: string, values?: Record<string, string | number | Date>) => string;
 
 /**
@@ -47,9 +50,9 @@ export function memberPriceRowError(
   if (!r.enabled || r.mode === "FREE") return null;
   const raw = (r.value ?? "").trim();
   const v = Number(raw);
-  if (raw === "" || !Number.isFinite(v) || v < 0) return t("memberPricesStep.errorValue", { tier: r.segmentName });
+  if (raw === "" || !Number.isFinite(v) || v < 0) return t("errorValue", { tier: r.segmentName });
   if (r.mode === "PERCENT_OFF" && (!Number.isInteger(v) || v < 1 || v > 100)) {
-    return t("memberPricesStep.errorPercent", { tier: r.segmentName });
+    return t("errorPercent", { tier: r.segmentName });
   }
   return null;
 }
@@ -68,14 +71,13 @@ export interface MemberPricesStepProps {
   showErrors?: boolean;
   onRowChange: (localId: string, segmentId: string, patch: Partial<MemberPricingRow>) => void;
   onRetry: () => void;
-  t: MemberPricesT;
 }
 
 function listPriceText(tier: TierItem, t: MemberPricesT): string {
-  if (tier.priceMode === "pwyw") return t("memberPricesStep.payWhatYouWant");
+  if (tier.priceMode === "pwyw") return t("payWhatYouWant");
   const raw = (tier.price ?? "").trim();
   const n = parseFloat(raw);
-  if (raw === "" || Number.isNaN(n)) return t("memberPricesStep.priceNotSet");
+  if (raw === "" || Number.isNaN(n)) return t("priceNotSet");
   const currency = (tier.currency || "EUR").toUpperCase();
   return formatMoney(toSmallestUnit(n, currency), currency);
 }
@@ -100,28 +102,28 @@ export function MemberPricesStep({
   showErrors,
   onRowChange,
   onRetry,
-  t,
 }: MemberPricesStepProps) {
+  const t = useSharedT(MEMBER_PRICES_NS);
   let body: ReactNode;
   if (status === "loading") {
-    body = <p className="text-sm text-zinc-400">{t("memberPricesStep.loading")}</p>;
+    body = <p className="text-sm text-zinc-400">{t("loading")}</p>;
   } else if (status === "error") {
     body = (
       <Note>
-        <span>{t("memberPricesStep.loadFailed")}</span>{" "}
+        <span>{t("loadFailed")}</span>{" "}
         <button
           type="button"
           onClick={onRetry}
           className="font-medium text-zinc-800 underline underline-offset-2 cursor-pointer"
         >
-          {t("memberPricesStep.retry")}
+          {t("retry")}
         </button>
       </Note>
     );
   } else if (segments.length === 0) {
-    body = <Note>{t(scope === "seller" ? "memberPricesStep.noTiersSeller" : "memberPricesStep.noTiersCommunity")}</Note>;
+    body = <Note>{t(scope === "seller" ? "noTiersSeller" : "noTiersCommunity")}</Note>;
   } else if (tiers.length === 0) {
-    body = <Note>{t("memberPricesStep.nothingPriced")}</Note>;
+    body = <Note>{t("nothingPriced")}</Note>;
   } else {
     body = tiers.map((tier) => {
       const rows = rowsByTier.get(tier.localId) ?? [];
@@ -146,7 +148,7 @@ export function MemberPricesStep({
                       type="checkbox"
                       checked={r.enabled}
                       onChange={(e) => onRowChange(tier.localId, r.segmentId, { enabled: e.target.checked })}
-                      aria-label={t("memberPricesStep.offerTo", { tier: r.segmentName })}
+                      aria-label={t("offerTo", { tier: r.segmentName })}
                       className="h-4 w-4 rounded border-zinc-300 cursor-pointer accent-[var(--brand-color,#18181b)]"
                     />
                     <span className="min-w-0 truncate text-sm text-zinc-800">{r.segmentName}</span>
@@ -157,14 +159,14 @@ export function MemberPricesStep({
                         value={r.mode}
                         onValueChange={(v) => onRowChange(tier.localId, r.segmentId, { mode: v as MemberPricingMode })}
                       >
-                        <SelectTrigger className="h-9 w-[190px] text-[13px]" aria-label={t("memberPricesStep.modeLabel", { tier: r.segmentName })}>
+                        <SelectTrigger className="h-9 w-[190px] text-[13px]" aria-label={t("modeLabel", { tier: r.segmentName })}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="FIXED_PRICE">{t("memberPricesStep.modeFixed")}</SelectItem>
-                          <SelectItem value="PERCENT_OFF">{t("memberPricesStep.modePercent")}</SelectItem>
-                          <SelectItem value="FLAT_OFF">{t("memberPricesStep.modeFlat")}</SelectItem>
-                          <SelectItem value="FREE">{t("memberPricesStep.modeFree")}</SelectItem>
+                          <SelectItem value="FIXED_PRICE">{t("modeFixed")}</SelectItem>
+                          <SelectItem value="PERCENT_OFF">{t("modePercent")}</SelectItem>
+                          <SelectItem value="FLAT_OFF">{t("modeFlat")}</SelectItem>
+                          <SelectItem value="FREE">{t("modeFree")}</SelectItem>
                         </SelectContent>
                       </Select>
                       {r.mode !== "FREE" && (
@@ -180,7 +182,7 @@ export function MemberPricesStep({
                             step={r.mode === "PERCENT_OFF" ? 1 : 0.01}
                             value={r.value}
                             onChange={(e) => onRowChange(tier.localId, r.segmentId, { value: e.target.value })}
-                            aria-label={t("memberPricesStep.valueLabel", { tier: r.segmentName })}
+                            aria-label={t("valueLabel", { tier: r.segmentName })}
                             aria-invalid={showError || undefined}
                             className={`h-9 w-[120px] ${r.mode === "PERCENT_OFF" ? "pl-3 pr-8" : "pl-7 pr-3"} text-[13px] text-zinc-900 border rounded-lg focus:outline-none ${showError ? "border-red-300 focus:border-red-400" : "border-zinc-200 focus:border-zinc-400"} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                           />
@@ -203,7 +205,7 @@ export function MemberPricesStep({
 
   return (
     <section className="space-y-4" data-testid="member-prices-step">
-      <p className="text-sm text-zinc-500">{t(scope === "seller" ? "memberPricesStep.introSeller" : "memberPricesStep.introCommunity")}</p>
+      <p className="text-sm text-zinc-500">{t(scope === "seller" ? "introSeller" : "introCommunity")}</p>
       {body}
     </section>
   );

@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { memberPricingSummary, ticketTakesMemberPricing } from "./memberPricesRow";
 import { buildRowsFromOverrides, buildUpsertBody, type CommunitySegment, type MemberPricingRow } from "./PriceEditModal/member-pricing";
-import { MemberPricesStep, memberPriceRowError, type MemberPricesSegmentsStatus } from "./MemberPricesStep";
+import { MemberPricesStep, memberPriceRowError, MEMBER_PRICES_NS, type MemberPricesSegmentsStatus } from "./MemberPricesStep";
 import { PriceEditModal } from "./PriceEditModal";
 import type { MemberPricingScope } from "./MemberPricingSection";
 import type { DraftTier, DonationDraft } from "./PriceEditModal/types";
@@ -62,6 +62,7 @@ import {
   sumValueLines,
   formatMoney,
   type ValueLine,
+  useSharedT,
 } from "@cobuntu/management-ui-shared";
 
 // ─── Currencies ────────────────────────────────────────────────
@@ -828,6 +829,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    * carries; until then the ticket keeps its last valid member prices and
    * `memberPricingError` holds the wizard on this step.
    */
+  // The step's copy (shared.managementUi.memberPricesStep), translated by the host.
+  const tMP = useSharedT(MEMBER_PRICES_NS);
   const [memberRowsByTier, setMemberRowsByTier] = useState<Map<string, MemberPricingRow[]>>(() => new Map());
   useEffect(() => {
     if (!memberPricesStep || segmentsStatus !== "ready" || pricingSegments.length === 0) return;
@@ -852,7 +855,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       next.set(localId, nextRows);
       return next;
     });
-    if (nextRows.some((r) => memberPriceRowError(r, tf))) return;
+    if (nextRows.some((r) => memberPriceRowError(r, tMP))) return;
     setTiers((ts) => ts.map((t) => {
       if (t.localId !== localId) return t;
       // The same conversion the ticket editor's save uses (cents, whole percentages).
@@ -870,12 +873,12 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
     for (const t of tiers) {
       if (!t.name.trim() || !ticketTakesMemberPricing(t)) continue;
       for (const r of memberRowsByTier.get(t.localId) ?? []) {
-        const e = memberPriceRowError(r, tf);
+        const e = memberPriceRowError(r, tMP);
         if (e) return e;
       }
     }
     return null;
-  }, [memberPricesStep, tiers, memberRowsByTier, tf]);
+  }, [memberPricesStep, tiers, memberRowsByTier, tMP]);
   /**
    * A tier being added but not yet committed.
    *
@@ -2202,7 +2205,6 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             showErrors={!!showErrors}
             onRowChange={handleMemberRowChange}
             onRetry={() => setSegmentsReload((n) => n + 1)}
-            t={tf}
           />
         </div>
       )}
