@@ -1,0 +1,40 @@
+# Typecheck + tests on every pull request and on main.
+#
+# Added 2026-11-12 (discount codes plan, Phase 0c). Until now this package's
+# tests ran nowhere: suites are not run on the maintainers' machines, and the
+# consuming apps only typecheck the package through their builds. Public repo,
+# so GitHub Actions minutes are free.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # The lockfile pins the @cobuntu/* git dependencies over git+ssh and the
+      # runner has no SSH key. They are public repos: fetch them over https.
+      - name: Fetch git dependencies over https
+        run: |
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://github.com/".insteadOf "git@github.com:"
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests
+        run: npm test

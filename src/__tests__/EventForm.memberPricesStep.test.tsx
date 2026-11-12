@@ -98,7 +98,7 @@ describe("EventForm: the Member prices step", () => {
 
   it("says plainly when every ticket is free", async () => {
     setup([ticket({ price: "0" })]);
-    expect(await screen.findByText(/Every ticket is free/)).toBeInTheDocument();
+    expect(await screen.findByText(/Everything here is free/)).toBeInTheDocument();
   });
 
   it("offers to try again when the tier list does not load", async () => {

@@ -36,11 +36,30 @@ async function freshModule() {
 
 const mapsScripts = () => document.querySelectorAll('script[src*="maps.googleapis.com/maps/api/js"]');
 
+/*
+ * happy-dom FETCHES a <script src> for real when it is appended. In CI that
+ * request to maps.googleapis.com fails and fires `error` before a test can play
+ * the load itself, so every "the script arrives" case failed for a reason that
+ * has nothing to do with the loader (first seen when these tests first ran in
+ * CI, 2026-11-12). A non-JavaScript `type` keeps the element, and the src the
+ * assertions select on, without the fetch; each test fires onload / onerror
+ * itself, as it always meant to.
+ */
+let appendSpy: { mockRestore: () => void } | null = null;
 beforeEach(() => {
   delete (window as any).google;
   mapsScripts().forEach((s) => s.remove());
+  const realAppend = document.head.appendChild.bind(document.head);
+  appendSpy = vi.spyOn(document.head, "appendChild").mockImplementation(((node: Node) => {
+    if (node instanceof HTMLScriptElement && node.src.includes("maps.googleapis.com")) {
+      node.type = "text/x-not-fetched-in-tests";
+    }
+    return realAppend(node);
+  }) as any);
 });
 afterEach(() => {
+  appendSpy?.mockRestore();
+  appendSpy = null;
   delete (window as any).google;
   mapsScripts().forEach((s) => s.remove());
 });

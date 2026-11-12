@@ -150,17 +150,19 @@ describe("DonationsField — the modal, once there is something in it", () => {
 describe("DonationsField — the row summarises the live config", () => {
   it("lists the suggested amounts", () => {
     setup({ enabled: true, amounts: ["5", "10", "25"] });
-    expect(screen.getByText("€5 · €10 · €25")).toBeInTheDocument();
+    // Since the "when to ask" redesign (2026-11-08) the row leads with the moment:
+    // "At sign-up and after · €5 · €10 · €25". The amounts are what this pins.
+    expect(screen.getByText(/€5 · €10 · €25$/)).toBeInTheDocument();
   });
 
   it("reports a pay-what-you-want minimum", () => {
     setup({ enabled: true, mode: "pwyw", minAmount: "3" });
-    expect(screen.getByText("Any amount · min €3")).toBeInTheDocument();
+    expect(screen.getByText(/Any amount · min €3$/)).toBeInTheDocument();
   });
 
   it("reports an unbounded pay-what-you-want", () => {
     setup({ enabled: true, mode: "pwyw", minAmount: "" });
-    expect(screen.getByText("Any amount")).toBeInTheDocument();
+    expect(screen.getByText(/Any amount$/)).toBeInTheDocument();
   });
 });
 
@@ -185,10 +187,13 @@ describe("DonationsField — the copy is an EVENT's copy", () => {
     expect(screen.queryByText(/variant/i)).not.toBeInTheDocument();
   });
 
-  it("says ticket tier, never variant, inside the modal", async () => {
+  it("never says variant inside the modal", async () => {
+    // The "when to ask" redesign (2026-11-08) replaced the intro that named the
+    // tier noun ("for every ticket tier") with "Let people support you, on top
+    // of any price." What still matters for an event: no "variant" anywhere.
     const { user } = setup({ enabled: true, amounts: ["5"] });
     await user.click(screen.getByRole("button", { name: /edit donation settings/i }));
-    expect(screen.getByText(/for every ticket tier/i)).toBeInTheDocument();
+    expect(screen.getByText(/Let people support you/i)).toBeInTheDocument();
     expect(screen.queryByText(/variant/i)).not.toBeInTheDocument();
   });
 });
