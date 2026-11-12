@@ -77,3 +77,10 @@ describe("markdownToPlainText", () => {
     expect(preview).not.toContain("*");
   });
 });
+
+describe("markdownToPlainText: mentions and images", () => {
+  it("shows a mention as @Name and drops an image", () => {
+    expect(markdownToPlainText("Hike with @[Stella Marie Viereck](user:bb05b515_x) at sunset.\n![](https://x.test/a_b.png)\nBring **water**."))
+      .toBe("Hike with @Stella Marie Viereck at sunset. Bring water.");
+  });
+});
