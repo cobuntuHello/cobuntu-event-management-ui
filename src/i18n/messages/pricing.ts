@@ -374,6 +374,7 @@ export const PRICING_MESSAGES_EN = {
         "heading": "Ticket types",
         "intro": "Each ticket type is a version attendees can register for, with its own price, capacity and sign-up form. Open one to edit it.",
         "free": "Free",
+        "payWhatYouWant": "Pay what you want",
         "unnamedTier": "Unnamed tier",
         "capacity": "Capacity",
         "spots": "{count} spots",
