@@ -182,4 +182,37 @@ describe("InviteGuestsModal", () => {
         expect(await screen.findByText(/1 invitation sent for Retreat/)).toBeInTheDocument();
         expect(onClose).not.toHaveBeenCalled();
     });
+
+    it("says nobody new was invited instead of showing a delivery screen", async () => {
+        // The server answers 200 with success 0 when everyone was already
+        // invited; a delivery screen listing them as "queued" said the opposite.
+        const user = userEvent.setup();
+        mockFetch([
+            ROSTER, ...QUIET,
+            { method: "POST", url: /\/invitations/, body: { success: 0, failed: 0, alreadyInvited: 1, alreadyAttending: 0 } },
+        ]);
+        const { onClose } = open();
+
+        await user.click(await screen.findByText("Ana Neto"));
+        await user.click(screen.getByRole("button", { name: "Write and preview" }));
+        await user.click(screen.getByRole("button", { name: "Send invitations" }));
+
+        expect(await screen.findByText("Nobody new to invite. 1 person was already invited.")).toBeInTheDocument();
+        expect(screen.queryByText(/invitation sent for/)).not.toBeInTheDocument();
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("tells the host to type the address when a name matches nobody", async () => {
+        // Reported from a live event: a host searched a speaker's name, got
+        // "No matches." and concluded outsiders could not be invited.
+        const user = userEvent.setup();
+        mockFetch([
+            ROSTER, ...QUIET,
+            { method: "GET", url: /\/members\/search\?/, body: { members: [] } },
+        ]);
+        open();
+        await screen.findByText("Ana Neto");
+        await user.type(screen.getByPlaceholderText(/Search by name/), "Rui Barros");
+        expect(await screen.findByText("Not a member here? Type their full email address to invite them.")).toBeInTheDocument();
+    });
 });

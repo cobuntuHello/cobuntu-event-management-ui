@@ -87,6 +87,7 @@ export function AddMemberAsHostModal({
         const body = await res.json().catch(() => null);
         if (res.status === 409) throw new Error(tx("errAlreadyHost"));
         if (res.status === 403) throw new Error(tx("errNoPermission"));
+        if (res.status === 404) throw new Error(tx("errNotFound"));
         throw new Error(body?.error || body?.message || tx("errFailed", { status: res.status }));
     }
 
@@ -97,6 +98,10 @@ export function AddMemberAsHostModal({
             apiBaseUrl={config.apiBaseUrl}
             authHeaders={config.authHeaders}
             communityTag={communityTag}
+            /* A co-host is not a membership role: a partner organisation's
+               account can run an event listed in a community it never
+               joined. The roster stays the list; search reaches everyone. */
+            searchEveryone
             excludeUserIds={excludeUserIds}
             UserAvatar={UserAvatar}
             copy={{

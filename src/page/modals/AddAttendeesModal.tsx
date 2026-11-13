@@ -5,7 +5,7 @@ import { getEventManagementConfig } from "../../config";
 import { useEventT } from "../../create-wizard/i18n";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import {
-    PersonPickerModal, recipientsToApi, type Recipient, type PersonPickerTierStep,
+    PersonPickerModal, recipientsToApi, guestNamesOf, type Recipient, type PersonPickerTierStep,
 } from "@cobuntu/management-ui-shared";
 import { AttendeesActionModalShell, PostSendCelebration } from "@cobuntu/event-management-ui";
 import { useGuestSuggestions } from "./useGuestSuggestions";
@@ -60,6 +60,11 @@ export function AddAttendeesModal({
     onSwitchToInvite,
 }: Props) {
     const [added, setAdded] = useState<number | null>(null);
+    /* Who could not be added and why, from the server. Shown on the done
+       screen: "8 added" with two people silently missing is how a host ends up
+       at the door with a guest who is not on the list. */
+    const [notAdded, setNotAdded] = useState<Array<{ who: string; reason: string }>>([]);
+    const [alreadyIn, setAlreadyIn] = useState(0);
     /*
      * The picker closes itself once onConfirm resolves. We want the celebration
      * instead, and the `added` state that hides the picker has not re-rendered
@@ -162,6 +167,7 @@ export function AddAttendeesModal({
                     emails: emails.length > 0 ? emails : undefined,
                     internalNote: note || undefined,
                     tierAssignments: tierAssignments.length > 0 ? tierAssignments : undefined,
+                    guestNames: guestNamesOf(recipients).length > 0 ? guestNamesOf(recipients) : undefined,
                 }),
             },
         );
@@ -172,8 +178,22 @@ export function AddAttendeesModal({
             throw new Error(data?.error || tx("errAddFailed"));
         }
         const data = await res.json().catch(() => ({}));
+        const failures: Array<{ who: string; reason: string }> = Array.isArray(data?.failures) ? data.failures : [];
+        const already = typeof data?.alreadyAttending === "number" ? data.alreadyAttending : 0;
+        const count = typeof data?.added === "number" ? data.added : usertags.length + emails.length;
+        if (count === 0) {
+            /* Nothing happened, so there is nothing to celebrate. Thrown, so
+               the picker keeps the list and shows why on the same screen. */
+            const reasons = [
+                ...(already > 0 ? [tx("alreadyAttending", { count: already })] : []),
+                ...failures.map((f) => `${f.who}: ${f.reason}`),
+            ];
+            throw new Error([tx("errNothingAdded"), ...reasons].join(" "));
+        }
         finished.current = true;
-        setAdded(typeof data?.added === "number" ? data.added : usertags.length + emails.length);
+        setNotAdded(failures);
+        setAlreadyIn(already);
+        setAdded(count);
         onUpdate();
     }
 
@@ -187,7 +207,7 @@ export function AddAttendeesModal({
                 footer={
                     <div className="flex items-center justify-between gap-3">
                         <button
-                            onClick={() => { finished.current = false; setAdded(null); }}
+                            onClick={() => { finished.current = false; setAdded(null); setNotAdded([]); setAlreadyIn(0); }}
                             className="px-4 py-2.5 text-[13px] rounded-lg cursor-pointer bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
                         >
                             {tx("addMore")}
@@ -201,6 +221,21 @@ export function AddAttendeesModal({
                     </div>
                 }
             >
+                {(notAdded.length > 0 || alreadyIn > 0) && (
+                    <div className="mx-5 sm:mx-6 mt-4 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-[12px] text-amber-900 space-y-1">
+                        {alreadyIn > 0 && <p className="m-0">{tx("alreadyAttending", { count: alreadyIn })}</p>}
+                        {notAdded.length > 0 && (
+                            <>
+                                <p className="m-0 font-medium">{tx("notAddedTitle")}</p>
+                                <ul className="m-0 pl-4 list-disc space-y-0.5">
+                                    {notAdded.map((f) => (
+                                        <li key={f.who} className="break-words">{f.who}: {f.reason}</li>
+                                    ))}
+                                </ul>
+                            </>
+                        )}
+                    </div>
+                )}
                 <PostSendCelebration
                     mode="add"
                     successCount={added}
@@ -231,6 +266,8 @@ export function AddAttendeesModal({
                 imported: (n) => tx("imported", { count: n }),
                 importedNothing: tx("importedNothing"),
                 importFailed: tx("importFailed"),
+                noMatchesHint: tx("noMatchesHint"),
+                guestName: { label: tx("guestNameLabel"), placeholder: tx("guestNamePlaceholder") },
             }}
             copy={{
                 title: tx("title"),

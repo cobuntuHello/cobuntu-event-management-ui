@@ -111,6 +111,21 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
         }
         const data = await res.json().catch(() => ({}));
 
+        /*
+         * Nothing sent: everyone was already invited or already attending.
+         * The server answers 200 for that, and a delivery screen listing them
+         * all as "queued" would say the opposite of what happened. Thrown, so
+         * the picker keeps the list and shows why.
+         */
+        if (data?.success === 0) {
+            const skipped = [
+                data.alreadyInvited > 0 ? tx("skippedInvited", { count: data.alreadyInvited }) : null,
+                data.alreadyAttending > 0 ? tx("skippedAttending", { count: data.alreadyAttending }) : null,
+                data.failed > 0 ? tx("skippedFailed", { count: data.failed }) : null,
+            ].filter(Boolean).join(" ");
+            throw new Error(tx("errNothingSent", { skipped }));
+        }
+
         /* Seeded as "queued". The celebration's polling loop upgrades each one
            from Resend webhook events over the next 60 seconds. */
         finished.current = true;
@@ -178,6 +193,7 @@ export function InviteGuestsModal({ event, communityTag, eventId, onClose }: Pro
                 imported: (n) => tx("imported", { count: n }),
                 importedNothing: tx("importedNothing"),
                 importFailed: tx("importFailed"),
+                noMatchesHint: tx("noMatchesHint"),
             }}
             copy={{
                 title: tx("title"),
