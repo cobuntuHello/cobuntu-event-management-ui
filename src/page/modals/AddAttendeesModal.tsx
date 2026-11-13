@@ -10,6 +10,7 @@ import {
 import { AttendeesActionModalShell, PostSendCelebration } from "@cobuntu/event-management-ui";
 import { useGuestSuggestions } from "./useGuestSuggestions";
 import { apiBase } from "../helpers";
+import { tierHasForm } from "../tierFacts";
 
 interface Props {
     event: any;
@@ -80,7 +81,7 @@ export function AddAttendeesModal({
 
     const isPast = event?.endDate ? new Date(event.endDate) < new Date() : false;
     const tierFormsCount = (event?.tiers || []).filter(
-        (t: any) => (t?.tier_forms && t.tier_forms.length > 0) || t?.formId,
+        (t: any) => tierHasForm(t),
     ).length;
 
     /*

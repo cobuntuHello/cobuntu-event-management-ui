@@ -232,3 +232,61 @@ describe("PricingView donations", () => {
     expect(screen.queryByText("Save donations")).toBeNull();
   });
 });
+
+/*
+ * The shape the manage page actually receives: core's event read names the
+ * ticket product `product` (singular) and the form `hasForm`. The fixtures
+ * above use the raw Prisma names, which is how every paid ticket on a real
+ * event showed "Free" and every form "Not set" without a test noticing
+ * (Food for Thought, 2026-11-13: EUR 30 with a sign-up form).
+ */
+describe("PricingView on the event read's tier shape", () => {
+  const READ_SHAPE = makeEvent({
+    tiers: [
+      {
+        id: "tier-std",
+        name: "Standard",
+        capacity: 60,
+        priceMode: "fixed",
+        publishedAt: "2026-11-05T16:47:35.255Z",
+        product: { id: "p1", sku: "EVENT_TIER_x", price: 3000, currency: "EUR" },
+        hasForm: true,
+      },
+      {
+        id: "tier-pwyw",
+        name: "Supporter",
+        capacity: null,
+        priceMode: "pwyw",
+        publishedAt: null,
+        product: { id: "p2", sku: "EVENT_TIER_y", price: 1000, currency: "EUR" },
+        hasForm: false,
+      },
+    ],
+  });
+
+  it("shows the real price, not Free", () => {
+    renderView({ event: READ_SHAPE });
+    expect(screen.getByText(/30\.00/)).toBeTruthy();
+    expect(screen.queryAllByText("Free")).toHaveLength(0);
+  });
+
+  it("says a linked form is linked", () => {
+    renderView({ event: READ_SHAPE });
+    expect(screen.getAllByText("Linked")).toHaveLength(1);
+    expect(screen.getAllByText("Not set")).toHaveLength(1);
+  });
+
+  it("calls pay-what-you-want what it is", () => {
+    renderView({ event: READ_SHAPE });
+    expect(screen.getByText("Pay what you want")).toBeTruthy();
+  });
+
+  it("reads a raw one-to-one tier_forms object too", () => {
+    renderView({
+      event: makeEvent({
+        tiers: [{ id: "t", name: "Raw", capacity: null, publishedAt: null, products: EUR, tier_forms: { id: "f1", isActive: true } }],
+      }),
+    });
+    expect(screen.getByText("Linked")).toBeTruthy();
+  });
+});

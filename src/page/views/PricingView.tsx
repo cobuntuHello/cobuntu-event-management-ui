@@ -16,6 +16,7 @@ import type { DonationDraft } from "../../components/PriceEditModal/types";
 import { useEventManagementConfig, useJsonHeaders } from "../../config";
 import { useCanEdit } from "../../lib/manageAccess";
 import { useEventT } from "../../create-wizard/i18n";
+import { tierPrice, tierHasForm } from "../tierFacts";
 
 /**
  * PRICING TAB — the tier list, as the create wizard shows it.
@@ -155,7 +156,7 @@ export function PricingView({
         {
           method: "PUT",
           headers: jsonHeaders(),
-          body: JSON.stringify(buildDonationBody(donation, tiers[0]?.products?.currency || "EUR")),
+          body: JSON.stringify(buildDonationBody(donation, tierPrice(tiers[0]).currency)),
         },
       );
       if (!res.ok) {
@@ -203,16 +204,17 @@ export function PricingView({
               // conversion PriceEditModal applies when it loads these rows, so
               // the card and the editor cannot disagree -- and a raw read here
               // would have rendered 2500 as "2500.00" instead of "25.00".
-              const cur = t?.products?.currency || "EUR";
-              const minor = Number(t?.products?.price ?? 0);
+              const { minor, currency: cur } = tierPrice(t);
               const major = toDisplay(minor, cur);
-              const price = minor > 0 ? `${getSymbol(cur)}${major.toFixed(2)}` : tx("free");
+              // Pay what you want is neither free nor a fixed price: the
+              // amount is a suggestion the buyer can change.
+              const price = t?.priceMode === "pwyw"
+                ? tx("payWhatYouWant")
+                : minor > 0 ? `${getSymbol(cur)}${major.toFixed(2)}` : tx("free");
               const cap = t?.capacity != null ? Number(t.capacity) : null;
-              // `tier_forms` is the relation; `formId` is the denormalised
-              // column. Either means a form is linked — AddAttendeesModal
-              // reads the same pair, so this view agrees with it rather
-              // than inventing a third notion of "has a form".
-              const hasForm = (t?.tier_forms && t.tier_forms.length > 0) || !!t?.formId;
+              // Same reader as AddAttendeesModal (see tierFacts), so the
+              // two cannot disagree about whether a form is linked.
+              const hasForm = tierHasForm(t);
               const published = !!t?.publishedAt;
 
               return (
@@ -288,7 +290,7 @@ export function PricingView({
         <DonationsSection
           donation={donation}
           onUpdate={updateDonation}
-          defaultCurrency={tiers[0]?.products?.currency || "EUR"}
+          defaultCurrency={tierPrice(tiers[0]).currency}
         />
         {/* Its own Save, because donations persist through their own endpoint
             and not with the tiers. Appears only once something changed: a
