@@ -35,7 +35,7 @@ const baseProps = (overrides: Partial<React.ComponentProps<typeof AddMemberAsHos
 describe("AddMemberAsHostModal — picker", () => {
     it("does not render when open=false", () => {
         renderWithConfig(<AddMemberAsHostModal {...baseProps({ open: false })} />);
-        expect(screen.queryByText(/add community member as host/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/add a co-host/i)).not.toBeInTheDocument();
     });
 
     it("shows the community's members before anything is typed", async () => {
@@ -47,38 +47,38 @@ describe("AddMemberAsHostModal — picker", () => {
         expect(await screen.findByText("Beth")).toBeInTheDocument();
     });
 
-    it("falls back to the search endpoint for somebody the roster does not hold", async () => {
+    it("searches every account for somebody the roster does not hold", async () => {
         /*
-         * This used to assert that ANY typing hit /members/search. It does not
-         * any more: the roster answers first, so the common case makes no
-         * request at all. Search survives for the person who is not in it —
-         * which on an invite-style surface is most of the point — and that is
-         * what this now pins, including that exclusions still travel with it.
+         * A co-host is not a membership role: a partner organisation's account
+         * can run an event listed in a community it never joined. So when the
+         * roster has nobody for the query, the search goes to global user
+         * search, not member search, and exclusions still apply.
          */
         const user = userEvent.setup();
         const fetchMock = mockFetch([
             ROSTER_ROUTE,
-            { method: "GET", url: /\/members\/search\?/, body: { members: [{ id: "u-9", name: "Zed", usertag: "zed", profileImage: null }] } },
+            { method: "GET", url: /\/api\/discovery\/users\?/, body: { data: [
+                { id: "u-9", name: "Impact Hub Porto", usertag: "impact-hub-porto", profileImage: null },
+                { id: "u-existing-host", name: "Already Host", usertag: "already", profileImage: null },
+            ] } },
         ]);
         renderWithConfig(<AddMemberAsHostModal {...baseProps()} />);
         await screen.findByText("Beth");
 
-        // "zed" matches nobody in the roster, so the fallback runs.
-        await user.type(screen.getByPlaceholderText(/search by name/i), "zed");
-        await waitFor(() => expect(screen.getByText("Zed")).toBeInTheDocument());
+        await user.type(screen.getByPlaceholderText(/search by name/i), "impact");
+        await waitFor(() => expect(screen.getByText("Impact Hub Porto")).toBeInTheDocument());
+        expect(screen.queryByText("Already Host")).not.toBeInTheDocument();
 
-        const calls = (fetchMock as any).mock.calls.filter((c: any[]) => /\/members\/search\?/.test(c[0]));
-        expect(calls.length).toBeGreaterThanOrEqual(1);
-        const lastUrl = String(calls[calls.length - 1][0]);
-        expect(lastUrl).toMatch(/q=zed/);
-        expect(lastUrl).toMatch(/excludeUserIds=u-existing-host/);
+        const urls = (fetchMock as any).mock.calls.map((c: any[]) => String(c[0]));
+        expect(urls.some((u: string) => /\/api\/discovery\/users\?search=impact/.test(u))).toBe(true);
+        expect(urls.some((u: string) => /\/members\/search/.test(u))).toBe(false);
     });
 
     it("shows 'No matches.' when the BE returns an empty list", async () => {
         const user = userEvent.setup();
         mockFetch([
             { method: "GET", url: /\/memberships/, body: { members: [] } },
-            { method: "GET", url: /\/members\/search\?/, body: { members: [] } },
+            { method: "GET", url: /\/api\/discovery\/users\?/, body: { data: [] } },
         ]);
         renderWithConfig(<AddMemberAsHostModal {...baseProps()} />);
         await user.type(screen.getByPlaceholderText(/search by name/i), "zz");
@@ -164,5 +164,19 @@ describe("AddMemberAsHostModal — confirm + POST", () => {
 
         expect(screen.getByPlaceholderText(/search by name/i)).toBeInTheDocument();
         expect(screen.getByText("Beth")).toBeInTheDocument();
+    });
+});
+
+describe("AddMemberAsHostModal — account gone", () => {
+    it("says the account no longer exists on 404, instead of a raw error", async () => {
+        const user = userEvent.setup();
+        mockFetch([
+            ROSTER_ROUTE,
+            { method: "POST", url: /\/events\/evt-1\/hosts$/, status: 404, body: { error: "No account found", code: "USER_NOT_FOUND" } },
+        ]);
+        renderWithConfig(<AddMemberAsHostModal {...baseProps()} />);
+        await pickBeth(user);
+        await user.click(screen.getByRole("button", { name: /add as host/i }));
+        expect(await screen.findByText("That account no longer exists.")).toBeInTheDocument();
     });
 });
