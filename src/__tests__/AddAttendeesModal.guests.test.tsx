@@ -47,7 +47,7 @@ function postedBody(fetchMock: ReturnType<typeof vi.fn>) {
 
 async function stageAddress(user: ReturnType<typeof userEvent.setup>, address: string) {
     await user.type(screen.getByPlaceholderText(/Search by name/), address);
-    await user.click(await screen.findByText(`Add ${address}`));
+    await user.click(await screen.findByText(`Send to ${address}`));
 }
 
 describe("adding people with no account", () => {
@@ -60,16 +60,34 @@ describe("adding people with no account", () => {
         open();
         await screen.findByText("Ana Neto");
         await stageAddress(user, "speaker@example.com");
-        await user.click(screen.getByRole("button", { name: "Review" }));
+        await user.click(screen.getByRole("button", { name: "Write and preview" }));
 
         await user.type(screen.getByPlaceholderText("Their name"), "Ana Costa");
-        await user.click(screen.getByRole("button", { name: "Add attendees" }));
+        await user.click(screen.getByRole("button", { name: "Send gift" }));
 
         await waitFor(() => expect(postedBody(fetchMock)).toBeTruthy());
         expect(postedBody(fetchMock)).toMatchObject({
             emails: ["speaker@example.com"],
             guestNames: [{ email: "speaker@example.com", name: "Ana Costa" }],
         });
+    });
+
+    it("sends the note TO them, as the gift note (customMessage), never as a host-only note", async () => {
+        // Adding an attendee is giving them a ticket (backend docs/features/gifts.md).
+        const user = userEvent.setup();
+        const fetchMock = mockFetch([
+            ROSTER, ...QUIET,
+            { method: "POST", url: /add-attendees/, body: { added: 1, failures: [] } },
+        ]);
+        open();
+        await screen.findByText("Ana Neto");
+        await stageAddress(user, "speaker@example.com");
+        await user.click(screen.getByRole("button", { name: "Write and preview" }));
+        await user.type(screen.getByPlaceholderText(/Add a note/), "Save me a seat");
+        await user.click(screen.getByRole("button", { name: "Send gift" }));
+        await waitFor(() => expect(postedBody(fetchMock)).toBeTruthy());
+        expect(postedBody(fetchMock).customMessage).toBe("Save me a seat");
+        expect(postedBody(fetchMock).internalNote).toBeUndefined();
     });
 
     it("sends no guestNames when nobody was named", async () => {
@@ -81,8 +99,8 @@ describe("adding people with no account", () => {
         open();
         await screen.findByText("Ana Neto");
         await stageAddress(user, "speaker@example.com");
-        await user.click(screen.getByRole("button", { name: "Review" }));
-        await user.click(screen.getByRole("button", { name: "Add attendees" }));
+        await user.click(screen.getByRole("button", { name: "Write and preview" }));
+        await user.click(screen.getByRole("button", { name: "Send gift" }));
         await waitFor(() => expect(postedBody(fetchMock)).toBeTruthy());
         expect(postedBody(fetchMock).guestNames).toBeUndefined();
     });
@@ -99,10 +117,10 @@ describe("adding people with no account", () => {
         open();
         await screen.findByText("Ana Neto");
         await stageAddress(user, "full@example.com");
-        await user.click(screen.getByRole("button", { name: "Review" }));
-        await user.click(screen.getByRole("button", { name: "Add attendees" }));
+        await user.click(screen.getByRole("button", { name: "Write and preview" }));
+        await user.click(screen.getByRole("button", { name: "Send gift" }));
 
-        expect(await screen.findByText(/1 attendee added to Food for Thought/)).toBeInTheDocument();
+        expect(await screen.findByText(/1 ticket gifted for Food for Thought/)).toBeInTheDocument();
         expect(screen.getByText("Not added")).toBeInTheDocument();
         expect(screen.getByText('full@example.com: Tier "Standard" is at full capacity')).toBeInTheDocument();
         expect(screen.getByText("1 person was already attending.")).toBeInTheDocument();
@@ -117,11 +135,11 @@ describe("adding people with no account", () => {
         const { onClose } = open();
         await screen.findByText("Ana Neto");
         await stageAddress(user, "again@example.com");
-        await user.click(screen.getByRole("button", { name: "Review" }));
-        await user.click(screen.getByRole("button", { name: "Add attendees" }));
+        await user.click(screen.getByRole("button", { name: "Write and preview" }));
+        await user.click(screen.getByRole("button", { name: "Send gift" }));
 
         expect(await screen.findByText("Nobody was added. 1 person was already attending.")).toBeInTheDocument();
-        expect(screen.queryByText(/added to Food for Thought/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/gifted for Food for Thought/)).not.toBeInTheDocument();
         expect(onClose).not.toHaveBeenCalled();
     });
 

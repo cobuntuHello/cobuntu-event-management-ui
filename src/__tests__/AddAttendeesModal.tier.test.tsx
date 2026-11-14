@@ -72,8 +72,8 @@ describe("choosing a ticket before adding", () => {
         await user.click(await screen.findByText("Ana Neto"));
         await user.click(screen.getByRole("button", { name: "Choose a ticket" }));
         // General is the only ticket with room, so it is already selected.
-        await user.click(screen.getByRole("button", { name: "Review" }));
-        await user.click(screen.getByRole("button", { name: "Add attendees" }));
+        await user.click(screen.getByRole("button", { name: "Write and preview" }));
+        await user.click(screen.getByRole("button", { name: "Send gift" }));
 
         await waitFor(() => expect(postedBody(fetchMock)).toBeTruthy());
         expect(postedBody(fetchMock).tierAssignments).toEqual([
@@ -141,8 +141,8 @@ describe("when the backend has not shipped occupancy yet", () => {
         await user.click(await screen.findByText("Ana Neto"));
         expect(screen.queryByRole("button", { name: "Choose a ticket" })).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole("button", { name: "Review" }));
-        await user.click(screen.getByRole("button", { name: "Add attendees" }));
+        await user.click(screen.getByRole("button", { name: "Write and preview" }));
+        await user.click(screen.getByRole("button", { name: "Send gift" }));
 
         await waitFor(() => expect(postedBody(fetchMock)).toBeTruthy());
         expect(postedBody(fetchMock).tierAssignments).toBeUndefined();
@@ -155,6 +155,6 @@ describe("when the backend has not shipped occupancy yet", () => {
         open([]);
 
         await user.click(await screen.findByText("Ana Neto"));
-        expect(screen.getByRole("button", { name: "Review" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Write and preview" })).toBeInTheDocument();
     });
 });

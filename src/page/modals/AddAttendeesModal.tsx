@@ -166,7 +166,9 @@ export function AddAttendeesModal({
                 body: JSON.stringify({
                     usertags: usertags.length > 0 ? usertags : undefined,
                     emails: emails.length > 0 ? emails : undefined,
-                    internalNote: note || undefined,
+                    /* Adding is giving them a ticket (backend docs/features/gifts.md):
+                       the note is FOR them, in the gift email and with the ticket. */
+                    customMessage: note || undefined,
                     tierAssignments: tierAssignments.length > 0 ? tierAssignments : undefined,
                     guestNames: guestNamesOf(recipients).length > 0 ? guestNamesOf(recipients) : undefined,
                 }),
