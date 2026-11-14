@@ -151,10 +151,13 @@ export function EventCreateWizard(props: EventCreateWizardProps) {
               searchTags: (q) => transport.searchTags(q),
               createTag: (name) => transport.createTag(name),
               // Event images (EventImagesEditor): uploaded through the
-              // transport when it can, under the community's rules.
+              // transport when it can, under the community's rules. `null`,
+              // not undefined, when it cannot: the default same-origin route
+              // does not exist on an Embed site, so the wizard keeps the
+              // single inline cover there instead.
               uploadEventImage: transport.uploadEventImage
                 ? (image, opts) => transport.uploadEventImage!(image, opts)
-                : undefined,
+                : null,
               eventImageRules: props.community.eventImageRules ?? null,
               navigate: (path) => nav.navigate(path),
               googleMapsApiKey,

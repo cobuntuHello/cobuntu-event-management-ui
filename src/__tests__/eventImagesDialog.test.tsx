@@ -62,6 +62,18 @@ describe("EventImagesDialog", () => {
     expect(JSON.parse(String(put.init!.body))).toEqual({ bannerUrl: "https://s/second.jpg", media: ["https://s/cover.jpg"] });
   });
 
+  it("a same-origin host (apiBaseUrl \"\", the community app) gets the gallery and its rules", async () => {
+    const { calls } = setup({ apiBaseUrl: "" });
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/communities/house/event-image-rules")).toBe(true));
+    expect(screen.getAllByRole("button", { name: "Move later" }).length).toBeGreaterThan(0);
+  });
+
+  it("a host that says it has no upload route keeps the single cover", async () => {
+    setup({ uploadEventImage: null });
+    await screen.findByRole("button", { name: "Save" });
+    expect(screen.queryByRole("button", { name: "Move later" })).toBeNull();
+  });
+
   it("uses the rules the host app passes, without asking the API", async () => {
     const { calls } = setup({ eventImageRules: RULES });
     expect(await screen.findByText(RULES.notice)).toBeTruthy();
