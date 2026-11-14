@@ -3,7 +3,7 @@
 import * as React from "react";
 import { setGoogleMapsApiKey } from "./lib/google-maps";
 import { WizardCopyProvider, useEventT, type WizardTranslate, type WizardTranslateRich } from "./create-wizard/i18n";
-import type { EventImageRules, UploadEventImage, UploadedEventImage } from "./lib/eventImages";
+import { readEventImageRules, type EventImageRules, type UploadEventImage, type UploadedEventImage } from "./lib/eventImages";
 
 /**
  * The auth-injection contract between the shared event-management UI and
@@ -248,6 +248,36 @@ export function useUploadEventImage(communityTag?: string | null): UploadEventIm
       return body as UploadedEventImage;
     };
   }, [uploadEventImage, apiBaseUrl, communityTag, jsonHeaders]);
+}
+
+/**
+ * The community's rules for event images: `config.eventImageRules` when the
+ * host passed them (the wizard does, from its community prop), else
+ * GET `${apiBaseUrl}/api/communities/:tag/event-image-rules`, else none.
+ * `undefined` while that request is in flight: callers hold the image editor
+ * disabled until then, so a photo is never checked against "no rules" by
+ * mistake (the server checks again either way).
+ */
+export function useEventImageRules(communityTag?: string | null): EventImageRules | null | undefined {
+  const { eventImageRules, apiBaseUrl } = useEventManagementConfig();
+  // Through a ref: a host that writes authHeaders inline hands a new function
+  // every render, and as an effect dependency that would refetch forever.
+  const jsonHeaders = useJsonHeaders();
+  const headers = React.useRef(jsonHeaders);
+  headers.current = jsonHeaders;
+  const given = eventImageRules !== undefined;
+  const [fetched, setFetched] = React.useState<EventImageRules | null | undefined>(undefined);
+  React.useEffect(() => {
+    if (given) return;
+    if (!apiBaseUrl || !communityTag) { setFetched(null); return; }
+    let live = true;
+    fetch(`${apiBaseUrl}/api/communities/${encodeURIComponent(communityTag)}/event-image-rules`, { headers: headers.current() })
+      .then((r) => (r.ok ? r.json() : { rules: null }))
+      .then((b) => { if (live) setFetched(readEventImageRules({ eventImageRules: b?.rules ?? null })); })
+      .catch(() => { if (live) setFetched(null); });
+    return () => { live = false; };
+  }, [given, apiBaseUrl, communityTag]);
+  return given ? eventImageRules : fetched;
 }
 
 /**

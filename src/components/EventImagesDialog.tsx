@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { useEventT } from "../i18n";
-import { useEventManagementConfig, useJsonHeaders, useUpdateEvent, useUploadEventImage } from "../config";
+import { useEventImageRules, useUpdateEvent, useUploadEventImage } from "../config";
 import { EventImagesEditor, imageKey, type EventImage } from "./EventImagesEditor";
-import { readEventImageRules, type EventImageRules } from "../lib/eventImages";
 
 /**
  * AN EXISTING EVENT'S PHOTOS, from the manage page (backend
@@ -15,10 +14,9 @@ import { readEventImageRules, type EventImageRules } from "../lib/eventImages";
  * is added, under the community's image rules; Save writes the order (the
  * first is the cover). It replaced the cropper that set the cover alone.
  *
- * THE RULES come from `config.eventImageRules` when the host app passes them,
- * else from GET /api/communities/:tag/event-image-rules. Until they are known
- * nothing can be added, so a photo is never checked against "no rules" by
- * mistake. Without an upload route (no apiBaseUrl and no
+ * THE RULES come from useEventImageRules (the config's, else the API's).
+ * Until they are known nothing can be added, so a photo is never checked
+ * against "no rules" by mistake. Without an upload route (no apiBaseUrl and no
  * config.uploadEventImage) the editor is the single inline cover it always was.
  */
 export function EventImagesDialog({
@@ -34,14 +32,10 @@ export function EventImagesDialog({
   // Cancel / Save / Saving… are the cover cropper's, already in every language.
   const tButtons = useEventT("eventsUi.manageUi.bannerCropModal");
   const tView = useEventT("eventsUi.manageUi.detailsView");
-  const config = useEventManagementConfig();
-  const jsonHeaders = useJsonHeaders();
   const upload = useUploadEventImage(communityTag);
   const updateEvent = useUpdateEvent();
+  const rules = useEventImageRules(communityTag);
   const [images, setImages] = useState<EventImage[]>([]);
-  const [rules, setRules] = useState<EventImageRules | null | undefined>(
-    config.eventImageRules !== undefined ? config.eventImageRules : undefined,
-  );
   const [saving, setSaving] = useState(false);
 
   // Fresh from the event each time it opens, so a cancelled edit is gone.
@@ -52,15 +46,6 @@ export function EventImagesDialog({
       ...(event.gallery ?? []).map((g) => ({ url: g.url, key: imageKey() })),
     ]);
   }, [open, event.bannerUrl, event.gallery]);
-
-  useEffect(() => {
-    if (!open || rules !== undefined) return;
-    if (!config.apiBaseUrl) { setRules(null); return; }
-    fetch(`${config.apiBaseUrl}/api/communities/${encodeURIComponent(communityTag)}/event-image-rules`, { headers: jsonHeaders() })
-      .then((r) => (r.ok ? r.json() : { rules: null }))
-      .then((b) => setRules(readEventImageRules({ eventImageRules: b?.rules ?? null })))
-      .catch(() => setRules(null));
-  }, [open, rules, config.apiBaseUrl, communityTag, jsonHeaders]);
 
   const uploading = images.some((i) => i.uploading);
 

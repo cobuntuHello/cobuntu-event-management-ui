@@ -11,6 +11,7 @@ export {
   useJsonHeaders,
   useUpdateEvent,
   useUploadEventImage,
+  useEventImageRules,
   type EventManagementConfig,
 } from "./config";
 
