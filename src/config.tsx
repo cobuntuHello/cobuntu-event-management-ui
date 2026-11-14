@@ -98,10 +98,12 @@ export interface EventManagementConfig {
   /**
    * Uploads one cropped event image (a data URL) and resolves its hosted URL
    * (backend POST /communities/:tag/event-images, or the v1 embed twin).
-   * Replaces the default `apiBaseUrl` fetch, like searchTags above. With
-   * neither, event images stay the single inline cover (EventImagesEditor).
+   * Replaces the default `${apiBaseUrl}/api/communities/:tag/event-images`
+   * fetch (apiBaseUrl "" = same origin), like searchTags above. `null` says
+   * this host has NO upload route (the wizard on a transport without one):
+   * event images then stay the single inline cover (EventImagesEditor).
    */
-  uploadEventImage?: UploadEventImage;
+  uploadEventImage?: UploadEventImage | null;
   /**
    * The community's rules for event images (its storefront config's
    * eventImageRules, see readEventImageRules), or null for none.
@@ -225,20 +227,22 @@ export function useJsonHeaders(): () => Record<string, string> {
 
 /**
  * The event-image upload to use: the host's `uploadEventImage` when it gave
- * one, else a fetch to `${apiBaseUrl}/api/communities/:tag/event-images` when
- * there is an API base and a community, else undefined (single inline cover).
- * The wizard sets apiBaseUrl to "" and routes calls through its transport, so
- * there it is the transport's upload or nothing. Errors carry the backend's
- * message (e.g. "This image is 800 × 800 pixels…") and `code`.
+ * one; none when it said `null` (no upload route: the single inline cover);
+ * else a fetch to `${apiBaseUrl}/api/communities/:tag/event-images`, where an
+ * empty apiBaseUrl is the same origin (the community app's manage page). The
+ * wizard routes calls through its transport and passes `null` when the
+ * transport cannot upload, so an Embed site never falls through to a
+ * same-origin route it does not have. Errors carry the backend's message
+ * (e.g. "This image is 800 × 800 pixels…") and `code`.
  */
 export function useUploadEventImage(communityTag?: string | null): UploadEventImage | undefined {
   const { uploadEventImage, apiBaseUrl } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   return React.useMemo(() => {
     if (uploadEventImage) return uploadEventImage;
-    if (!apiBaseUrl || !communityTag) return undefined;
+    if (uploadEventImage === null || !communityTag) return undefined;
     return async (image: string, opts: { confirmed: boolean }): Promise<UploadedEventImage> => {
-      const res = await fetch(`${apiBaseUrl}/api/communities/${encodeURIComponent(communityTag)}/event-images`, {
+      const res = await fetch(`${apiBaseUrl ?? ""}/api/communities/${encodeURIComponent(communityTag)}/event-images`, {
         method: "POST",
         headers: jsonHeaders(),
         body: JSON.stringify({ image, confirmed: opts.confirmed }),
@@ -252,8 +256,9 @@ export function useUploadEventImage(communityTag?: string | null): UploadEventIm
 
 /**
  * The community's rules for event images: `config.eventImageRules` when the
- * host passed them (the wizard does, from its community prop), else
- * GET `${apiBaseUrl}/api/communities/:tag/event-image-rules`, else none.
+ * host passed them (the wizard always does, from its community prop), else
+ * GET `${apiBaseUrl}/api/communities/:tag/event-image-rules` (an empty
+ * apiBaseUrl is the same origin), else none.
  * `undefined` while that request is in flight: callers hold the image editor
  * disabled until then, so a photo is never checked against "no rules" by
  * mistake (the server checks again either way).
@@ -269,9 +274,9 @@ export function useEventImageRules(communityTag?: string | null): EventImageRule
   const [fetched, setFetched] = React.useState<EventImageRules | null | undefined>(undefined);
   React.useEffect(() => {
     if (given) return;
-    if (!apiBaseUrl || !communityTag) { setFetched(null); return; }
+    if (!communityTag) { setFetched(null); return; }
     let live = true;
-    fetch(`${apiBaseUrl}/api/communities/${encodeURIComponent(communityTag)}/event-image-rules`, { headers: headers.current() })
+    fetch(`${apiBaseUrl ?? ""}/api/communities/${encodeURIComponent(communityTag)}/event-image-rules`, { headers: headers.current() })
       .then((r) => (r.ok ? r.json() : { rules: null }))
       .then((b) => { if (live) setFetched(readEventImageRules({ eventImageRules: b?.rules ?? null })); })
       .catch(() => { if (live) setFetched(null); });
