@@ -48,13 +48,20 @@ let nextKey = 0;
 export const imageKey = () => `img-${++nextKey}`;
 
 export function EventImagesEditor({
-  images, onChange, rules, upload, disabled,
+  images, onChange, rules, upload, disabled, allowStockPhotos = false,
 }: {
   images: EventImage[];
   onChange: (next: EventImage[]) => void;
   rules?: EventImageRules | null;
   upload?: UploadEventImage;
   disabled?: boolean;
+  /**
+   * Offer the cropper's own Upload / Stock photos screen when adding, as the
+   * manage page's cover cropper always did. Ignored where the community
+   * refuses AI-labelled files: that check has to see the original file,
+   * which only the direct picker hands over.
+   */
+  allowStockPhotos?: boolean;
 }) {
   const t = useEventT("eventsUi.manageUi.eventForm");
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -73,10 +80,18 @@ export function EventImagesEditor({
   const needsTick = !!rules?.requireConfirmation && gallery;
   const canAdd = !disabled && images.length < max && (!needsTick || confirmed);
 
+  const stockMode = allowStockPhotos && !rules?.blockAiLabelled;
+
   function pick() {
     setError(null);
     if (!canAdd) return;
     setCropTarget(null);
+    if (stockMode) {
+      // The cropper opens on its Upload / Stock photos choice.
+      setCropSrc(null);
+      setCropOpen(true);
+      return;
+    }
     inputRef.current?.click();
   }
 
@@ -232,7 +247,7 @@ export function EventImagesEditor({
         directCropSrc={cropSrc}
         onSave={onCropped}
         title={t("framePhoto")}
-        hideStockPhotos
+        hideStockPhotos={!stockMode}
       />
     </div>
   );

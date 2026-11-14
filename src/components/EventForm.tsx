@@ -38,7 +38,7 @@ import { DonationsField } from "./PriceEditModal/DonationsField";
 // requires gating on a connected account. Use it ONLY for that gate; don't
 // let it creep back into gating tier-opening.
 import { useStripeStatus } from "./stripe-status";
-import { useEventManagementConfig, useUploadEventImage } from "../config";
+import { useEventManagementConfig, useEventImageRules, useUploadEventImage } from "../config";
 import { InfoBanner, DismissibleTipBanner } from "../create-wizard/banners";
 import { useEventT } from "../create-wizard/i18n";
 import {
@@ -488,7 +488,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
    * one.
    */
   const uploadEventImage = useUploadEventImage(communityTag);
-  const { eventImageRules } = useEventManagementConfig();
+  // The wizard passes the community's rules; elsewhere they are fetched.
+  // `undefined` = still loading: the editor waits (see below).
+  const eventImageRules = useEventImageRules(communityTag);
   const [images, setImages] = useState<EventImage[]>(() => [
     ...(initialData?.bannerUrl ? [{ url: initialData.bannerUrl, key: imageKey() }] : []),
     ...(initialData?.media ?? []).map((url) => ({ url, key: imageKey() })),
@@ -1311,6 +1313,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             onChange={setImages}
             rules={eventImageRules ?? null}
             upload={uploadEventImage}
+            disabled={eventImageRules === undefined}
           />
 
           {/* Schedule — compact, inline */}

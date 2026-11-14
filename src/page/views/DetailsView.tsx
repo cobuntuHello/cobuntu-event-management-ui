@@ -27,8 +27,8 @@ import {
   CreateGroupChatModal,
   EventChatCapacityNotice,
 } from "@cobuntu/event-management-ui";
-import { getEventStatus, updateEvent, apiBase, authHeaders } from "../helpers";
-import { BannerCropModal, type BannerCropResult } from "../../ui/banner-crop-modal";
+import { getEventStatus, apiBase, authHeaders } from "../helpers";
+import { EventImagesDialog } from "../../components/EventImagesDialog";
 import { useEventManagementConfig } from "../../config";
 
 // Sections
@@ -146,14 +146,6 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
 
   function close() { setModal(null); }
   function saved() { setModal(null); onUpdate(); }
-
-  async function handleBannerSave(result: BannerCropResult) {
-    try {
-      await updateEvent(communityTag, event.id, { bannerUrl: result.base64 || null });
-      showToast(result.base64 ? t("imageUpdated") : t("imageRemoved"));
-      onUpdate();
-    } catch (e: any) { showToast(e.message || t("imageFailed")); }
-  }
 
   return (
     <div className="space-y-6">
@@ -318,12 +310,15 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
         />
       )}
 
-      <BannerCropModal
+      {/* The event's photos: cover first, then the square gallery, under the
+          community's image rules (docs/features/event-gallery.md). */}
+      <EventImagesDialog
         open={bannerCropOpen}
         onOpenChange={setBannerCropOpen}
-        initialImageSrc={event.bannerUrl}
-        onSave={handleBannerSave}
-        title={t("imageTitle")}
+        communityTag={communityTag}
+        event={event}
+        onSaved={onUpdate}
+        showToast={showToast}
       />
 
       {/*

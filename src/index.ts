@@ -11,6 +11,7 @@ export {
   useJsonHeaders,
   useUpdateEvent,
   useUploadEventImage,
+  useEventImageRules,
   type EventManagementConfig,
 } from "./config";
 
@@ -205,6 +206,7 @@ export { EventForm, type EventFormData, type TierItem } from "./components/Event
 // image rules (backend docs/features/event-gallery.md). The editor is the
 // create form's; it is exported for the manage page and the admin app.
 export { EventImagesEditor, imageKey, type EventImage } from "./components/EventImagesEditor";
+export { EventImagesDialog } from "./components/EventImagesDialog";
 export {
   MAX_EVENT_IMAGES, readEventImageRules, meetsMinEdge, hasAiGeneratedLabel, fileHasAiGeneratedLabel, imageSizeOf,
   type EventImageRules, type UploadedEventImage, type UploadEventImage,
