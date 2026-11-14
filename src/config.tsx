@@ -3,6 +3,7 @@
 import * as React from "react";
 import { setGoogleMapsApiKey } from "./lib/google-maps";
 import { WizardCopyProvider, useEventT, type WizardTranslate, type WizardTranslateRich } from "./create-wizard/i18n";
+import type { EventImageRules, UploadEventImage, UploadedEventImage } from "./lib/eventImages";
 
 /**
  * The auth-injection contract between the shared event-management UI and
@@ -94,6 +95,18 @@ export interface EventManagementConfig {
   createTag?: (name: string) => Promise<{ id: string; name: string; searchName?: string }>;
   /** Replaces the Stripe-status fetch behind useStripeStatus. Must resolve `{ connected, chargesEnabled }`. */
   stripeStatus?: (communityTag: string) => Promise<{ connected: boolean; chargesEnabled: boolean }>;
+  /**
+   * Uploads one cropped event image (a data URL) and resolves its hosted URL
+   * (backend POST /communities/:tag/event-images, or the v1 embed twin).
+   * Replaces the default `apiBaseUrl` fetch, like searchTags above. With
+   * neither, event images stay the single inline cover (EventImagesEditor).
+   */
+  uploadEventImage?: UploadEventImage;
+  /**
+   * The community's rules for event images (its storefront config's
+   * eventImageRules, see readEventImageRules), or null for none.
+   */
+  eventImageRules?: EventImageRules | null;
   /**
    * Google Maps JavaScript API key for location autocomplete and maps.
    * Overrides `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, which only exists in a Next
@@ -208,6 +221,33 @@ export function useJsonHeaders(): () => Record<string, string> {
     () => ({ "Content-Type": "application/json", ...authHeaders() }),
     [authHeaders],
   );
+}
+
+/**
+ * The event-image upload to use: the host's `uploadEventImage` when it gave
+ * one, else a fetch to `${apiBaseUrl}/api/communities/:tag/event-images` when
+ * there is an API base and a community, else undefined (single inline cover).
+ * The wizard sets apiBaseUrl to "" and routes calls through its transport, so
+ * there it is the transport's upload or nothing. Errors carry the backend's
+ * message (e.g. "This image is 800 × 800 pixels…") and `code`.
+ */
+export function useUploadEventImage(communityTag?: string | null): UploadEventImage | undefined {
+  const { uploadEventImage, apiBaseUrl } = useEventManagementConfig();
+  const jsonHeaders = useJsonHeaders();
+  return React.useMemo(() => {
+    if (uploadEventImage) return uploadEventImage;
+    if (!apiBaseUrl || !communityTag) return undefined;
+    return async (image: string, opts: { confirmed: boolean }): Promise<UploadedEventImage> => {
+      const res = await fetch(`${apiBaseUrl}/api/communities/${encodeURIComponent(communityTag)}/event-images`, {
+        method: "POST",
+        headers: jsonHeaders(),
+        body: JSON.stringify({ image, confirmed: opts.confirmed }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(body.error || "Upload failed"), { code: body.code });
+      return body as UploadedEventImage;
+    };
+  }, [uploadEventImage, apiBaseUrl, communityTag, jsonHeaders]);
 }
 
 /**
