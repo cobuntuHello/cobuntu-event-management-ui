@@ -150,6 +150,12 @@ export function EventCreateWizard(props: EventCreateWizardProps) {
               stripeConnectUrl: () => navigation.hrefs.connectStripe,
               searchTags: (q) => transport.searchTags(q),
               createTag: (name) => transport.createTag(name),
+              // Event images (EventImagesEditor): uploaded through the
+              // transport when it can, under the community's rules.
+              uploadEventImage: transport.uploadEventImage
+                ? (image, opts) => transport.uploadEventImage!(image, opts)
+                : undefined,
+              eventImageRules: props.community.eventImageRules ?? null,
               navigate: (path) => nav.navigate(path),
               googleMapsApiKey,
             }}
@@ -594,6 +600,9 @@ function WizardInner({
       name: d.name.trim(),
       description: d.description.trim() || undefined,
       bannerUrl: d.bannerUrl || undefined,
+      // The gallery after the cover, hosted URLs in order; absent when the
+      // host wired no image upload (docs/features/event-gallery.md).
+      ...(d.media ? { media: d.media } : {}),
       ...schedule,
       timezone: d.timezone,
       physicalLocation: d.physicalLocation.trim() || undefined,

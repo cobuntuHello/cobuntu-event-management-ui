@@ -10,6 +10,7 @@ export {
   useEventManagementConfig,
   useJsonHeaders,
   useUpdateEvent,
+  useUploadEventImage,
   type EventManagementConfig,
 } from "./config";
 
@@ -200,6 +201,14 @@ export {
 // apiBaseUrl/authHeaders/stripeConnectUrl from it) and owns the submit —
 // see each app's create-event page for the payload builder.
 export { EventForm, type EventFormData, type TierItem } from "./components/EventForm";
+// An event's images: cover first, then a square gallery, under a community's
+// image rules (backend docs/features/event-gallery.md). The editor is the
+// create form's; it is exported for the manage page and the admin app.
+export { EventImagesEditor, imageKey, type EventImage } from "./components/EventImagesEditor";
+export {
+  MAX_EVENT_IMAGES, readEventImageRules, meetsMinEdge, hasAiGeneratedLabel, fileHasAiGeneratedLabel, imageSizeOf,
+  type EventImageRules, type UploadedEventImage, type UploadEventImage,
+} from "./lib/eventImages";
 // The name cap, exported so a consumer's own submit gate reads the same number
 // the form's counter does rather than hard-coding a second copy of it.
 export { LISTING_NAME_MAX, listingNameTooLong } from "./lib/listingNameLimit";
