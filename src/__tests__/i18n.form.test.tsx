@@ -27,12 +27,13 @@ describe("form area with a host translator", () => {
   it("EventForm asks the host for its copy by fully qualified key", async () => {
     renderWithConfig(<EventForm communityTag="c-1" page="listing" />, { config: { t: hostT } });
     expect(await screen.findByPlaceholderText("PT:eventsUi.manageUi.eventForm.namePlaceholder")).toBeInTheDocument();
-    expect(screen.getByText("PT:eventsUi.manageUi.eventForm.addBanner")).toBeInTheDocument();
     expect(screen.getByText("PT:eventsUi.manageUi.eventForm.addLocation")).toBeInTheDocument();
     // The timestamps primitive inside the form goes through the same translator.
     expect(screen.getByText("PT:eventsUi.manageUi.eventTimestamps.start")).toBeInTheDocument();
-    // No English left on the listing page's own labels.
-    expect(screen.queryByText("Add banner")).toBeNull();
+    // No English left on the listing page's own labels. (The photos are the
+    // shared MediaManager, whose copy is management-ui-shared's: a host
+    // translates it through ManagementCopyProvider, as the community app does.)
+    expect(screen.queryByText("Add location")).toBeNull();
   });
 
   it("the default ticket tier is named in the host's language", async () => {
@@ -64,7 +65,8 @@ describe("form area without a host translator", () => {
   it("EventForm renders the English it always did", async () => {
     renderWithConfig(<EventForm communityTag="c-1" page="listing" />);
     expect(await screen.findByPlaceholderText("Event Name")).toBeInTheDocument();
-    expect(screen.getByText("Add banner")).toBeInTheDocument();
+    // The photos: the shared MediaManager's wide drop area.
+    expect(screen.getByText("Add photos")).toBeInTheDocument();
     expect(screen.getByText("Let's start with the basics")).toBeInTheDocument();
     expect(screen.getByText("Start")).toBeInTheDocument();
   });
