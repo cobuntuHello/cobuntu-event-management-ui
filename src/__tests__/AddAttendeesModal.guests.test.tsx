@@ -152,6 +152,7 @@ describe("adding people with no account", () => {
         open();
         await screen.findByText("Ana Neto");
         await user.type(screen.getByPlaceholderText(/Search by name/), "Rui Barros");
-        expect(await screen.findByText("Not a member here? Type their full email address to add them.")).toBeInTheDocument();
+        // The gift-tickets copy (0.104.0, #265): no account is needed to receive one.
+        expect(await screen.findByText("Not a member here? Type their full email address. No account needed.")).toBeInTheDocument();
     });
 });
