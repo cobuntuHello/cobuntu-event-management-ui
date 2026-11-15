@@ -29,6 +29,10 @@ import { PricingView } from "../page/views/PricingView";
 // The modal is a large component with its own fetches. Here we only care
 // about WHICH tier it was asked to open, so it is replaced by a probe that
 // renders the props under test.
+// The Discount codes card loads its own list; stubbed so this file's fetch
+// assertions see only the calls under test (it has its own test file).
+vi.mock("@cobuntu/management-ui-shared", async (orig) => ({ ...(await orig() as any), DiscountCodesSection: () => null }));
+
 vi.mock("../components/PriceEditModal/DonationsSection", () => ({
   DonationsSection: ({ onUpdate, defaultCurrency }: any) => (
     <div data-testid="donations">

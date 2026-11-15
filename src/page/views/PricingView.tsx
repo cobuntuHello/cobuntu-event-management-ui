@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
+import { DiscountCodesSection } from "@cobuntu/management-ui-shared";
 import { PriceEditModal } from "../../components/PriceEditModal";
 import { theme, muted } from "../../shared/theme";
 import {
@@ -310,6 +311,21 @@ export function PricingView({
           </div>
         )}
       </div>
+
+      {/*
+        * Discount codes (backend docs/features/discount-codes.md, Phase 3).
+        * The card loads its own codes and renders nothing where codes are off
+        * for this community. For the event's hosts only (canEdit).
+        */}
+      {canEdit && (
+        <DiscountCodesSection
+          endpoint={{ apiBaseUrl, communityTag, item: { kind: "event", id: eventId }, headers: () => jsonHeaders() }}
+          itemName={event?.name ?? ""}
+          tiers={tiers.map((t: any) => ({ id: t.id, name: t.name }))}
+          currency={tiers.length > 0 ? tierPrice(tiers[0]).currency : "EUR"}
+          onCopied={() => showToast("Code copied")}
+        />
+      )}
 
       {editingTier && (
         <PriceEditModal
