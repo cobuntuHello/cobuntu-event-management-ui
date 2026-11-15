@@ -200,7 +200,7 @@ type InnerProps = Omit<EventCreateWizardProps, "initialDrafts" | "canCreateForCo
 function WizardInner({
   community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep, disableNextOnInvalidExtraStep, ownershipMode = "choice", withMemberPricesStep = false,
   isLeader: isLeaderHere, drafts: myDrafts, draftId, draftStepFromUrl,
-  syncStepToUrl = true, onLocalResume,
+  syncStepToUrl = true, onLocalResume, sellerPremium,
 }: InnerProps) {
   const { tag: communityTag, id: communityId, name: communityName, memberFeeModel, memberRequireApproval, platformFeeRate } = community;
   const hrefs = navigation.hrefs;
@@ -1048,7 +1048,7 @@ function WizardInner({
                * a different base. This used to read the all-in rate as
                * platformFeeRate + Stripe's 1.5%, as the product wizard did.
                */
-              platformFee={memberFeeFor(formDataRef.current?.tiers?.[0]?.currency, { premium: props.sellerPremium === true })}
+              platformFee={memberFeeFor(formDataRef.current?.tiers?.[0]?.currency, { premium: sellerPremium === true })}
             />
           </div>
         </div>
