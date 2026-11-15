@@ -10,12 +10,12 @@ import { EventTimestamps } from "../ui/event-timestamps";
 import { LISTING_NAME_MAX, NAME_COUNTER_FROM, listingNameTooLong } from "../lib/listingNameLimit";
 import { EventLocationsField, LocationAddButtons, addLocation, makeLocation, locationErrors, type EventLocationValue } from "../ui/event-locations-field";
 import { EventTags } from "../ui/event-tags";
-import { BannerCropModal, type BannerCropResult } from "../ui/banner-crop-modal";
+import { EventImagesEditor, imageKey, type EventImage } from "./EventImagesEditor";
 import { DescriptionDialog } from "@cobuntu/management-ui-shared";
 import { markdownToPlainText } from "../lib/htmlToPlainText";
 import { CategoryPickerRow, type CategoryOption } from "./CategoryPickerRow";
 import {
-  Users, Image as ImageIcon, X,
+  Users, X,
   Check, ChevronRight, MapPin, FileText, Tag as TagIcon,
   PenLine, Wallet, Ticket, CreditCard, Heart, Info, Shield, ListChecks, CalendarClock, BadgePercent,
 } from "lucide-react";
@@ -38,7 +38,7 @@ import { DonationsField } from "./PriceEditModal/DonationsField";
 // requires gating on a connected account. Use it ONLY for that gate; don't
 // let it creep back into gating tier-opening.
 import { useStripeStatus } from "./stripe-status";
-import { useEventManagementConfig } from "../config";
+import { useEventManagementConfig, useEventImageRules, useUploadEventImage } from "../config";
 import { InfoBanner, DismissibleTipBanner } from "../create-wizard/banners";
 import { useEventT } from "../create-wizard/i18n";
 import {
@@ -207,7 +207,15 @@ export interface EventFormData {
   /** Community taxonomy. null = unfiled. Sub-category is only ever set with its parent. */
   categoryId: string | null;
   subCategoryId: string | null;
+  /** The cover: the first of the event's images. */
   bannerUrl: string;
+  /**
+   * The gallery: the event's other square images after the cover, as hosted
+   * URLs in order (backend docs/features/event-gallery.md). Undefined when
+   * the host app has not wired image uploads, so a save leaves the gallery
+   * alone; see EventImagesEditor.
+   */
+  media?: string[];
   startDate: Date | null;
   endDate: Date | null;
   /**
@@ -470,7 +478,29 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   // inline delimiters stripped rather than just truncated. Same helper
   // EditEventDrawer already uses, so the create and edit rows agree.
   const descriptionPreview = markdownToPlainText(description);
-  const [bannerUrl, setBannerUrl] = useState(initialData?.bannerUrl || "");
+  /*
+   * THE EVENT'S IMAGES, cover first (EventImagesEditor). With an upload route
+   * wired (config.uploadEventImage, or the default when apiBaseUrl is set),
+   * every image is uploaded as it is cropped and the save carries URLs: the
+   * first is the cover (`bannerUrl`), the rest the gallery (`media`). Without
+   * one, it is the single inline cover it always was. Images still uploading
+   * are left out of what the form reports, so a save never sends a half-done
+   * one.
+   */
+  const uploadEventImage = useUploadEventImage(communityTag);
+  // The wizard passes the community's rules; elsewhere they are fetched.
+  // `undefined` = still loading: the editor waits (see below).
+  const eventImageRules = useEventImageRules(communityTag);
+  const [images, setImages] = useState<EventImage[]>(() => [
+    ...(initialData?.bannerUrl ? [{ url: initialData.bannerUrl, key: imageKey() }] : []),
+    ...(initialData?.media ?? []).map((url) => ({ url, key: imageKey() })),
+  ]);
+  const settledImages = useMemo(() => images.filter((i) => !i.uploading), [images]);
+  const bannerUrl = settledImages[0]?.url ?? "";
+  const media = useMemo(
+    () => (uploadEventImage ? settledImages.slice(1).map((i) => i.url) : undefined),
+    [uploadEventImage, settledImages],
+  );
   const [startDate, setStartDate] = useState<Date | null>(initialData?.startDate || null);
   const [endDate, setEndDate] = useState<Date | null>(initialData?.endDate || null);
   // T-320. Off unless the caller says so: a fresh form starts dated (today,
@@ -652,22 +682,6 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   const [pendingStripeLeaveUrl, setPendingStripeLeaveUrl] = useState<string | null>(null);
 
   // UI state
-  const [isBannerCropOpen, setIsBannerCropOpen] = useState(false);
-  // Inline banner upload — tap the banner → native device picker (our own
-  // hidden input) → the square cropper (the only popup) → the banner is set.
-  // No upload/stock "options" popup. bannerCropSrc feeds the cropper directly.
-  const bannerInputRef = useRef<HTMLInputElement | null>(null);
-  const [bannerCropSrc, setBannerCropSrc] = useState<string | null>(null);
-  function pickBanner() { bannerInputRef.current?.click(); }
-  function onBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (bannerInputRef.current) bannerInputRef.current.value = "";
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => { setBannerCropSrc(reader.result as string); setIsBannerCropOpen(true); };
-    reader.readAsDataURL(file);
-  }
-  function recropBanner() { if (!bannerUrl) return; setBannerCropSrc(bannerUrl); setIsBannerCropOpen(true); }
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   /*
@@ -1043,7 +1057,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
   onChangeRef.current = onChange;
   useLayoutEffect(() => {
     onChangeRef.current?.({
-      name, description, bannerUrl, startDate, endDate, dateTba, startTime, endTime, timezone,
+      name, description, bannerUrl, media, startDate, endDate, dateTba, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl,
       // Phase 2: the full set. The flat fields above stay as the primary mirror.
       locations: locationsPayload,
@@ -1078,7 +1092,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       donation,
       memberPricingError,
     });
-  }, [name, description, bannerUrl, startDate, endDate, dateTba, startTime, endTime, timezone,
+  }, [name, description, bannerUrl, media, startDate, endDate, dateTba, startTime, endTime, timezone,
       physicalLocation, physicalLatitude, physicalLongitude, onlineUrl, locationsPayload,
       viewAccess, buyAccess, requiresApproval, listed, refundPolicy, attendeeVisibility, locationVisibility, submittableTiers, tags,
       categoryId, subCategoryId, donation, valueLines, memberPricingError]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1291,35 +1305,16 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             )}
           </div>
 
-          {/* Banner — single square (1:1) cover. Tap it → device photo picker
-              → square cropper (the only popup) → it lands here. Tap again to
-              recrop, the corner X to remove. Responsive: full-width up to
-              360px. No gallery/options popup. */}
-          {bannerUrl ? (
-            <div className="group relative w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden ring-1 ring-zinc-100">
-              <button type="button" onClick={recropBanner} className="block w-full h-full cursor-pointer" aria-label={tf("recropBanner")}>
-                <img src={bannerUrl} alt={tf("bannerAlt")} className="w-full h-full object-cover" />
-                <span className="absolute top-3 left-3 text-[11px] font-semibold tracking-wide bg-white/85 backdrop-blur-sm text-zinc-800 px-2.5 py-1 rounded-full">{tf("cover")}</span>
-                <span className="absolute inset-0 flex items-center justify-center gap-2 bg-black/25 text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ImageIcon className="h-[18px] w-[18px]" /> {tf("recrop")}
-                </span>
-              </button>
-              <button type="button" onClick={() => setBannerUrl("")} aria-label={tf("removeBanner")}
-                className="absolute top-2.5 right-2.5 h-7 w-7 rounded-full bg-black/55 hover:bg-black/75 text-white flex items-center justify-center transition-colors cursor-pointer">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button type="button" onClick={pickBanner}
-              className="group relative w-full max-w-[360px] aspect-square rounded-2xl bg-zinc-50 border-2 border-dashed border-zinc-200 hover:border-zinc-300 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2.5 text-zinc-400 hover:text-zinc-500">
-              <span className="w-12 h-12 rounded-2xl bg-white ring-1 ring-zinc-100 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
-                <ImageIcon className="h-6 w-6 text-zinc-300" />
-              </span>
-              <span className="text-[13px] font-medium">{tf("addBanner")}</span>
-              <span className="text-[11px] text-zinc-300">{tf("addBannerHint")}</span>
-            </button>
-          )}
-          <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={onBannerFile} />
+          {/* The event's images: a square cover, then (with an upload route)
+              a square gallery. Pick → square cropper → uploaded. The
+              community's image rules apply here. See EventImagesEditor. */}
+          <EventImagesEditor
+            images={images}
+            onChange={setImages}
+            rules={eventImageRules ?? null}
+            upload={uploadEventImage}
+            disabled={eventImageRules === undefined}
+          />
 
           {/* Schedule — compact, inline */}
           <div className="rounded-2xl bg-zinc-50 ring-1 ring-zinc-100/0 overflow-hidden">
@@ -1441,15 +1436,6 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
       </div>
       )}
 
-      {/* Banner Crop Modal */}
-      <BannerCropModal
-        open={isBannerCropOpen}
-        onOpenChange={setIsBannerCropOpen}
-        directCropSrc={bannerCropSrc}
-        onSave={(result: BannerCropResult) => { if (result.base64) setBannerUrl(result.base64); }}
-        title={tf("framePhoto")}
-        hideStockPhotos
-      />
 
       {/* ─── Options — pricing (ticket tiers) + the host's approval gate, plus
             community access. On the wizard these are the pricing/approval step

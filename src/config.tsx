@@ -3,6 +3,7 @@
 import * as React from "react";
 import { setGoogleMapsApiKey } from "./lib/google-maps";
 import { WizardCopyProvider, useEventT, type WizardTranslate, type WizardTranslateRich } from "./create-wizard/i18n";
+import { readEventImageRules, type EventImageRules, type UploadEventImage, type UploadedEventImage } from "./lib/eventImages";
 
 /**
  * The auth-injection contract between the shared event-management UI and
@@ -94,6 +95,20 @@ export interface EventManagementConfig {
   createTag?: (name: string) => Promise<{ id: string; name: string; searchName?: string }>;
   /** Replaces the Stripe-status fetch behind useStripeStatus. Must resolve `{ connected, chargesEnabled }`. */
   stripeStatus?: (communityTag: string) => Promise<{ connected: boolean; chargesEnabled: boolean }>;
+  /**
+   * Uploads one cropped event image (a data URL) and resolves its hosted URL
+   * (backend POST /communities/:tag/event-images, or the v1 embed twin).
+   * Replaces the default `${apiBaseUrl}/api/communities/:tag/event-images`
+   * fetch (apiBaseUrl "" = same origin), like searchTags above. `null` says
+   * this host has NO upload route (the wizard on a transport without one):
+   * event images then stay the single inline cover (EventImagesEditor).
+   */
+  uploadEventImage?: UploadEventImage | null;
+  /**
+   * The community's rules for event images (its storefront config's
+   * eventImageRules, see readEventImageRules), or null for none.
+   */
+  eventImageRules?: EventImageRules | null;
   /**
    * Google Maps JavaScript API key for location autocomplete and maps.
    * Overrides `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, which only exists in a Next
@@ -208,6 +223,66 @@ export function useJsonHeaders(): () => Record<string, string> {
     () => ({ "Content-Type": "application/json", ...authHeaders() }),
     [authHeaders],
   );
+}
+
+/**
+ * The event-image upload to use: the host's `uploadEventImage` when it gave
+ * one; none when it said `null` (no upload route: the single inline cover);
+ * else a fetch to `${apiBaseUrl}/api/communities/:tag/event-images`, where an
+ * empty apiBaseUrl is the same origin (the community app's manage page). The
+ * wizard routes calls through its transport and passes `null` when the
+ * transport cannot upload, so an Embed site never falls through to a
+ * same-origin route it does not have. Errors carry the backend's message
+ * (e.g. "This image is 800 × 800 pixels…") and `code`.
+ */
+export function useUploadEventImage(communityTag?: string | null): UploadEventImage | undefined {
+  const { uploadEventImage, apiBaseUrl } = useEventManagementConfig();
+  const jsonHeaders = useJsonHeaders();
+  return React.useMemo(() => {
+    if (uploadEventImage) return uploadEventImage;
+    if (uploadEventImage === null || !communityTag) return undefined;
+    return async (image: string, opts: { confirmed: boolean }): Promise<UploadedEventImage> => {
+      const res = await fetch(`${apiBaseUrl ?? ""}/api/communities/${encodeURIComponent(communityTag)}/event-images`, {
+        method: "POST",
+        headers: jsonHeaders(),
+        body: JSON.stringify({ image, confirmed: opts.confirmed }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(body.error || "Upload failed"), { code: body.code });
+      return body as UploadedEventImage;
+    };
+  }, [uploadEventImage, apiBaseUrl, communityTag, jsonHeaders]);
+}
+
+/**
+ * The community's rules for event images: `config.eventImageRules` when the
+ * host passed them (the wizard always does, from its community prop), else
+ * GET `${apiBaseUrl}/api/communities/:tag/event-image-rules` (an empty
+ * apiBaseUrl is the same origin), else none.
+ * `undefined` while that request is in flight: callers hold the image editor
+ * disabled until then, so a photo is never checked against "no rules" by
+ * mistake (the server checks again either way).
+ */
+export function useEventImageRules(communityTag?: string | null): EventImageRules | null | undefined {
+  const { eventImageRules, apiBaseUrl } = useEventManagementConfig();
+  // Through a ref: a host that writes authHeaders inline hands a new function
+  // every render, and as an effect dependency that would refetch forever.
+  const jsonHeaders = useJsonHeaders();
+  const headers = React.useRef(jsonHeaders);
+  headers.current = jsonHeaders;
+  const given = eventImageRules !== undefined;
+  const [fetched, setFetched] = React.useState<EventImageRules | null | undefined>(undefined);
+  React.useEffect(() => {
+    if (given) return;
+    if (!communityTag) { setFetched(null); return; }
+    let live = true;
+    fetch(`${apiBaseUrl ?? ""}/api/communities/${encodeURIComponent(communityTag)}/event-image-rules`, { headers: headers.current() })
+      .then((r) => (r.ok ? r.json() : { rules: null }))
+      .then((b) => { if (live) setFetched(readEventImageRules({ eventImageRules: b?.rules ?? null })); })
+      .catch(() => { if (live) setFetched(null); });
+    return () => { live = false; };
+  }, [given, apiBaseUrl, communityTag]);
+  return given ? eventImageRules : fetched;
 }
 
 /**

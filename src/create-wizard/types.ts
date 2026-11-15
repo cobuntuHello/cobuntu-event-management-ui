@@ -2,6 +2,7 @@ import type * as React from "react";
 import type { CreateOutcome, MemberFeeModel, SubmitAction } from "@cobuntu/management-ui-shared";
 import type { CategoryOption } from "../components/CategoryPickerRow";
 import type { EventCreateWizardCopy } from "./i18n";
+import type { EventImageRules, UploadedEventImage } from "../lib/eventImages";
 
 /**
  * EventCreateWizard's contract with its host.
@@ -118,6 +119,14 @@ export interface EventCreateWizardTransport {
   createEvent(body: Record<string, unknown>): Promise<CreateEventResult>;
   /** PUT donation settings on the new event. Best effort: a throw only warns. */
   saveDonations(eventId: string, payload: Record<string, unknown>): Promise<void>;
+  /**
+   * Upload one cropped event image (a data URL) under the community's image
+   * rules: backend POST /communities/:tag/event-images, or v1
+   * me/event-images for Embed. `confirmed` is the uploader's tick. Optional:
+   * without it the wizard keeps the single inline cover and no gallery.
+   * Reject with the backend's message (and `code`) so the editor can show it.
+   */
+  uploadEventImage?(image: string, opts: { confirmed: boolean }): Promise<UploadedEventImage>;
 }
 
 /** Props a host's link component receives (see `navigation.renderLink`). */
@@ -274,6 +283,12 @@ export interface EventCreateWizardCommunity {
    * instead is gone.
    */
   ownershipPerksNote?: React.ReactNode;
+  /**
+   * The community's rules for event images (its storefront config's
+   * eventImageRules; `readEventImageRules` reads it). Null or absent = none.
+   * Applied by the image editor before upload; the backend applies them again.
+   */
+  eventImageRules?: EventImageRules | null;
 }
 
 export interface EventCreateWizardProps {
