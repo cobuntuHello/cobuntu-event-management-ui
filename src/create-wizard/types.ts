@@ -295,6 +295,12 @@ export interface EventCreateWizardProps {
   community: EventCreateWizardCommunity;
   /** The signed-in member, for the ownership card's avatar. */
   viewer?: { name?: string | null; profileImage?: string | null };
+  /**
+   * The seller has an active Cobuntu Premium subscription (Premium Phase 3):
+   * Cobuntu charges them no member seller fee, only Stripe's processing. The
+   * host knows it (users.isPremium); omitted, the member pays the Free fee.
+   */
+  sellerPremium?: boolean;
   transport: EventCreateWizardTransport;
   navigation: EventCreateWizardNavigation;
   copy?: EventCreateWizardCopy;

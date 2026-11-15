@@ -523,7 +523,7 @@ describe("the commission step", () => {
     expect(screen.getByText("Featured")).toBeInTheDocument();
     expect(screen.getByText("10%")).toBeInTheDocument();
     expect(screen.getByText("15%")).toBeInTheDocument();
-    expect(screen.getByText("Card processing")).toBeInTheDocument();
+    expect(screen.getByText("Card processing (estimate)")).toBeInTheDocument();
     expect(screen.getByText("Cobuntu")).toBeInTheDocument();
     // 2.5% platform rate, same 1.5%/€0.25 processing split PackagePicker always uses.
     expect(screen.getByText("1.5% + €0.25")).toBeInTheDocument();
@@ -541,13 +541,26 @@ describe("the commission step", () => {
     expect(screen.getByText("2.5% + £0.05")).toBeInTheDocument();
   });
 
-  it("zeroes Cobuntu's cut when the host reports a premium community (platformFeeRate 0)", async () => {
+  it("charges a Premium seller no Cobuntu fee, Stripe's processing still shown (Premium Phase 3)", async () => {
     await toCommissionStep({
       transport: transport({ myPackages: twoPackages }),
-      community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0 },
+      community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.025 },
+      sellerPremium: true,
     });
     await screen.findByText("Standard");
-    expect(screen.getByText("0% + €0.05")).toBeInTheDocument();
+    expect(screen.getByText("No fee with Premium")).toBeInTheDocument();
+    expect(screen.getByText("1.5% + €0.25")).toBeInTheDocument();
+  });
+
+  it("never reads the member fee off the community's platform rate", async () => {
+    // platformFeeRate is Cobuntu's cut of the COMMISSION; the member seller
+    // fee is its own (2.5% + about EUR 0.05), whatever that rate is.
+    await toCommissionStep({
+      transport: transport({ myPackages: twoPackages }),
+      community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.08 },
+    });
+    await screen.findByText("Standard");
+    expect(screen.getByText("2.5% + €0.05")).toBeInTheDocument();
   });
 
   it("still shows the no-packages note when the community has published none", async () => {
@@ -563,7 +576,7 @@ describe("the commission step", () => {
     await toCommissionStep({
       community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.025 },
     });
-    expect(screen.getByText("Card processing")).toBeInTheDocument();
+    expect(screen.getByText("Card processing (estimate)")).toBeInTheDocument();
     expect(screen.getByText("Cobuntu")).toBeInTheDocument();
     expect(screen.getByText("1.5% + €0.25")).toBeInTheDocument();
     expect(screen.getByText("2.5% + €0.05")).toBeInTheDocument();
@@ -590,9 +603,10 @@ describe("the commission step", () => {
       transport: transport({ myPackages: vi.fn(async () => [{ id: "pk1", name: "Standard", description: null, rate: 10 }]) }),
       community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.025 },
     });
-    // 100 - 10 (package) - 4 (Cobuntu all-in: 2.5% net + 1.5% processing) = 86.
+    // (100 - 10) x (1 - 2.5% Cobuntu, of the seller's share) - 1.5 (Stripe,
+    // of the sale, on top since Premium Phase 3) = 86.25, shown as 86.3.
     expect(await screen.findByText("You keep, per sale")).toBeInTheDocument();
-    expect(screen.getByText("86%")).toBeInTheDocument();
+    expect(screen.getByText("86.3%")).toBeInTheDocument();
   });
 });
 
