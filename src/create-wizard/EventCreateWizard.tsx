@@ -1036,27 +1036,19 @@ function WizardInner({
               emptyLabel={t("noPackagesNote", { community: communityName })}
               approval={{ requiresApproval: memberRequireApproval, reviewerLabel: communityName }}
               /*
-               * `platformFeeRate` is Cobuntu's NET cut (0 for a premium
-               * community), but `platformFee.rate` wants the ALL-IN gross
-               * -- Cobuntu pays Stripe out of it, so processing rides ON
-               * TOP of the net rate rather than replacing it. See
-               * cobuntu-product-management-ui's identical comment for the
-               * full reasoning (ProductCreateWizard.tsx's own listing
-               * step). Falls back to 2.5% net (4% all-in, this call's
-               * previous hardcoded total) only when an un-updated host
-               * never supplies a real rate.
+               * The member seller fee as the backend charges it (Cobuntu
+               * Premium Phase 3, management-ui-shared memberFeeFor): Cobuntu's
+               * 2.5% plus about EUR 0.05 set per currency, Stripe's processing
+               * ON TOP as its own line, and no Cobuntu fee at all for a
+               * Premium seller. The fixed parts are in the currency the
+               * tickets are priced in ("2.5% + £0.05", yen in whole yen).
+               *
+               * Not the community's `platformFeeRate`: that is Cobuntu's cut
+               * of the commission (the ownership card), a different fee with
+               * a different base. This used to read the all-in rate as
+               * platformFeeRate + Stripe's 1.5%, as the product wizard did.
                */
-              /*
-               * The fixed parts in the currency the tickets are priced in,
-               * about EUR 0.30 and EUR 0.25 set per currency
-               * (management-ui-shared memberFeeFor, multi-currency MC3c): a
-               * pound event reads "4% + £0.25", yen in whole yen. Euros
-               * exactly as before.
-               */
-              platformFee={(() => {
-                const fee = memberFeeFor(formDataRef.current?.tiers?.[0]?.currency);
-                return { ...fee, rate: (platformFeeRate ?? 0.025) * 100 + fee.processing.rate };
-              })()}
+              platformFee={memberFeeFor(formDataRef.current?.tiers?.[0]?.currency, { premium: props.sellerPremium === true })}
             />
           </div>
         </div>
