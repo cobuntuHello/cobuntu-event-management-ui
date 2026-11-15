@@ -1,85 +1,82 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import * as React from "react";
-import { EventImagesEditor, type EventImage } from "../components/EventImagesEditor";
-import type { EventImageRules } from "../lib/eventImages";
 
 /*
- * The event image editor (backend docs/features/event-gallery.md): cover
- * first, then a square gallery when the host wired an upload, the single
- * inline cover when it did not, and a community's rules before anything is
- * uploaded.
+ * The event image editor (backend docs/features/event-gallery.md) is the
+ * shared MediaManager (@cobuntu/management-ui-shared, tested there) with the
+ * event's side: square frames, up to 8, each framed photo uploaded at once
+ * with the community's tick, the community's rules, and the single inline
+ * cover when the host wired no upload. The manager is stubbed to record what
+ * it is given and to hand back one framed photo.
  */
 
-vi.mock("react-easy-crop", () => ({
-  default: (props: any) => <div data-testid="cropper" data-image={props.image} />,
-}));
+let last: any = null;
+vi.mock("@cobuntu/management-ui-shared", async (orig) => {
+  const real = await orig<Record<string, unknown>>();
+  return {
+    ...real,
+    MediaManager: (p: any) => {
+      last = p;
+      return (
+        <div>
+          <span data-testid="count">{p.items.length}</span>
+          <button type="button" onClick={async () => {
+            const item = await p.commit({ dataUrl: "data:image/jpeg;base64,FRAMED", file: new File(["x"], "p.jpg"), width: 1200, height: 1200, source: "data:image/png;base64,ORIG", confirmed: true });
+            p.onChange([...p.items, item]);
+          }}>frame one</button>
+        </div>
+      );
+    },
+  };
+});
+
+import { EventImagesEditor, type EventImage } from "../components/EventImagesEditor";
+import type { EventImageRules } from "../lib/eventImages";
 
 const TEJA: EventImageRules = {
   minEdge: 1080,
   requireConfirmation: true,
   confirmationText: "I hold the rights to these images, and none is AI-generated.",
-  notice: "High-resolution photos only, at least 1080 × 1080 after cropping.",
+  notice: "High-resolution photos only.",
   blockAiLabelled: true,
 };
 
-const img = (n: number): EventImage => ({ url: `https://storage.example/${n}.jpg`, key: `k${n}` });
-const upload = vi.fn(async () => ({ url: "https://storage.example/new.jpg", width: 1200, height: 1200 }));
-
-function Harness(props: { initial: EventImage[]; rules?: EventImageRules | null; withUpload?: boolean; onChange?: (n: EventImage[]) => void }) {
-  const [images, setImages] = React.useState(props.initial);
-  return (
-    <EventImagesEditor
-      images={images}
-      onChange={(n) => { setImages(n); props.onChange?.(n); }}
-      rules={props.rules}
-      upload={props.withUpload === false ? undefined : upload}
-    />
-  );
+function Harness(props: { initial?: EventImage[]; rules?: EventImageRules | null; upload?: any; onChange?: (n: EventImage[]) => void }) {
+  const [images, setImages] = React.useState<EventImage[]>(props.initial ?? []);
+  return <EventImagesEditor images={images} onChange={(n) => { setImages(n); props.onChange?.(n); }} rules={props.rules} upload={props.upload} />;
 }
 
 describe("EventImagesEditor", () => {
-  it("without an upload route it is the single cover it always was", () => {
-    render(<Harness initial={[]} withUpload={false} rules={TEJA} />);
-    expect(screen.getByText("Add banner")).toBeTruthy();
-    // No gallery, so no tick and no notice: those belong to the upload route.
-    expect(screen.queryByRole("checkbox")).toBeNull();
-    expect(screen.queryByText(TEJA.notice!)).toBeNull();
+  it("gives the shared manager a square frame, up to 8, and the community's rules", () => {
+    render(<Harness rules={TEJA} upload={vi.fn()} />);
+    expect(last.aspect).toBe(1);
+    expect(last.maxItems).toBe(8);
+    expect(last.rules).toEqual(TEJA);
   });
 
-  it("with a community's rules: shows the notice, and adding waits for the tick", () => {
-    render(<Harness initial={[]} rules={TEJA} />);
-    expect(screen.getByText(TEJA.notice!)).toBeTruthy();
-    const add = screen.getByRole("button", { name: /Add banner/ }) as HTMLButtonElement;
-    expect(add.disabled).toBe(true);
-    expect(screen.getByText("Tick the box above first")).toBeTruthy();
-    fireEvent.click(screen.getByRole("checkbox", { name: TEJA.confirmationText }));
-    expect(add.disabled).toBe(false);
-  });
-
-  it("the first image is the cover, and the arrows move a photo", () => {
+  it("uploads each framed photo with the tick and keeps the hosted URL", async () => {
+    const upload = vi.fn(async () => ({ url: "https://s/event-images/1.jpg", width: 1200, height: 1200 }));
     const onChange = vi.fn();
-    render(<Harness initial={[img(1), img(2), img(3)]} onChange={onChange} />);
-    expect(screen.getAllByText("Cover")).toHaveLength(1);
-    fireEvent.click(screen.getAllByRole("button", { name: "Move later" })[0]);
-    expect(onChange.mock.calls.at(-1)![0].map((i: EventImage) => i.key)).toEqual(["k2", "k1", "k3"]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Remove banner" })[2]);
-    expect(onChange.mock.calls.at(-1)![0].map((i: EventImage) => i.key)).toEqual(["k2", "k1"]);
-    expect(screen.getByText("2 of 8")).toBeTruthy();
+    render(<Harness rules={TEJA} upload={upload} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "frame one" }));
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+    expect(upload).toHaveBeenCalledWith("data:image/jpeg;base64,FRAMED", { confirmed: true });
+    expect(onChange.mock.calls.at(-1)![0][0]).toMatchObject({ url: "https://s/event-images/1.jpg", source: "data:image/png;base64,ORIG" });
   });
 
-  it("stops at eight", () => {
-    render(<Harness initial={[1, 2, 3, 4, 5, 6, 7, 8].map(img)} />);
-    expect(screen.queryByRole("button", { name: /Add photo/ })).toBeNull();
+  it("without an upload route it is the single inline cover it always was", async () => {
+    const onChange = vi.fn();
+    render(<Harness rules={TEJA} onChange={onChange} />);
+    expect(last.maxItems).toBe(1);
+    // No upload route, no gallery, so no rules: those belong to the route.
+    expect(last.rules).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "frame one" }));
+    await waitFor(() => expect(onChange.mock.calls.at(-1)![0][0].url).toBe("data:image/jpeg;base64,FRAMED"));
   });
 
-  it("refuses a file an AI tool labelled, before the cropper opens", async () => {
-    const { container } = render(<Harness initial={[img(1)]} rules={{ ...TEJA, requireConfirmation: false }} />);
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
-    const ai = new File([new TextEncoder().encode("\xff\xd8 trainedAlgorithmicMedia")], "ai.jpg", { type: "image/jpeg" });
-    fireEvent.change(input, { target: { files: [ai] } });
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/made with AI/));
-    expect(screen.queryByTestId("cropper")).toBeNull();
-    expect(upload).not.toHaveBeenCalled();
+  it("hands existing photos over in order, the cover first", () => {
+    render(<Harness upload={vi.fn()} initial={[{ url: "https://s/a.jpg", key: "a" }, { url: "https://s/b.jpg", key: "b" }]} />);
+    expect(last.items.map((i: any) => i.preview)).toEqual(["https://s/a.jpg", "https://s/b.jpg"]);
   });
 });
