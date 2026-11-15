@@ -163,3 +163,27 @@ describe("the payment-account notice", () => {
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Where a host picks a currency other than the euro, one line says how such a
+ * sale is paid (multi-currency MC3c, decision MC-D3: "understandable and not
+ * hidden"; Terms of Service 12.1). Nothing under the euro.
+ */
+describe("the payouts-in-euros line", () => {
+  beforeEach(() => {
+    __resetStripeStatusCache();
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: true, chargesEnabled: true } }]);
+  });
+
+  it("says a ticket in pounds is paid out in euros at Stripe's rate", () => {
+    renderStep({ currency: "GBP" });
+    expect(screen.getByTestId("payouts-in-euros-note").textContent).toBe(
+      "Paid out in euros at Stripe’s rate on the day of each sale.",
+    );
+  });
+
+  it("says nothing under the euro", () => {
+    renderStep({ currency: "EUR" });
+    expect(screen.queryByTestId("payouts-in-euros-note")).not.toBeInTheDocument();
+  });
+});
