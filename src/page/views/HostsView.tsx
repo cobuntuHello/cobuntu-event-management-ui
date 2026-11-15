@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { HostsManagementSection } from "@cobuntu/event-management-ui";
 import { getEventManagementConfig } from "../../config";
-import { apiBase } from "../helpers";
+import { apiBase, storefrontListing } from "../helpers";
 
 
 interface Props {
@@ -51,9 +51,11 @@ export function HostsView({ event, communityTag, eventId }: Props) {
     }, []);
 
     const communityName = useMemo<string | undefined>(() => {
-        const c = event?.communities?.[0]?.community || event?.communities?.[0];
+        // This community's row, not whichever came first (Premium multi-community).
+        const row = storefrontListing(event, communityTag);
+        const c = row?.community || row;
         return c?.name;
-    }, [event?.communities]);
+    }, [event?.communities, communityTag]);
 
     return (
         <HostsManagementSection
