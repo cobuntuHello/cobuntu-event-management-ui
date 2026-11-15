@@ -138,6 +138,14 @@ export function BasicsStep({
               ))}
             </SelectContent>
           </Select>
+          {/* Under a currency other than the euro, where a host picks it
+              (multi-currency MC3c, decision MC-D3: "understandable and not
+              hidden"; Terms of Service 12.1). Nothing under the euro. */}
+          {t.currency && t.currency.toUpperCase() !== "EUR" && (
+            <p className="mt-1.5 text-[11.5px] leading-snug text-zinc-500" data-testid="payouts-in-euros-note">
+              {tx("payoutsInEuros")}
+            </p>
+          )}
         </div>
       </div>
 

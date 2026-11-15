@@ -136,6 +136,7 @@ export const PRICING_MESSAGES_EN = {
         "price": "Price",
         "priceLockedTitle": "Refund all sales first to change price",
         "currency": "Currency",
+        "payoutsInEuros": "Paid out in euros at Stripe’s rate on the day of each sale.",
         "pwywMin": "Minimum amount (optional)",
         "noMinimum": "No minimum",
         "billingModeHelp": "One-time charges the full price at checkout. Installment plan splits it into equal monthly charges you configure below.",

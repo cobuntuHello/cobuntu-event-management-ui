@@ -530,6 +530,17 @@ describe("the commission step", () => {
     expect(screen.getByText("2.5% + €0.05")).toBeInTheDocument();
   });
 
+  it("states the fixed parts in the tickets' currency: pounds in pence (multi-currency MC3c)", async () => {
+    h.fake = fake({ tiers: [{ name: "General", price: "20", capacity: null, currency: "GBP" }] });
+    await toCommissionStep({
+      transport: transport({ myPackages: twoPackages }),
+      community: { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT", memberRequireApproval: true, platformFeeRate: 0.025 },
+    });
+    await screen.findByText("Standard");
+    expect(screen.getByText("1.5% + £0.20")).toBeInTheDocument();
+    expect(screen.getByText("2.5% + £0.05")).toBeInTheDocument();
+  });
+
   it("zeroes Cobuntu's cut when the host reports a premium community (platformFeeRate 0)", async () => {
     await toCommissionStep({
       transport: transport({ myPackages: twoPackages }),

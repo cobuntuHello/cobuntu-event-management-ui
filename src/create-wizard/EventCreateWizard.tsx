@@ -11,7 +11,7 @@ import {
   resolveCreateOutcome, type CreateOutcome,
   ListingAccessStep,
   fromTierAccessValue, PackagePicker, type TierAccessValue,
-  PortalContainerProvider,
+  PortalContainerProvider, memberFeeFor,
 } from "@cobuntu/management-ui-shared";
 import { EventForm, type EventFormData } from "../components/EventForm";
 import { EventManagementConfigProvider } from "../config";
@@ -1046,11 +1046,17 @@ function WizardInner({
                * previous hardcoded total) only when an un-updated host
                * never supplies a real rate.
                */
-              platformFee={{
-                rate: (platformFeeRate ?? 0.025) * 100 + 1.5,
-                fixedCents: 30,
-                processing: { rate: 1.5, fixedCents: 25 },
-              }}
+              /*
+               * The fixed parts in the currency the tickets are priced in,
+               * about EUR 0.30 and EUR 0.25 set per currency
+               * (management-ui-shared memberFeeFor, multi-currency MC3c): a
+               * pound event reads "4% + £0.25", yen in whole yen. Euros
+               * exactly as before.
+               */
+              platformFee={(() => {
+                const fee = memberFeeFor(formDataRef.current?.tiers?.[0]?.currency);
+                return { ...fee, rate: (platformFeeRate ?? 0.025) * 100 + fee.processing.rate };
+              })()}
             />
           </div>
         </div>
