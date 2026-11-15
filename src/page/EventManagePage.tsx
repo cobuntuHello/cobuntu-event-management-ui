@@ -3,6 +3,7 @@
 import * as React from "react";
 import { SectionsNav, type ViewKey } from "./sections/SectionsNav";
 import { ViewTransition } from "./ViewTransition";
+import { storefrontListing } from "./helpers";
 import { DetailsView } from "./views/DetailsView";
 import { PricingView } from "./views/PricingView";
 import { HostsView } from "./views/HostsView";
@@ -215,9 +216,10 @@ export function EventManagePage({
   const active: ViewKey = allowed.includes(view) ? view : "overview";
 
   const isPublished = React.useMemo(() => {
-    const listing = event?.communities?.[0];
+    // This community's row, not whichever came first (Premium multi-community).
+    const listing = storefrontListing(event, communityTag);
     return !!listing && !listing.isHidden && listing.status === "ACTIVE";
-  }, [event]);
+  }, [event, communityTag]);
 
   let content: React.ReactNode;
   switch (active) {

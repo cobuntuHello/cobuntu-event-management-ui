@@ -126,7 +126,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
   // check. The feature will be rebuilt as pure-FE later under
   // Workstream 1 of the events-domain roadmap.)
 
-  const status = getEventStatus(event);
+  const status = getEventStatus(event, communityTag);
   const t = useEventT("eventsUi.manageUi.detailsView");
 
   // The group chat lives in the community-app (a different host than admin),

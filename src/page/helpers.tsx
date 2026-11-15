@@ -74,7 +74,26 @@ export function getTimezoneAbbr(tz: string) {
   } catch { return ""; }
 }
 
-export function getEventStatus(event: any) {
+/**
+ * The event's listing row in THIS community (the manage page's `communityTag`).
+ *
+ * A Premium member's event can be carried by several communities (Premium
+ * multi-community), so `communities[0]` is just whichever row came first: on
+ * community B's manage page it could report A's status, and the page would call
+ * the event live in B while B had it paused. Matched on the row's
+ * `community.communityTag`; when no tag is given or no row matches (an older
+ * payload, a page outside any carrier), the first row, as before.
+ */
+export function storefrontListing(event: any, communityTag?: string): any {
+  const rows: any[] = event?.communities ?? [];
+  const tag = communityTag?.toLowerCase();
+  const here = tag
+    ? rows.find((r) => (r?.community?.communityTag ?? r?.community?.tagLower)?.toLowerCase() === tag)
+    : undefined;
+  return here ?? rows[0];
+}
+
+export function getEventStatus(event: any, communityTag?: string) {
   const now = new Date();
   const startDate = event?.startDate ? new Date(event.startDate) : null;
   const endDate = event?.endDate ? new Date(event.endDate) : null;
@@ -94,7 +113,7 @@ export function getEventStatus(event: any) {
     ? event.attendees.filter((a: any) => a?.status === "APPROVED").length
     : event?._count?.attendees || 0;
   const isPublished = (() => {
-    const listing = event?.communities?.[0];
+    const listing = storefrontListing(event, communityTag);
     return !!(listing && !listing.isHidden && listing.status === "ACTIVE");
   })();
 
