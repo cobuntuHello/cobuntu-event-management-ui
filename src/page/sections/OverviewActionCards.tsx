@@ -38,6 +38,14 @@ interface Props {
    * a consumer that has not been updated keeps today's behaviour.
    */
   canConfigureSettings?: boolean;
+  /**
+   * The viewer cannot change this event (it has ended, or it is somebody
+   * else's). Everything that writes is shown disabled so nothing looks like
+   * it works and then does nothing; the page's read-only notice says why.
+   * Share, Duplicate and opening an existing group chat stay: they change
+   * nothing on this event (T-370).
+   */
+  readOnly?: boolean;
   onShare: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
@@ -75,12 +83,13 @@ interface Props {
 export function OverviewActionCards({
   isPublished, isEventPast, isEventLive, hasPaidAttendees,
   canConfigureSettings = true,
+  readOnly = false,
   onShare, onEdit, onDuplicate, onPublish, onUnpublish, onDelete,
   groupChatExists, onGroupChat, onPrivateHire, onEventAddons,
 }: Props) {
   const t = useEventT("eventsUi.manageUi.overviewActionCards");
-  const publishDisabled = isEventPast || (isPublished && isEventLive);
-  const deleteDisabled = isEventLive || hasPaidAttendees;
+  const publishDisabled = readOnly || isEventPast || (isPublished && isEventLive);
+  const deleteDisabled = readOnly || isEventLive || hasPaidAttendees;
 
   const cards: Card[] = [
     {
@@ -101,7 +110,8 @@ export function OverviewActionCards({
       icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
       iconBg: "bg-zinc-100",
       iconColor: "text-zinc-700",
-      // Open always. The drawer surfaces a past-event note for the
+      disabled: readOnly,
+      // Open always (unless read-only). The drawer surfaces a past-event note for the
       // settings that no longer change anything for buyers (Access,
       // Featured, Membership funnel) — Visibility + custom landing
       // URL stay legitimately editable post-event.
@@ -119,6 +129,8 @@ export function OverviewActionCards({
       icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>,
       iconBg: groupChatExists ? "bg-emerald-50" : "bg-sky-50",
       iconColor: groupChatExists ? "text-emerald-500" : "text-sky-500",
+      // Opening a chat that exists is reading; creating one is not.
+      disabled: readOnly && !groupChatExists,
       onClick: onGroupChat,
     },
     {
@@ -126,6 +138,7 @@ export function OverviewActionCards({
       icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-5h4v5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-9"/></svg>,
       iconBg: "bg-amber-50",
       iconColor: "text-amber-600",
+      disabled: readOnly,
       onClick: onPrivateHire,
     },
     {
@@ -133,6 +146,7 @@ export function OverviewActionCards({
       icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
       iconBg: "bg-rose-50",
       iconColor: "text-rose-500",
+      disabled: readOnly,
       onClick: onEventAddons,
     },
     {
@@ -167,6 +181,7 @@ export function OverviewActionCards({
           key={c.label}
           onClick={c.disabled ? undefined : c.onClick}
           disabled={c.disabled}
+          aria-disabled={c.disabled || undefined}
           className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-zinc-50 text-left transition-colors ${
             c.disabled
               ? "opacity-40 cursor-not-allowed"
