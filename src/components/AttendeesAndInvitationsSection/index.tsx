@@ -116,6 +116,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   // Phase H of host-refunds-and-sales-visibility (2026-05-25):
   // unified attendees+sales view replacing the prior duplicate sections.
   const [salesByBuyer, setSalesByBuyer] = useState<Map<string, SaleRow>>(new Map());
+  // The same live (not refunded) sales keyed by SALE ID. salesByBuyer keeps ONE
+  // sale per buyer email, so a buyer with two sales (a guest who bought a place
+  // for herself and one for a companion) lost the first to the second: the event
+  // revenue counted one of the two, and the place that sale paid for could not
+  // be matched. The sale id is the exact link (event_attendances.saleId).
+  const [salesById, setSalesById] = useState<Map<string, SaleRow>>(new Map());
   // Refunded sales for this event, deduped by sale id. Powers the
   // "Refunded" tab (2026-06-18 — Cátia @ PBN W35 Ana-refund follow-up):
   // hosts can see who got refunded, when, why, for how much, and open
@@ -223,6 +229,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             // 2026-06-07: ana@barrosmakers.com paid €24 to PBN's
             // Startup Founders' Night but showed up as Comp.
             const map = new Map<string, SaleRow>();
+            const byId = new Map<string, SaleRow>();
             const refunded: SaleRow[] = [];
             for (const s of (salesData.sales || [])) {
               if (s.eventId !== event.id) continue;
@@ -263,10 +270,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 continue;
               }
               if (s.refundStatus !== "NONE") continue;
+              byId.set(row.id, row);
               if (s.buyer?.id) map.set(`uid:${s.buyer.id}`, row);
               if (buyerEmail) map.set(`em:${buyerEmail.toLowerCase()}`, row);
             }
             setSalesByBuyer(map);
+            setSalesById(byId);
             // Sort newest refund first so PBN-style "what happened most
             // recently" scanning is one glance.
             refunded.sort((a, b) => {
@@ -321,6 +330,13 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
    * Returns undefined for free / comp / invited attendees with no sale.
    */
   function findSaleForAttendee(a: any): SaleRow | undefined {
+    // Exact: the sale that paid for THIS place. The only way to match a
+    // companion place (no account, no email) and the only unambiguous one for a
+    // buyer who holds several places.
+    if (a.saleId) {
+      const bySale = salesById.get(a.saleId);
+      if (bySale) return bySale;
+    }
     const uid: string | undefined = a.user?.id;
     if (uid) {
       const byUid = salesByBuyer.get(`uid:${uid}`);
@@ -422,15 +438,11 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const attendeeCount = approved.length;
   const acceptanceRate = totalInvited > 0 ? Math.round((accepted / totalInvited) * 100) : 0;
 
-  // Sales-aggregate KPIs (only meaningful on paid events). Computed
-  // from salesByBuyer — which already filters refundStatus = NONE.
-  //
-  // The map stores every sale under TWO keys (uid:* and em:*), so a
-  // single sale appears twice in Array.from(salesByBuyer.values()).
-  // Dedup by sale id before aggregating.
-  const salesRows = Array.from(
-    new Map(Array.from(salesByBuyer.values()).map((s) => [s.id, s])).values(),
-  );
+  // Sales-aggregate KPIs (only meaningful on paid events). Computed from
+  // salesById, which holds EVERY live (refundStatus = NONE) sale once. It used
+  // to be derived from salesByBuyer, which keeps one sale per buyer, so a buyer
+  // with two sales counted as one.
+  const salesRows = Array.from(salesById.values());
   const totalRevenue = salesRows.reduce((sum, s) => sum + s.grossAmount, 0);
   const totalFees = salesRows.reduce((sum, s) => sum + s.platformFee + (s.stripeFees ?? 0) + (s.stripeTaxFee ?? 0), 0);
   const totalNet = salesRows.reduce((sum, s) => sum + s.ownerNetPayout, 0);
@@ -745,6 +757,16 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   // releases the funds or auto-refunds the buyer net of Stripe's fee.
   // All four components + their handlers were deleted in this PR.
 
+  /** Who bought a companion place: their email, or the member they are in this list. */
+  function purchaserLabel(a: any): string | null {
+    if (a.purchaserEmail) return a.purchaserEmail;
+    if (!a.purchaserUserId) return null;
+    const buyer = attendees.find((x: any) => x.user?.id === a.purchaserUserId);
+    if (!buyer) return null;
+    const tag = buyer.usertag || buyer.user?.usertag;
+    return tag ? `@${tag}` : (buyer.name || null);
+  }
+
   function ApprovedRow({ a, sale, isPaid, onOpen, onRefund }: {
     a: any;
     sale?: SaleRow;
@@ -755,6 +777,13 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     const subtitle: string[] = [];
     if (a.user?.usertag || a.usertag) subtitle.push(`@${a.user?.usertag || a.usertag}`);
     if (a.email) subtitle.push(a.email);
+    // A companion place (an extra ticket bought for somebody else) has no
+    // account and no email of its own: say who bought it, or the row has
+    // nothing to identify it by.
+    if (a.companion) {
+      const buyer = purchaserLabel(a);
+      if (buyer) subtitle.push(tx("boughtBy", { buyer }));
+    }
     // Refund button matrix (post feat/configurable-event-refund-policy):
     //
     //   mode='default'  + ESCROW   → enabled (today's behaviour)
@@ -809,7 +838,10 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             {!sale && !isPaid && (
               <span className="text-[11px] text-zinc-400">{tx("free")}</span>
             )}
-            {!sale && isPaid && (
+            {/* "Complimentary" means a paid event with NO payment behind this
+                place. A companion place is paid by whoever bought it, so
+                lacking a match here is not the same as being comped. */}
+            {!sale && isPaid && !a.companion && (
               <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{tx("complimentary")}</span>
             )}
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">{tx("confirmed")}</span>

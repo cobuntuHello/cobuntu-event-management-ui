@@ -47,6 +47,8 @@ export const PEOPLE_MESSAGES_EN = {
         guest: "Guest",
         free: "Free",
         complimentary: "Complimentary",
+        // A companion place: an extra ticket somebody bought for another person.
+        boughtBy: "Bought by {buyer}",
         confirmed: "Confirmed",
         refundTitle: "Refund this attendee",
         refundTitlePastWindow: "Refund this attendee (past standard window)",
