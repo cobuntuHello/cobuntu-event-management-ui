@@ -97,7 +97,7 @@ export const OVERVIEW_MESSAGES_EN = {
         linkReadyTitle: "Checkout link ready",
         linkReadyBody: "Open this to pay — once it's confirmed, the event can be published.",
         lockedTitle: "Add-ons paid",
-        lockedBody: "This selection is locked — it can't be changed once paid. Create a new event for a different set.",
+        lockedBody: "This selection is locked: it can't be changed once paid. Create a new event for a different set.",
       },
       deleteModal: {
         title: "Delete event",
@@ -286,7 +286,7 @@ export const OVERVIEW_MESSAGES_EN = {
         copyLink: "Copy event link",
         untitled: "Untitled Event",
         slug: "Slug",
-        slugLocked: "(locked — would break shared links)",
+        slugLocked: "(locked: changing it would break shared links)",
         notSet: "Not set",
         locationNeverSet: "Location was never set",
         locationTba: "Location to be announced",

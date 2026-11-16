@@ -98,7 +98,10 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
    */
   const canEdit = useCanEdit();
   const setModal: typeof setModalState = (v) => {
-    if (!canEdit && v !== null) return;
+    // Read-only still shares and duplicates: neither changes THIS event, and
+    // duplicating last edition is the main thing a host does with an ended
+    // one. Every other modal writes, so it stays shut (T-370).
+    if (!canEdit && v !== null && v !== "share" && v !== "duplicate") return;
     setModalState(v);
   };
   const setDrawerOpen: typeof setDrawerOpenState = (v) => {
@@ -159,6 +162,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
          * out on a personal event without taking the entry point with them.
          */
         canConfigureSettings
+        readOnly={!canEdit}
         isPublished={isPublished}
         isEventPast={!!status.isPast}
         isEventLive={!!status.isLive}
@@ -210,6 +214,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
         onEditSlug={() => setModal("slug")}
         onEditBanner={() => setBannerCropOpen(true)}
         onEditTags={() => setModal("tags")}
+        readOnly={!canEdit}
       />
 
       {/*

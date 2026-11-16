@@ -27,13 +27,21 @@ interface Props {
   // Description + Tags moved IN from the legacy EditEventDrawer and are
   // now quick-edit cards alongside Name / Slug / Location / Date / Price.
   onEditTags: () => void;
+  /**
+   * The viewer cannot change this event (ended, or somebody else's). Every
+   * field then reads as plain text: no pencil on hover, no click (T-370).
+   */
+  readOnly?: boolean;
 }
 
 export function EventCard({
   event, communityTag, isPublished, isPast, isLive, isPaid, attendeeCount, missingRequirements,
   onEditName, onEditDateTime, onEditLocation, onEditPrice, onEditSlug, onEditBanner,
   onEditTags,
+  readOnly = false,
 }: Props) {
+  // A field that cannot change any more: past, or not this viewer's to change.
+  const locked = readOnly || isPast;
   const [urlCopied, setUrlCopied] = useState(false);
   const t = useEventT("eventsUi.manageUi.eventCard");
   const [imgSize, setImgSize] = useState(280);
@@ -69,13 +77,15 @@ export function EventCard({
             `max-sm:!*` utilities force-override the inline style at
             < 640px. */}
         <div className="shrink-0 overflow-hidden rounded-xl relative group max-sm:!w-full max-sm:!h-auto max-sm:aspect-[16/9]" style={{ width: imgSize, height: imgSize }}>
-            <button onClick={() => { if (!isPast) onEditBanner(); }} className="absolute inset-0 w-full h-full z-10 cursor-pointer" style={{ bottom: "40px" }} />
+            {!locked && (
+              <button onClick={onEditBanner} className="absolute inset-0 w-full h-full z-10 cursor-pointer" style={{ bottom: "40px" }} />
+            )}
             {event.bannerUrl ? (
               <img src={event.bannerUrl} alt="" className="w-full h-full object-cover" />
             ) : (
               <EventBannerPlaceholder seed={event.name || event.id} />
             )}
-            {!isPast && (
+            {!locked && (
               <div onClick={onEditBanner}
                 className="absolute top-3 right-3 h-8 w-8 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center cursor-pointer hover:bg-black/80 transition-all z-20 opacity-0 group-hover:opacity-100">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
@@ -100,7 +110,7 @@ export function EventCard({
         <div ref={rightRef} className="flex-1 flex flex-col justify-between min-h-0">
           <div className="flex flex-col gap-1 flex-1">
             {/* Name */}
-            <InfoRow onClick={!isPast ? onEditName : undefined} disabled={isPast}
+            <InfoRow onClick={!locked ? onEditName : undefined} disabled={locked}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>}>
               <p className="text-sm font-medium text-zinc-900 truncate">{event.name || t("untitled")}</p>
             </InfoRow>
@@ -109,7 +119,7 @@ export function EventCard({
                 slug after publish breaks every shared link (DMs, emails,
                 calendar entries, partner sites). Hosts can still rename
                 while in Draft. */}
-            <InfoRow onClick={!isPublished ? onEditSlug : undefined} disabled={isPublished}
+            <InfoRow onClick={!isPublished && !readOnly ? onEditSlug : undefined} disabled={isPublished || readOnly}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>}>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-zinc-400">
@@ -122,7 +132,7 @@ export function EventCard({
             {/* Distribution moved to SettingsDrawer (feat/manage-event-restructure). */}
 
             {/* Location */}
-            <InfoRow onClick={!isPast ? onEditLocation : undefined} disabled={isPast}
+            <InfoRow onClick={!locked ? onEditLocation : undefined} disabled={locked}
               icon={event.onlineUrl && !event.physicalLocation
                 ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
                 : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -135,11 +145,11 @@ export function EventCard({
             </InfoRow>
 
             {/* Date */}
-            <InfoRow onClick={!isPast ? onEditDateTime : undefined} disabled={isPast}
+            <InfoRow onClick={!locked ? onEditDateTime : undefined} disabled={locked}
               customIcon={
                 <div className="shrink-0 w-11 h-11 rounded-lg border border-zinc-200 overflow-hidden flex flex-col relative">
                   {startDate ? (
-                    <div className="flex flex-col w-full h-full group-hover:opacity-0 transition-opacity">
+                    <div className={`flex flex-col w-full h-full ${locked ? "" : "group-hover:opacity-0 transition-opacity"}`}>
                       <div className="bg-zinc-100 px-1.5 py-0.5 flex items-center justify-center">
                         <span className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
                           {startDate.toLocaleDateString("en-US", { month: "short" })}
@@ -152,11 +162,13 @@ export function EventCard({
                   ) : (
                     /* "Date to be announced" (T-320): an icon, not "---" over
                        "?", which read as a broken badge on a normal state. */
-                    <div className="flex w-full h-full items-center justify-center bg-white group-hover:opacity-0 transition-opacity">
+                    <div className={`flex w-full h-full items-center justify-center bg-white ${locked ? "" : "group-hover:opacity-0 transition-opacity"}`}>
                       <CalendarClock className="h-5 w-5 text-zinc-400" strokeWidth={2} />
                     </div>
                   )}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-100"><PencilIcon /></div>
+                  {!locked && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-100"><PencilIcon /></div>
+                  )}
                 </div>
               }>
               <div className="flex-1 min-w-0">
@@ -186,14 +198,14 @@ export function EventCard({
                 rather than a second home for pricing. */}
 
             {/* Tags */}
-            <InfoRow onClick={onEditTags}
+            <InfoRow onClick={!readOnly ? onEditTags : undefined} disabled={readOnly}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>}>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-zinc-400">{t("tags")}</p>
                 <p className="text-sm font-medium text-zinc-900 truncate">
                   {event.tags && event.tags.length > 0
                     ? event.tags.map((t: any) => t.name || t.tag?.name).filter(Boolean).join(", ")
-                    : t("addTags")}
+                    : readOnly ? t("notSet") : t("addTags")}
                 </p>
               </div>
             </InfoRow>
@@ -225,7 +237,7 @@ export function EventCard({
                     <p className="text-sm font-medium text-amber-600 mb-1">{t("notPublishedYet")}</p>
                     <ul className="space-y-0.5">
                       {missingRequirements.map((req) => {
-                        const action = resolveMissingRequirementAction(req, {
+                        const action = readOnly ? null : resolveMissingRequirementAction(req, {
                           onEditName, onEditDateTime, onEditLocation, onEditPrice,
                         });
                         return (
@@ -273,14 +285,17 @@ function InfoRow({ children, onClick, disabled, icon, customIcon }: {
 }) {
   const Component = onClick ? "button" : "div";
   return (
-    <Component onClick={onClick} disabled={disabled}
+    <Component onClick={onClick} disabled={disabled} aria-disabled={disabled || undefined}
       className={`w-full flex items-center gap-3 rounded-lg transition-all text-left group py-1 ${
         onClick ? "hover:bg-zinc-50 cursor-pointer" : ""
       } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}>
       {customIcon || (
         <div className="shrink-0 w-11 h-11 rounded-lg border border-zinc-200 bg-white flex items-center justify-center relative overflow-hidden">
-          <div className="group-hover:opacity-0 transition-opacity">{icon}</div>
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-100"><PencilIcon /></div>
+          {/* The pencil promises an edit: only on a row that opens one. */}
+          <div className={onClick ? "group-hover:opacity-0 transition-opacity" : ""}>{icon}</div>
+          {onClick && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-100"><PencilIcon /></div>
+          )}
         </div>
       )}
       {children}
