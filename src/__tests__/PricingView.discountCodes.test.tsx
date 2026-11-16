@@ -26,10 +26,10 @@ vi.mock("../components/PriceEditModal", () => ({ PriceEditModal: () => <div /> }
 
 const event = { id: "evt-1", name: "Success Talks", tiers: [{ id: "t-1", name: "Standard", products: { price: 27500, currency: "EUR" } }] };
 
-function renderView(canEdit: boolean) {
+function renderView(canEdit: boolean, eventId = "evt-1") {
   renderWithConfig(
     <ManageAccessProvider canEdit={canEdit}>
-      <PricingView event={event} communityTag="demo" eventId="evt-1" onUpdate={vi.fn()} showToast={vi.fn()} />
+      <PricingView event={event} communityTag="demo" eventId={eventId} onUpdate={vi.fn()} showToast={vi.fn()} />
     </ManageAccessProvider>,
   );
 }
@@ -39,6 +39,13 @@ describe("PricingView discount codes", () => {
     renderView(true);
     expect(JSON.parse(screen.getByTestId("dc-endpoint").textContent!)).toMatchObject({ communityTag: "demo", item: { kind: "event", id: "evt-1" } });
     expect(JSON.parse(screen.getByTestId("dc-tiers").textContent!)).toEqual([{ id: "t-1", name: "Standard", currency: "EUR" }]);
+  });
+
+  it("asks for the event's ID even when the page was opened by its slug", () => {
+    // Live, 2026-11-16: the slug reached the routes, which answered 404, and
+    // the card hid itself on every event.
+    renderView(true, "success-talks");
+    expect(JSON.parse(screen.getByTestId("dc-endpoint").textContent!)).toMatchObject({ item: { kind: "event", id: "evt-1" } });
   });
 
   it("is absent for a read-only viewer", () => {

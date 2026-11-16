@@ -320,12 +320,15 @@ export function PricingView({
         */}
       {canEdit && (
         <DiscountCodesSection
-          endpoint={{ apiBaseUrl, communityTag, item: { kind: "event", id: eventId }, headers: () => jsonHeaders() }}
+          // The event's ID, never `eventId`: the manage page is often opened by
+          // its slug ("food-for-thought-1"), which the discount-code routes do
+          // not resolve, so the list answered 404 and the card hid itself on
+          // every event (found live, 2026-11-16).
+          endpoint={{ apiBaseUrl, communityTag, item: { kind: "event", id: event?.id ?? eventId }, headers: () => jsonHeaders() }}
           itemName={event?.name ?? ""}
           // Each tier's currency: an amount off is in the currency of the tiers it covers.
           tiers={tiers.map((t: any) => ({ id: t.id, name: t.name, currency: tierPrice(t).currency }))}
           currency={tiers.length > 0 ? tierPrice(tiers[0]).currency : "EUR"}
-          onCopied={() => showToast("Code copied")}
         />
       )}
 
