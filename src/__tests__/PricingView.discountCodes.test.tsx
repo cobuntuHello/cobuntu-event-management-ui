@@ -38,7 +38,7 @@ describe("PricingView discount codes", () => {
   it("mounts the card for a host, with this event's endpoint and tickets", () => {
     renderView(true);
     expect(JSON.parse(screen.getByTestId("dc-endpoint").textContent!)).toMatchObject({ communityTag: "demo", item: { kind: "event", id: "evt-1" } });
-    expect(JSON.parse(screen.getByTestId("dc-tiers").textContent!)).toEqual([{ id: "t-1", name: "Standard" }]);
+    expect(JSON.parse(screen.getByTestId("dc-tiers").textContent!)).toEqual([{ id: "t-1", name: "Standard", currency: "EUR" }]);
   });
 
   it("is absent for a read-only viewer", () => {
