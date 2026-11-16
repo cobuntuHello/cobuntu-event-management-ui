@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { DiscountCodesSection } from "@cobuntu/management-ui-shared";
+import { DiscountCodesSection, PricingSectionHeading } from "@cobuntu/management-ui-shared";
 import { PriceEditModal } from "../../components/PriceEditModal";
 import { theme, muted } from "../../shared/theme";
 import {
@@ -12,7 +12,7 @@ import {
   buildDonationBody,
   describeSaveError,
 } from "../../components/PriceEditModal/helpers";
-import { DonationsSection } from "../../components/PriceEditModal/DonationsSection";
+import { DonationsHeading, DonationsSection } from "../../components/PriceEditModal/DonationsSection";
 import type { DonationDraft } from "../../components/PriceEditModal/types";
 import { useEventManagementConfig, useJsonHeaders } from "../../config";
 import { useCanEdit } from "../../lib/manageAccess";
@@ -191,12 +191,8 @@ export function PricingView({
           read as list rows rather than as the things you open. The section is
           just a heading and its content now. */}
       <div>
-        <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>
-          {tx("heading")}
-        </h2>
-        <p className="text-[12px] mt-1 mb-4 max-w-[68ch] leading-relaxed" style={muted(0.6)}>
-          {tx("intro")}
-        </p>
+        {/* The one heading style every Pricing section shares (approved redesign, 2026-11-16). */}
+        <PricingSectionHeading title={tx("heading")} description={tx("intro")} />
 
         {tiers.length > 0 && (
           <div className="space-y-2 mb-3">
@@ -288,6 +284,10 @@ export function PricingView({
       </div>
 
       <div>
+        {/* "Donations" once: the heading carries the title and the explainer,
+            the row below is a plain settings row between two hairlines. */}
+        <DonationsHeading />
+        <div className="border-y py-4" style={{ borderColor: "color-mix(in srgb, var(--text-color, #18181b) 10%, transparent)" }}>
         <DonationsSection
           donation={donation}
           onUpdate={updateDonation}
@@ -310,6 +310,7 @@ export function PricingView({
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/*

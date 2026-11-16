@@ -34,6 +34,7 @@ import { PricingView } from "../page/views/PricingView";
 vi.mock("@cobuntu/management-ui-shared", async (orig) => ({ ...(await orig() as any), DiscountCodesSection: () => null }));
 
 vi.mock("../components/PriceEditModal/DonationsSection", () => ({
+  DonationsHeading: () => <p>Donations heading</p>,
   DonationsSection: ({ onUpdate, defaultCurrency }: any) => (
     <div data-testid="donations">
       <span data-testid="donations-currency">{defaultCurrency}</span>

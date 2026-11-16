@@ -1,6 +1,6 @@
 "use client";
 
-import { DonationsSection as SharedDonationsSection } from "@cobuntu/management-ui-shared";
+import { DonationsHeading as SharedDonationsHeading, DonationsSection as SharedDonationsSection } from "@cobuntu/management-ui-shared";
 import type { DonationDraft } from "./types";
 import { getSymbol } from "./helpers";
 import { useEventT } from "../../create-wizard/i18n";
@@ -25,4 +25,10 @@ export function DonationsSection(props: DonationsSectionProps) {
   const t = useEventT("eventsUi.manageUi.donationsAdapter");
   // Always an event here: offer "When to ask" (sign-up / after the event).
   return <SharedDonationsSection {...props} symbolFor={getSymbol} tierNoun={t("tierNoun")} showMoments />;
+}
+
+/** The Donations section's heading on Pricing: title and explainer, said once (approved redesign, 2026-11-16). */
+export function DonationsHeading() {
+  const t = useEventT("eventsUi.manageUi.donationsAdapter");
+  return <SharedDonationsHeading tierNoun={t("tierNoun")} showMoments />;
 }
