@@ -17,6 +17,7 @@ vi.mock("@cobuntu/management-ui-shared", async (orig) => {
       <div data-testid="discount-codes">
         <span data-testid="dc-endpoint">{JSON.stringify({ ...props.endpoint, headers: undefined })}</span>
         <span data-testid="dc-tiers">{JSON.stringify(props.tiers)}</span>
+        <span data-testid="dc-url">{props.itemUrl}</span>
       </div>
     ),
   };
@@ -24,7 +25,7 @@ vi.mock("@cobuntu/management-ui-shared", async (orig) => {
 vi.mock("../components/PriceEditModal/DonationsSection", () => ({ DonationsSection: () => <div />, DonationsHeading: () => null }));
 vi.mock("../components/PriceEditModal", () => ({ PriceEditModal: () => <div /> }));
 
-const event = { id: "evt-1", name: "Success Talks", tiers: [{ id: "t-1", name: "Standard", products: { price: 27500, currency: "EUR" } }] };
+const event = { id: "evt-1", slug: "success-talks", name: "Success Talks", tiers: [{ id: "t-1", name: "Standard", products: { price: 27500, currency: "EUR" } }] };
 
 function renderView(canEdit: boolean, eventId = "evt-1") {
   renderWithConfig(
@@ -46,6 +47,11 @@ describe("PricingView discount codes", () => {
     // the card hid itself on every event.
     renderView(true, "success-talks");
     expect(JSON.parse(screen.getByTestId("dc-endpoint").textContent!)).toMatchObject({ item: { kind: "event", id: "evt-1" } });
+  });
+
+  it("gives the card the event's public page, for a code's share link", () => {
+    renderView(true);
+    expect(screen.getByTestId("dc-url").textContent).toBe("https://demo.cobuntu.com/events/success-talks");
   });
 
   it("is absent for a read-only viewer", () => {

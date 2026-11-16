@@ -329,6 +329,9 @@ export function PricingView({
           // Each tier's currency: an amount off is in the currency of the tiers it covers.
           tiers={tiers.map((t: any) => ({ id: t.id, name: t.name, currency: tierPrice(t).currency }))}
           currency={tiers.length > 0 ? tierPrice(tiers[0]).currency : "EUR"}
+          // A saved code's share link (?code=, T-368): the same public page the
+          // Share modal links to.
+          itemUrl={`https://${communityTag}.cobuntu.com/events/${encodeURIComponent(event?.slug || event?.id || eventId)}`}
         />
       )}
 
