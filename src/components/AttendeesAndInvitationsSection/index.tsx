@@ -122,6 +122,10 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   // revenue counted one of the two, and the place that sale paid for could not
   // be matched. The sale id is the exact link (event_attendances.saleId).
   const [salesById, setSalesById] = useState<Map<string, SaleRow>>(new Map());
+  // True only once the sales list actually loaded. A viewer who may not read
+  // the community's sales gets an error instead, and then "no sale found" says
+  // nothing about whether a place was paid, so the Complimentary label stays off.
+  const [salesLoaded, setSalesLoaded] = useState(false);
   // Refunded sales for this event, deduped by sale id. Powers the
   // "Refunded" tab (2026-06-18 — Cátia @ PBN W35 Ana-refund follow-up):
   // hosts can see who got refunded, when, why, for how much, and open
@@ -276,6 +280,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             }
             setSalesByBuyer(map);
             setSalesById(byId);
+            setSalesLoaded(true);
             // Sort newest refund first so PBN-style "what happened most
             // recently" scanning is one glance.
             refunded.sort((a, b) => {
@@ -840,8 +845,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             )}
             {/* "Complimentary" means a paid event with NO payment behind this
                 place. A companion place is paid by whoever bought it, so
-                lacking a match here is not the same as being comped. */}
-            {!sale && isPaid && !a.companion && (
+                lacking a match here is not the same as being comped. Also
+                needs the sales list to have loaded (see salesLoaded). */}
+            {!sale && isPaid && !a.companion && salesLoaded && (
               <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded shrink-0">{tx("complimentary")}</span>
             )}
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">{tx("confirmed")}</span>
