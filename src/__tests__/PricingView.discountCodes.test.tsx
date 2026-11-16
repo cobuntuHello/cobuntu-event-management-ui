@@ -21,7 +21,7 @@ vi.mock("@cobuntu/management-ui-shared", async (orig) => {
     ),
   };
 });
-vi.mock("../components/PriceEditModal/DonationsSection", () => ({ DonationsSection: () => <div /> }));
+vi.mock("../components/PriceEditModal/DonationsSection", () => ({ DonationsSection: () => <div />, DonationsHeading: () => null }));
 vi.mock("../components/PriceEditModal", () => ({ PriceEditModal: () => <div /> }));
 
 const event = { id: "evt-1", name: "Success Talks", tiers: [{ id: "t-1", name: "Standard", products: { price: 27500, currency: "EUR" } }] };
