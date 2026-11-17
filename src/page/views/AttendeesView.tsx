@@ -47,7 +47,7 @@ export function AttendeesView({
     onUpdate,
     showToast,
 }: Props) {
-    const [modal, setModalState] = useState<"add" | "invite" | null>(null);
+    const [modal, setModalState] = useState<"add" | "gift" | "invite" | null>(null);
     // Same reasoning as OverviewView: gate the opener, not each button.
     // Adding or inviting attendees is a write on someone else's event.
     const canEdit = useCanEdit();
@@ -94,13 +94,15 @@ export function AttendeesView({
                 isPast={!!isPast}
                 refreshKey={refreshKey}
                 onAddClick={() => setModal("add")}
+                onGiftClick={() => setModal("gift")}
                 onInviteClick={() => setModal("invite")}
                 canPromoteAttendeeToHost={canPromote}
                 onPromoteAttendeeFromDrawer={(a) => setPromotePreselected(a)}
             />
 
-            {modal === "add" && (
+            {(modal === "add" || modal === "gift") && (
                 <AddAttendeesModal
+                    mode={modal === "gift" ? "gift" : "add"}
                     event={event}
                     communityTag={communityTag}
                     eventId={eventId}

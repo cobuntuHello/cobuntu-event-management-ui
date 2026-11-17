@@ -22,6 +22,12 @@ interface Props {
     onUpdate: () => void;
     onClose: () => void;
     onSwitchToInvite?: () => void;
+    /**
+     * 'add' (Add people): a plain add, "you have a place", and the note is private
+     * to hosts. 'gift' (Send a gift): the gift email with the note for them.
+     * docs/features/add-vs-gift.md (backend). Default gift, as before.
+     */
+    mode?: "add" | "gift";
 }
 
 /**
@@ -52,6 +58,12 @@ interface Props {
  * Talks to:
  *   POST /api/communities/:tag/events/:id/add-attendees { usertags, emails, internalNote }
  */
+/** The words that change on a plain add (docs/features/add-vs-gift.md). */
+const ADD_WORDING = new Set([
+    "title", "searchSubtitle", "pickedSubtitle", "confirm", "confirming", "messageLabel", "messagePlaceholder",
+    "next2", "next3", "doneSubtitle", "addMore", "importConfirm", "errAddFailed",
+]);
+
 export function AddAttendeesModal({
     event,
     communityTag,
@@ -59,6 +71,7 @@ export function AddAttendeesModal({
     onUpdate,
     onClose,
     onSwitchToInvite,
+    mode = "gift",
 }: Props) {
     const [added, setAdded] = useState<number | null>(null);
     /* Who could not be added and why, from the server. Shown on the done
@@ -73,7 +86,14 @@ export function AddAttendeesModal({
      * synchronously inside onConfirm.
      */
     const finished = useRef(false);
-    const tx = useEventT("eventsUi.manageUi.addAttendeesModal");
+    const txBase = useEventT("eventsUi.manageUi.addAttendeesModal");
+    /*
+     * Add people and Send a gift are one picker with different words. The keys
+     * that differ have an "Add" twin (titleAdd, confirmAdd...); everything else
+     * (tickets, imports, warnings) reads the same either way.
+     */
+    const tx = ((key: string, values?: Record<string, any>) =>
+        txBase((mode === "add" && ADD_WORDING.has(key) ? `${key}Add` : key) as any, values as any)) as typeof txBase;
 
     const config = getEventManagementConfig();
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
@@ -166,9 +186,10 @@ export function AddAttendeesModal({
                 body: JSON.stringify({
                     usertags: usertags.length > 0 ? usertags : undefined,
                     emails: emails.length > 0 ? emails : undefined,
-                    /* Adding is giving them a ticket (backend docs/features/gifts.md):
-                       the note is FOR them, in the gift email and with the ticket. */
-                    customMessage: note || undefined,
+                    /* A gift: the note is FOR them, in the gift email and with the
+                       ticket. A plain add: the note is private to hosts (internalNote). */
+                    mode,
+                    ...(mode === "gift" ? { customMessage: note || undefined } : { internalNote: note || undefined }),
                     tierAssignments: tierAssignments.length > 0 ? tierAssignments : undefined,
                     guestNames: guestNamesOf(recipients).length > 0 ? guestNamesOf(recipients) : undefined,
                 }),
