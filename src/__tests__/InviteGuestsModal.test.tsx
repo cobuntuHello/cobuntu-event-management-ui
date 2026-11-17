@@ -213,6 +213,6 @@ describe("InviteGuestsModal", () => {
         open();
         await screen.findByText("Ana Neto");
         await user.type(screen.getByPlaceholderText(/Search by name/), "Rui Barros");
-        expect(await screen.findByText("Not a member here? Type their full email address to invite them.")).toBeInTheDocument();
+        expect(await screen.findByText("Not a member here? Type their @usertag, or their full email address to invite them.")).toBeInTheDocument();
     });
 });
