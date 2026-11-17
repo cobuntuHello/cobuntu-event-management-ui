@@ -94,13 +94,15 @@ export function AttendeesView({
                 isPast={!!isPast}
                 refreshKey={refreshKey}
                 onAddClick={() => setModal("add")}
+                onGiftClick={() => setModal("gift")}
                 onInviteClick={() => setModal("invite")}
                 canPromoteAttendeeToHost={canPromote}
                 onPromoteAttendeeFromDrawer={(a) => setPromotePreselected(a)}
             />
 
-            {modal === "add" && (
+            {(modal === "add" || modal === "gift") && (
                 <AddAttendeesModal
+                    mode={modal === "gift" ? "gift" : "add"}
                     event={event}
                     communityTag={communityTag}
                     eventId={eventId}

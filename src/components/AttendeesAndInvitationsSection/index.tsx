@@ -24,6 +24,8 @@ interface Props {
    * stays for backwards-compat with callers that haven't migrated.
    */
   onAddClick?: () => void;
+  /** "Send a gift": the same picker as Add people, delivered as a gift (add-vs-gift.md). */
+  onGiftClick?: () => void;
   /**
    * Optional URL slug (or id) for the event, available to the parent
    * before the `event` GET resolves. When supplied, the section fires
@@ -81,7 +83,7 @@ type Tab = "approved" | "pending" | "rejected" | "cancelled" | "refunded" | "inv
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", BRL: "R$" };
 
-export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, onAddClick, eventIdOrSlug, belowRevenueSlot, canPromoteAttendeeToHost, onPromoteAttendeeFromDrawer }: Props) {
+export function AttendeesAndInvitationsSection({ event, communityTag, isPublished, isPast, refreshKey = 0, onInviteClick, onAddClick, onGiftClick, eventIdOrSlug, belowRevenueSlot, canPromoteAttendeeToHost, onPromoteAttendeeFromDrawer }: Props) {
   const config = useEventManagementConfig();
   const tx = useEventT("eventsUi.manageUi.attendeesSection");
   const dateLocale = tx("dateLocale");
@@ -96,6 +98,20 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const currency = event?.currency || "EUR";
 
   const attendees = event?.attendees || [];
+  /*
+   * "Added by Diogo" / "Gift from Diogo · opened" for a place a host made
+   * (docs/features/add-vs-gift.md). The ids name a host; the event's hosts give
+   * the name, and "a host" covers someone who has since left the host list.
+   */
+  const hostNameById = new Map<string, string>(
+    (event?.hosts || []).map((h: any) => [h.user?.id || h.userId, h.user?.name || h.name || ""] as [string, string]),
+  );
+  const arrivalLabel = (a: any): string | null => {
+    const nameOf = (id: string) => hostNameById.get(id) || tx("aHost");
+    if (a.giftedBy) return a.giftOpenedAt ? tx("giftFromOpened", { name: nameOf(a.giftedBy) }) : tx("giftFrom", { name: nameOf(a.giftedBy) });
+    if (a.addedBy) return tx("addedBy", { name: nameOf(a.addedBy) });
+    return null;
+  };
   const approved = attendees.filter((a: any) => !a.status || a.status === "APPROVED");
   const rejected = attendees.filter((a: any) => a.status === "REJECTED");
   // CANCELLED rows. Under the new Reserve-Before-Decide flow (2026-06-14)
@@ -548,6 +564,12 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
                 className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
                 {tx("add")}
               </button>
+              {onGiftClick && (
+                <button onClick={onGiftClick} disabled={!isPublished}
+                  className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-30 cursor-pointer">
+                  {tx("gift")}
+                </button>
+              )}
               <button onClick={onInviteClick || (() => config.navigate(`/${communityTag}/events/${eventId}?view=invite-guests`))} disabled={!isPublished}
                 className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-30 cursor-pointer">
                 {tx("invite")}
@@ -789,6 +811,9 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       const buyer = purchaserLabel(a);
       if (buyer) subtitle.push(tx("boughtBy", { buyer }));
     }
+    // How a host-made place arrived (add-vs-gift.md): added, or a gift (opened or not).
+    const howArrived = arrivalLabel(a);
+    if (howArrived) subtitle.push(howArrived);
     // Refund button matrix (post feat/configurable-event-refund-policy):
     //
     //   mode='default'  + ESCROW   → enabled (today's behaviour)
