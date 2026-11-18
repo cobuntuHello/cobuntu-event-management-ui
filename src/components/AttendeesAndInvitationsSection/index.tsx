@@ -97,7 +97,16 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
   const isPaid = event?.price > 0;
   const currency = event?.currency || "EUR";
 
-  const attendees = event?.attendees || [];
+  /*
+   * A rename or a removal shows at once (add-vs-gift.md phase 5): the list is
+   * the event's own payload, so the edits ride on top of it until the next
+   * reload brings the same answer from the server.
+   */
+  const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
+  const [removedIds, setRemovedIds] = useState<Set<string>>(() => new Set());
+  const attendees = (event?.attendees || [])
+    .filter((a: any) => !removedIds.has(a.id))
+    .map((a: any) => (nameOverrides[a.id] ? { ...a, name: nameOverrides[a.id] } : a));
   /*
    * "Added by Diogo" / "Gift from Diogo · opened" for a place a host made
    * (docs/features/add-vs-gift.md). The ids name a host; the event's hosts give
@@ -328,6 +337,41 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
       }
     } catch { showToast(tx("toastActionFailed")); }
     finally { setLoadingAction(null); }
+  }
+
+  /** Name a guest the host added without one (add-vs-gift.md phase 5). */
+  async function renameGuest(a: any, name: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API}/api/communities/${communityTag}/events/${event.id}/attendees/${a.id}/name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) { showToast(tx("toastNameFailed")); return false; }
+      setNameOverrides((prev) => ({ ...prev, [a.id]: name }));
+      setDrawerAttendee((d: any) => (d && d.id === a.id ? { ...d, name } : d));
+      showToast(tx("toastNameSaved"));
+      return true;
+    } catch { showToast(tx("toastNameFailed")); return false; }
+  }
+
+  /** Take back a place a host added or gifted by mistake (add-vs-gift.md phase 5). */
+  async function removeGivenPlace(a: any): Promise<boolean> {
+    try {
+      const res = await fetch(`${API}/api/communities/${communityTag}/events/${event.id}/attendees/${a.id}/remove`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        // The server says why (a paid place is a refund, from the Ledger).
+        const data = await res.json().catch(() => ({}));
+        showToast(data?.error || tx("toastRemoveFailed"));
+        return false;
+      }
+      setRemovedIds((prev) => new Set(prev).add(a.id));
+      showToast(tx("toastRemoved"));
+      return true;
+    } catch { showToast(tx("toastRemoveFailed")); return false; }
   }
 
   async function handleResend(invitationId: string) {
@@ -754,6 +798,13 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
             : false
         }
         onPromoteToHost={onPromoteAttendeeFromDrawer}
+        onRename={renameGuest}
+        onRemove={removeGivenPlace}
+        // Only a place a host gave, still active, with no money behind it.
+        canRemove={!!drawerAttendee
+          && !!(drawerAttendee.addedBy || drawerAttendee.giftedBy)
+          && (drawerAttendee.status || "APPROVED") === "APPROVED"
+          && !findSaleForAttendee(drawerAttendee)}
       />
 
       {/* Phase H of host-refunds-and-sales-visibility (2026-05-25):

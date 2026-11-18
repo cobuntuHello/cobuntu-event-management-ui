@@ -27,6 +27,9 @@ type Attendee = {
   internalNote?: string | null;
   formAnswers?: { fields: FormField[]; answer: Record<string, unknown> } | null;
   createdAt?: string;
+  /** Host view only: who added / gifted this place (add-vs-gift.md). */
+  addedBy?: unknown;
+  giftedBy?: unknown;
 };
 
 interface Props {
@@ -45,9 +48,19 @@ interface Props {
    * this attendee. The drawer closes on its own.
    */
   onPromoteToHost?: (attendee: Attendee) => void;
+  /**
+   * Fixing a mistake after Add people / Send a gift (add-vs-gift.md phase 5).
+   * `onRename` names a GUEST (an account holder's name is their own);
+   * `onRemove` takes back a place a host added or gifted, shown only when
+   * `canRemove` (the consumer knows whether money is behind the place).
+   * Both resolve true when it worked.
+   */
+  onRename?: (attendee: Attendee, name: string) => Promise<boolean>;
+  onRemove?: (attendee: Attendee) => Promise<boolean>;
+  canRemove?: boolean;
 }
 
-export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPromoteToHost }: Props) {
+export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPromoteToHost, onRename, onRemove, canRemove }: Props) {
   const config = useEventManagementConfig();
   const tx = useEventT("eventsUi.manageUi.attendeeDetailDrawer");
   // Pkg-portable avatar rendering: consumer can inject its own via
@@ -56,6 +69,12 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
   const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
   const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
+  // Edit name / Remove (add-vs-gift.md phase 5). Reset for every attendee.
+  const [editing, setEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setEditing(false); setConfirmRemove(false); setBusy(false); }, [attendee?.id]);
 
   useEffect(() => {
     if (attendee) {
@@ -136,12 +155,51 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-semibold text-zinc-900 truncate">{attendee.name || tx("unknown")}</h2>
-              {attendee.type === "guest" && (
+              {editing ? (
+                <form
+                  className="flex items-center gap-1.5 min-w-0 flex-1"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!nameDraft.trim() || !onRename) return;
+                    setBusy(true);
+                    const ok = await onRename(attendee, nameDraft.trim());
+                    setBusy(false);
+                    if (ok) setEditing(false);
+                  }}
+                >
+                  <input
+                    autoFocus
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    maxLength={120}
+                    aria-label={tx("nameLabel")}
+                    placeholder={tx("namePlaceholder")}
+                    className="min-w-0 flex-1 border border-zinc-200 rounded-lg px-2 py-1 text-[16px] sm:text-[13px] text-zinc-900 focus:outline-none focus:border-zinc-400"
+                  />
+                  <button type="submit" disabled={busy || !nameDraft.trim()} className="px-2.5 py-1 text-[12px] font-medium bg-zinc-900 text-white rounded-lg cursor-pointer disabled:opacity-40">
+                    {tx("saveName")}
+                  </button>
+                  <button type="button" onClick={() => setEditing(false)} className="px-2.5 py-1 text-[12px] rounded-lg cursor-pointer bg-zinc-100 text-zinc-900 hover:bg-zinc-200">
+                    {tx("cancelEdit")}
+                  </button>
+                </form>
+              ) : (
+                <h2 className="text-sm font-semibold text-zinc-900 truncate">{attendee.name || tx("unknown")}</h2>
+              )}
+              {!editing && attendee.type === "guest" && (
                 <span className="text-[9px] font-medium text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">{tx("guest")}</span>
               )}
             </div>
             {attendee.usertag && <p className="text-[11px] text-zinc-400 truncate">@{attendee.usertag}</p>}
+            {/* A guest's name is the host's to fix; an account holder's is theirs. */}
+            {!editing && attendee.type === "guest" && onRename && (
+              <button
+                onClick={() => { setNameDraft(attendee.name && !attendee.name.includes("@") ? attendee.name : ""); setEditing(true); }}
+                className="mt-0.5 text-[11px] font-medium text-zinc-500 hover:text-zinc-800 cursor-pointer bg-transparent border-0 p-0"
+              >
+                {attendee.name && !attendee.name.includes("@") ? tx("editName") : tx("addName")}
+              </button>
+            )}
           </div>
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${statusStyle}`}>
             {statusLabel}
@@ -235,6 +293,43 @@ export function AttendeeDetailDrawer({ attendee, onClose, canPromoteToHost, onPr
         {/* Footer actions. Renders only when the consumer enabled the
             promote-to-host affordance (admin / community-app gate on
             isCreator + paid + APPROVED + not-already-a-host + isPaid). */}
+        {/* Take back a place a host gave by mistake (add-vs-gift.md phase 5).
+            Asked once, in place: the person gets a short email. */}
+        {canRemove && onRemove && (
+          <div className="border-t border-zinc-100 px-5 py-4 shrink-0">
+            {confirmRemove ? (
+              <div className="space-y-3">
+                <p className="text-[13px] text-zinc-900 font-medium">{tx("removeConfirm", { name: attendee.name || attendee.email || tx("unknown") })}</p>
+                <p className="text-[12px] text-zinc-500">{tx("removeConfirmBody")}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      setBusy(true);
+                      const ok = await onRemove(attendee);
+                      setBusy(false);
+                      if (ok) handleClose();
+                    }}
+                    disabled={busy}
+                    className="flex-1 px-4 py-2.5 text-[13px] font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer disabled:opacity-50"
+                  >
+                    {tx("removeYes")}
+                  </button>
+                  <button onClick={() => setConfirmRemove(false)} className="flex-1 px-4 py-2.5 text-[13px] rounded-lg cursor-pointer bg-zinc-100 text-zinc-900 hover:bg-zinc-200">
+                    {tx("keepPlace")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmRemove(true)}
+                className="w-full px-4 py-2.5 text-[13px] rounded-lg cursor-pointer bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+              >
+                {tx("removePlace")}
+              </button>
+            )}
+          </div>
+        )}
+
         {canPromoteToHost && onPromoteToHost && (
           <div className="border-t border-zinc-100 px-5 py-4 shrink-0">
             <button
