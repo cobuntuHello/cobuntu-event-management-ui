@@ -10,6 +10,8 @@ const defaultConfig: EventManagementConfig = {
   authHeaders: () => ({ Authorization: "Bearer test-token" }),
   stripeConnectUrl: (tag) => `/${tag}/connect-stripe`,
   navigate: () => { /* no-op in tests; override per-test when asserting nav */ },
+  // No undo window by default: a test that is not about it should not wait.
+  undoSeconds: 0,
 };
 
 export function renderWithConfig(

@@ -61,8 +61,11 @@ interface Props {
 /** The words that change on a plain add (docs/features/add-vs-gift.md). */
 const ADD_WORDING = new Set([
     "title", "searchSubtitle", "pickedSubtitle", "confirm", "confirming", "messageLabel", "messagePlaceholder",
-    "next2", "next3", "doneSubtitle", "addMore", "importConfirm", "errAddFailed",
+    "next2", "next3", "doneSubtitle", "addMore", "importConfirm", "errAddFailed", "undoCounting",
 ]);
+
+/** Seconds to change their mind before anyone is emailed (add-vs-gift.md phase 5). */
+const UNDO_SECONDS = 8;
 
 export function AddAttendeesModal({
     event,
@@ -96,6 +99,7 @@ export function AddAttendeesModal({
         txBase((mode === "add" && ADD_WORDING.has(key) ? `${key}Add` : key) as any, values as any)) as typeof txBase;
 
     const config = getEventManagementConfig();
+    const undoSeconds = config.undoSeconds ?? UNDO_SECONDS;
     const UserAvatar = config.UserAvatar ?? UserAvatarFallback;
     const authHeaders = (): Record<string, string> => getEventManagementConfig().authHeaders();
 
@@ -178,21 +182,27 @@ export function AddAttendeesModal({
         const tierAssignments = recipients
             .filter((r) => r.tierId)
             .map((r) => ({ usertag: r.usertag ?? null, email: r.email ?? null, tierId: r.tierId! }));
+        const body = JSON.stringify({
+            usertags: usertags.length > 0 ? usertags : undefined,
+            emails: emails.length > 0 ? emails : undefined,
+            /* A gift: the note is FOR them, in the gift email and with the
+               ticket. A plain add: the note is private to hosts (internalNote). */
+            mode,
+            ...(mode === "gift" ? { customMessage: note || undefined } : { internalNote: note || undefined }),
+            tierAssignments: tierAssignments.length > 0 ? tierAssignments : undefined,
+            guestNames: guestNamesOf(recipients).length > 0 ? guestNamesOf(recipients) : undefined,
+        });
         const res = await fetch(
             `${apiBase()}/api/communities/${communityTag}/events/${eventId}/add-attendees`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...authHeaders() },
-                body: JSON.stringify({
-                    usertags: usertags.length > 0 ? usertags : undefined,
-                    emails: emails.length > 0 ? emails : undefined,
-                    /* A gift: the note is FOR them, in the gift email and with the
-                       ticket. A plain add: the note is private to hosts (internalNote). */
-                    mode,
-                    ...(mode === "gift" ? { customMessage: note || undefined } : { internalNote: note || undefined }),
-                    tierAssignments: tierAssignments.length > 0 ? tierAssignments : undefined,
-                    guestNames: guestNamesOf(recipients).length > 0 ? guestNamesOf(recipients) : undefined,
-                }),
+                body,
+                /* The undo window can end because the host closed the tab; a
+                   keepalive request still reaches the server then. Browsers
+                   cap a keepalive body near 64 KB, so a huge CSV import goes
+                   as a normal request. */
+                keepalive: body.length < 60_000,
             },
         );
         if (!res.ok) {
@@ -291,8 +301,21 @@ export function AddAttendeesModal({
                 importedNothing: tx("importedNothing"),
                 importFailed: tx("importFailed"),
                 noMatchesHint: tx("noMatchesHint"),
-                guestName: { label: tx("guestNameLabel"), placeholder: tx("guestNamePlaceholder") },
+                guestName: {
+                    label: tx("guestNameLabel"),
+                    placeholder: tx("guestNamePlaceholder"),
+                    // A nudge before sending: a guest with no name reaches the
+                    // list as their address (add-vs-gift.md phase 5).
+                    missing: (n) => tx("guestNameMissing", { count: n }),
+                },
             }}
+            // Gmail-style: nothing is sent until the countdown runs out.
+            undo={undoSeconds > 0 ? {
+                seconds: undoSeconds,
+                counting: (n, s) => tx("undoCounting", { count: n, seconds: s }),
+                undo: tx("undo"),
+                undone: tx("undone"),
+            } : undefined}
             copy={{
                 title: tx("title"),
                 searchSubtitle: tx("searchSubtitle"),
