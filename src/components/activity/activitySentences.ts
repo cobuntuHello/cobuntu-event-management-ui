@@ -67,6 +67,29 @@ function amountLabel(payload: Record<string, unknown> | null): string | null {
     return `${symbol[currency] || currency + ' '}${major.toFixed(currency === 'JPY' ? 0 : 2)}`;
 }
 
+/**
+ * What else a purchase row says (add-vs-gift.md phase 4): the discount code
+ * ("used SUMMER20 for 20% off") and a bought gift's recipient ("a gift for
+ * Rita"). Both optional; a plain purchase reads exactly as before.
+ */
+function purchaseDetails(payload: Record<string, unknown> | null): string[] {
+    const t = getEventT(NS);
+    const out: string[] = [];
+    const d = payload?.discount as { code?: unknown; amount?: unknown; percentOff?: unknown } | undefined;
+    if (d && typeof d.code === 'string' && d.code) {
+        if (typeof d.percentOff === 'number') out.push(t('purchaseCodePercent', { code: d.code, percent: d.percentOff }));
+        else if (typeof d.amount === 'number') out.push(t('purchaseCodeAmount', { code: d.code, amount: amountLabel({ amount: d.amount, currency: payload?.currency }) ?? '' }));
+    }
+    const g = payload?.gift as { recipientName?: unknown; recipientUsertag?: unknown; recipientEmail?: unknown } | undefined;
+    if (g) {
+        const name = (typeof g.recipientName === 'string' && g.recipientName.trim())
+            || (typeof g.recipientUsertag === 'string' && g.recipientUsertag ? `@${g.recipientUsertag}` : '')
+            || (typeof g.recipientEmail === 'string' ? g.recipientEmail : '');
+        if (name) out.push(t('purchaseGiftFor', { name }));
+    }
+    return out;
+}
+
 function str(payload: Record<string, unknown> | null, key: string): string | null {
     if (!payload) return null;
     const v = payload[key];
@@ -243,11 +266,17 @@ export function renderActivitySentence(entry: ActivityEntryForRender): RenderedS
         case 'ATTENDEES_BULK_APPROVED': {
             const count = num(entry.payload, 'count') ?? 0;
             const names = arr(entry.payload, 'attendeeNames');
+            // A free gift is not a plain add (add-vs-gift.md): the payload says
+            // which. Older rows have no mode and read as before ("added").
+            const gift = str(entry.payload, 'mode') === 'gift';
             if (count <= 0) return { text: t('attendeesAdded', { actor }) };
-            if (names.length === 0) return { text: t('attendeesAddedCount', { actor, count }) };
+            if (names.length === 0) return { text: t(gift ? 'attendeesGiftedCount' : 'attendeesAddedCount', { actor, count }) };
             // Show up to 3 names inline, then "+ N more" if longer.
             const inline = names.slice(0, 3).join(', ');
             const remaining = count - Math.min(3, names.length);
+            if (gift) {
+                return { text: remaining > 0 ? t('attendeesGiftedNamesMore', { actor, names: inline, remaining }) : t('attendeesGiftedNames', { actor, names: inline }) };
+            }
             return { text: remaining > 0 ? t('attendeesAddedNamesMore', { actor, names: inline, remaining }) : t('attendeesAddedNames', { actor, names: inline }) };
         }
         case 'ATTENDEES_BULK_REJECTED': {
@@ -276,7 +305,8 @@ export function renderActivitySentence(entry: ActivityEntryForRender): RenderedS
         case 'PURCHASED': {
             const money = amountLabel(entry.payload);
             const qty = num(entry.payload, 'quantity') ?? 1;
-            return { text: money ? t('boughtFor', { actor, count: qty, money }) : t('bought', { actor, count: qty }) };
+            const base = money ? t('boughtFor', { actor, count: qty, money }) : t('bought', { actor, count: qty });
+            return { text: [base, ...purchaseDetails(entry.payload)].join(' · ') };
         }
         case 'PURCHASE_REFUNDED': {
             const money = amountLabel(entry.payload);

@@ -120,3 +120,38 @@ describe('who owns this event', () => {
         expect(readOnlyOwner({ communityId: null, hosts: [] })).toBeNull();
     });
 });
+
+/*
+ * Add vs Gift phase 4 (backend docs/features/add-vs-gift.md): the Activity
+ * tab says a free gift is a gift, and a purchase names its code and recipient.
+ */
+describe('gifts and codes in the activity log', () => {
+    const host = { id: 'h', name: 'Ana Barros', usertag: 'ana', profileImage: null };
+    const bulk = (payload: Record<string, unknown>) => ({ source: 'EVENT_AUDIT' as const, action: 'ATTENDEES_BULK_APPROVED', actor: host, payload });
+
+    it('a free gift reads as a gift, a plain add as an add, an old row as before', () => {
+        expect(renderActivitySentence(bulk({ count: 1, attendeeNames: ['Rui'], mode: 'gift' })).text).toBe('Ana Barros gave Rui a place as a gift');
+        expect(renderActivitySentence(bulk({ count: 5, attendeeNames: ['A', 'B', 'C', 'D'], mode: 'gift' })).text).toBe('Ana Barros gave A, B, C + 2 more a place as a gift');
+        expect(renderActivitySentence(bulk({ count: 2, attendeeNames: [], mode: 'gift' })).text).toBe('Ana Barros gave 2 places as a gift');
+        expect(renderActivitySentence(bulk({ count: 1, attendeeNames: ['Rui'], mode: 'add' })).text).toBe('Ana Barros added Rui');
+        expect(renderActivitySentence(bulk({ count: 1, attendeeNames: ['Rui'] })).text).toBe('Ana Barros added Rui');
+    });
+
+    it('a purchase says the code and its percent, and who a bought gift is for', () => {
+        const text = renderActivitySentence(sale({
+            buyerEmail: 'g@x.com', amount: 1600, currency: 'EUR', quantity: 1,
+            discount: { code: 'SUMMER20', amount: 400, percentOff: 20 },
+            gift: { recipientName: 'Rita', recipientUsertag: 'rita', recipientEmail: null },
+        })).text;
+        expect(text).toBe('g@x.com bought a ticket for €16.00 · used SUMMER20 for 20% off · a gift for Rita');
+    });
+
+    it('falls back to the amount off, and to a guest recipient\'s email', () => {
+        const text = renderActivitySentence(sale({
+            buyerEmail: 'g@x.com', amount: 1500, currency: 'EUR', quantity: 1,
+            discount: { code: 'FIVER', amount: 500, percentOff: null },
+            gift: { recipientName: null, recipientUsertag: null, recipientEmail: 'friend@x.com' },
+        })).text;
+        expect(text).toBe('g@x.com bought a ticket for €15.00 · used FIVER for €5.00 off · a gift for friend@x.com');
+    });
+});
