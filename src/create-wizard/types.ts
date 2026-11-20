@@ -1,5 +1,5 @@
 import type * as React from "react";
-import type { CreateOutcome, MemberFeeModel, SubmitAction } from "@cobuntu/management-ui-shared";
+import type { CreateOutcome, CreateStepId, MemberFeeModel, SubmitAction } from "@cobuntu/management-ui-shared";
 import type { CategoryOption } from "../components/CategoryPickerRow";
 import type { EventCreateWizardCopy } from "./i18n";
 import type { EventImageRules, UploadedEventImage } from "../lib/eventImages";
