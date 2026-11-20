@@ -346,6 +346,19 @@ export interface EventCreateWizardProps {
    */
   hideArrangementStep?: boolean;
   /**
+   * Built-in steps to leave out of this flow. For a venue's private hire there
+   * is nothing to sell, so the host passes `["commerce"]` and never sees ticket
+   * tiers, entry types or donations.
+   *
+   * Only steps whose form state is already valid untouched may go: "commerce"
+   * seeds a free, published "Standard" tier, so an event created without the
+   * step is a plain free RSVP event, exactly what an untouched step submits.
+   * "details" can never be hidden (it is the event), and the host's own
+   * `extraSteps` are not built-in steps. Read on every render, so it may change
+   * while the wizard is mounted (a choice made before it, for instance).
+   */
+  hideSteps?: CreateStepId[];
+  /**
    * Grey out Next while the host step on screen is invalid, instead of
    * letting it be pressed and answering with an error.
    *
