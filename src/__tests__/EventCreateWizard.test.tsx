@@ -491,6 +491,28 @@ describe("hideArrangementStep", () => {
   });
 });
 
+describe("hideSteps", () => {
+  const extraSteps = [{ id: "review", label: "Review", title: "Review", after: "end", render: () => <div /> }];
+
+  it("leaves Pricing out of a flow with nothing to sell (a venue's private hire)", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, hideArrangementStep: true, hideSteps: ["commerce"] });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Policies & access", "Review"]);
+  });
+
+  it("never hides Details, whatever it is asked", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, hideArrangementStep: true, hideSteps: ["details", "commerce"] });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Policies & access", "Review"]);
+  });
+
+  it("changes nothing when empty", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, extraSteps, hideArrangementStep: true, hideSteps: [] });
+    await screen.findByTestId("event-form");
+    expect(walk()).toEqual(["Details", "Pricing", "Policies & access", "Review"]);
+  });
+});
+
 describe("the commission step", () => {
   async function toCommissionStep(over: Partial<EventCreateWizardProps> = {}) {
     const utils = renderWizard({ initialDrafts: [], canCreateForCommunity: false, ...over });
