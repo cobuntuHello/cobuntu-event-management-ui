@@ -198,7 +198,7 @@ type InnerProps = Omit<EventCreateWizardProps, "initialDrafts" | "canCreateForCo
 };
 
 function WizardInner({
-  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep, disableNextOnInvalidExtraStep, ownershipMode = "choice", withMemberPricesStep = false,
+  community, viewer, transport, navigation, extraSteps = [], extraStepsAfter, hideArrangementStep, hideSteps, disableNextOnInvalidExtraStep, ownershipMode = "choice", withMemberPricesStep = false,
   isLeader: isLeaderHere, drafts: myDrafts, draftId, draftStepFromUrl,
   syncStepToUrl = true, onLocalResume, sellerPremium,
 }: InnerProps) {
@@ -243,7 +243,9 @@ function WizardInner({
    * button permanently disabled. The step wins over the flag, every time.
    */
   const dropArrangement = hideArrangementStep && packages.length <= 1;
-  const placedSteps = dropArrangement ? baseSteps.filter((s) => s !== "listing") : baseSteps;
+  // `hideSteps`: built-in steps the host leaves out (types.ts). Never "details".
+  const placedSteps = (dropArrangement ? baseSteps.filter((s) => s !== "listing") : baseSteps)
+    .filter((s) => s === "details" || !hideSteps?.includes(s));
 
   /*
    * Where each host step goes. A step naming its own `after` is placed there;
