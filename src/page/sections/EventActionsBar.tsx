@@ -29,6 +29,9 @@ import { useEventManagementConfig } from "../../config";
 import { useCanEdit } from "../../lib/manageAccess";
 import { OverviewActionCards } from "./OverviewActionCards";
 
+/** The window event a host's Overview dispatches to ask this bar to do something. */
+export const MANAGE_ACTION_EVENT = "cobuntu:manage-action";
+
 type ActionModal = "share" | "publish" | "unpublish" | "delete" | "duplicate" | "groupChat" | "privateHire" | "eventAddons" | null;
 
 interface GroupChatState {
@@ -90,6 +93,23 @@ export function EventActionsBar({ event, communityTag, isPublished, onUpdate, on
   useEffect(() => { loadGroupChat(); }, [loadGroupChat]);
 
   const status = getEventStatus(event, communityTag);
+
+  /*
+   * The Overview tab can ask for Publish (its next-step card, for an event that
+   * was never published). It is rendered by the HOST app through a slot, so it
+   * cannot reach this bar's state; a window event is the seam. There is still
+   * one dialog and one place that owns it, and a request while the event is
+   * already on a shelf is ignored rather than opening an Unpublish by accident.
+   */
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      if ((e as CustomEvent).detail?.action === "publish" && !isPublished) setModal("publish");
+    };
+    window.addEventListener(MANAGE_ACTION_EVENT, onAsk);
+    return () => window.removeEventListener(MANAGE_ACTION_EVENT, onAsk);
+    // setModal closes over canEdit; re-subscribe when it changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPublished, canEdit]);
 
   // The chat lives in the community app, at /conversations/<id>.
   const { communityAppUrl } = useEventManagementConfig();
