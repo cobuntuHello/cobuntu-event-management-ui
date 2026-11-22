@@ -8,10 +8,28 @@ import { renderWithConfig, mockFetch } from "./test-utils";
  * the SAME RefundPolicyField the manage modal uses (T-234). Two presets: Standard
  * (null) and No self-service refunds (customBuyerWindowDays: 0).
  */
+// A PAID event: the refund control only exists when some tier can be paid.
+const PAID = {
+  tiers: [{
+    localId: "t1", name: "Standard", description: "", price: "10", currency: "EUR",
+    capacity: "", isRecurring: false, recurringInterval: "monthly" as const,
+  }],
+} as any;
+
 function lastEmit(onChange: ReturnType<typeof vi.fn>) {
   const calls = onChange.mock.calls;
   return calls.length ? calls[calls.length - 1][0] : null;
 }
+
+describe("EventForm — a free event has no refund control", () => {
+  beforeEach(() => {
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: false } }]);
+  });
+  it("shows no Refunds control when no tier costs anything", () => {
+    renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} page="settings" />);
+    expect(screen.queryByText("Refunds")).not.toBeInTheDocument();
+  });
+});
 
 describe("EventForm — refund policy", () => {
   beforeEach(() => {
@@ -19,7 +37,7 @@ describe("EventForm — refund policy", () => {
   });
 
   it("shows the Refunds control on the settings page, not on commerce", () => {
-    const { rerender } = renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} page="settings" />);
+    const { rerender } = renderWithConfig(<EventForm communityTag="c-1" onChange={vi.fn()} page="settings" initialData={PAID} />);
     expect(screen.getByText("Refunds")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Standard refunds/i })).toBeInTheDocument();
 
@@ -29,7 +47,7 @@ describe("EventForm — refund policy", () => {
 
   it("emits null (Standard) by default and customBuyerWindowDays:0 when set to none", () => {
     const onChange = vi.fn();
-    renderWithConfig(<EventForm communityTag="c-1" onChange={onChange} page="settings" />);
+    renderWithConfig(<EventForm communityTag="c-1" onChange={onChange} page="settings" initialData={PAID} />);
     expect(lastEmit(onChange).refundPolicy).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /No self-service refunds/i }));
     expect(lastEmit(onChange).refundPolicy).toEqual({ mode: "default", customBuyerWindowDays: 0 });
@@ -57,7 +75,7 @@ describe("EventForm — the house cancellation terms", () => {
 
   it("states the terms and removes the picker entirely", () => {
     renderWithConfig(
-      <EventForm communityTag="c-1" onChange={vi.fn()} page="settings" houseRefundBands={HOUSE} />,
+      <EventForm communityTag="c-1" onChange={vi.fn()} page="settings" initialData={PAID} houseRefundBands={HOUSE} />,
     );
     expect(screen.getByText("Refunds")).toBeInTheDocument();
     expect(screen.getByText("14 or more days before: 75% back")).toBeInTheDocument();
@@ -69,7 +87,7 @@ describe("EventForm — the house cancellation terms", () => {
 
   it("says what the schedule does not cover", () => {
     renderWithConfig(
-      <EventForm communityTag="c-1" onChange={vi.fn()} page="settings" houseRefundBands={HOUSE} />,
+      <EventForm communityTag="c-1" onChange={vi.fn()} page="settings" initialData={PAID} houseRefundBands={HOUSE} />,
     );
     expect(screen.getByText(/cancelled by the venue, everyone is refunded in full/)).toBeInTheDocument();
   });
@@ -79,7 +97,7 @@ describe("EventForm — the house cancellation terms", () => {
       <EventForm
         communityTag="c-1"
         onChange={vi.fn()}
-        page="settings"
+        page="settings" initialData={PAID}
         houseRefundBands={HOUSE}
         houseRefundTitle="TEJÁ's cancellation terms"
       />,
@@ -92,7 +110,7 @@ describe("EventForm — the house cancellation terms", () => {
     const noHouseTerms: ({ days: number; pct: number }[] | null | undefined)[] = [undefined, null, []];
     for (const bands of noHouseTerms) {
       const { unmount } = renderWithConfig(
-        <EventForm communityTag="c-1" onChange={vi.fn()} page="settings" houseRefundBands={bands} />,
+        <EventForm communityTag="c-1" onChange={vi.fn()} page="settings" initialData={PAID} houseRefundBands={bands} />,
       );
       expect(screen.getByRole("button", { name: /Standard refunds/i })).toBeInTheDocument();
       unmount();
