@@ -81,7 +81,7 @@ export { LocationEditModal } from "./components/LocationEditModal";
 export { SlugEditModal, type SlugEditModalProps } from "./components/SlugEditModal";
 export { DistributionEditModal, type DistributionEditModalProps } from "./components/DistributionEditModal";
 export { AfterCheckoutEditModal, type AfterCheckoutEditModalProps } from "./components/AfterCheckoutEditModal";
-export { ShareModal } from "./components/ShareModal";
+export { ShareModal, type ShareQrSlotArgs, type RenderShareQr } from "./components/ShareModal";
 export { PrivateHireModal } from "./components/PrivateHireModal";
 export { EventAddonsModal } from "./components/EventAddonsModal";
 export { PublishModal } from "./components/PublishModal";

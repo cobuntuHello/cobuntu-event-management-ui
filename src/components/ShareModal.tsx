@@ -1,16 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ModalShell } from "../ui/modal-shell";
 import { useEventT } from "../create-wizard/i18n";
+
+/**
+ * What the host app gets to draw the link as a QR code.
+ *
+ * `url` is exactly the link this modal shares and copies, so the code can
+ * never point somewhere the buttons do not.
+ */
+export interface ShareQrSlotArgs {
+  url: string;
+  /** The event's name: the picture's headline and the file's name. */
+  name: string;
+  /** The loaded event, for the host app's second line (a price, a date). */
+  event: any;
+}
+
+/**
+ * Renders the QR code row. A render function rather than a component this
+ * package owns: the community app already has the branded Cobuntu code (its
+ * share sheets' "QR code" row, with Download and Share) and its QR library,
+ * and this package cannot import from the app. Omitted, the modal has no
+ * QR row, which is what the admin app gets.
+ */
+export type RenderShareQr = (args: ShareQrSlotArgs) => ReactNode;
 
 interface Props {
   event: any;
   communityTag: string;
   onClose: () => void;
+  renderQr?: RenderShareQr;
 }
 
-export function ShareModal({ event, communityTag, onClose }: Props) {
+export function ShareModal({ event, communityTag, onClose, renderQr }: Props) {
   const [copied, setCopied] = useState(false);
   const t = useEventT("eventsUi.manageUi.shareModal");
   const tc = useEventT("eventsUi.manageUi.overviewCommon");
@@ -50,6 +74,8 @@ export function ShareModal({ event, communityTag, onClose }: Props) {
           </button>
         ))}
       </div>
+      {/* Under the targets and above the link, as on the app's share sheets. */}
+      {renderQr && <div className="-mt-2 mb-4">{renderQr({ url: eventUrl, name: event.name || "", event })}</div>}
       <button onClick={copy} className="w-full flex items-center gap-2 p-3 rounded-lg bg-zinc-50 hover:bg-zinc-100 transition-colors cursor-pointer text-left">
         <p className="text-xs text-zinc-500 truncate flex-1">{eventUrl}</p>
         <span className="text-[12px] font-medium text-zinc-600 shrink-0">{copied ? tc("copied") : tc("copy")}</span>
