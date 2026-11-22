@@ -295,20 +295,30 @@ export function useEventImageRules(communityTag?: string | null): EventImageRule
  * Shared PUT helper for `/api/communities/:tag/events/:id`. Each sub-modal
  * uses this — pulls apiBaseUrl + json headers from context, throws with
  * the backend's error message on non-2xx.
+ *
+ * `keepalive` is for a save made while the page is going away (the Details
+ * tab's description autosave flushes on pagehide): without it the browser
+ * cancels the request along with the page.
  */
 export function useUpdateEvent(): (
   communityTag: string,
   eventId: string,
   body: Record<string, unknown>,
+  init?: { keepalive?: boolean },
 ) => Promise<any> {
   const { apiBaseUrl } = useEventManagementConfig();
   const jsonHeaders = useJsonHeaders();
   const t = useEventT("eventsUi.manageUi.config");
   return React.useCallback(
-    async (communityTag, eventId, body) => {
+    async (communityTag, eventId, body, init) => {
       const res = await fetch(
         `${apiBaseUrl}/api/communities/${communityTag}/events/${eventId}`,
-        { method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body) },
+        {
+          method: "PUT",
+          headers: jsonHeaders(),
+          body: JSON.stringify(body),
+          ...(init?.keepalive ? { keepalive: true } : {}),
+        },
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
