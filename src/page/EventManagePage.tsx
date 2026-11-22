@@ -5,6 +5,7 @@ import { SectionsNav, type ViewKey } from "./sections/SectionsNav";
 import { ViewTransition } from "./ViewTransition";
 import { storefrontListing } from "./helpers";
 import { DetailsView } from "./views/DetailsView";
+import { EventActionsBar } from "./sections/EventActionsBar";
 import { PricingView } from "./views/PricingView";
 import { HostsView } from "./views/HostsView";
 import { AgendaView } from "./views/AgendaView";
@@ -357,6 +358,15 @@ export function EventManagePage({
         {!effectiveCanEdit && (
           <ReadOnlyNotice event={event} communityTag={communityTag} isPast={hasEnded} isModerator={!!forceModerator} />
         )}
+        {/* Above the tabs: every action is one tap away on every tab. */}
+        <EventActionsBar
+          event={event}
+          communityTag={communityTag}
+          isPublished={isPublished}
+          onUpdate={() => { void onUpdate(); }}
+          onDelete={() => { void onDelete(); }}
+          showToast={showToast}
+        />
         <SectionsNav communityTag={communityTag} activeView={active} onViewChange={onViewChange} visibleViews={allowed} />
         <ViewTransition viewKey={active}>{content}</ViewTransition>
       </div>

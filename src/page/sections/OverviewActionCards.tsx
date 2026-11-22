@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import { useEventT } from "../../create-wizard/i18n";
 
 interface Card {
@@ -175,14 +177,13 @@ export function OverviewActionCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+    <FadingScroller>
       {cards.map((c) => (
         <button
           key={c.label}
           onClick={c.disabled ? undefined : c.onClick}
           disabled={c.disabled}
-          aria-disabled={c.disabled || undefined}
-          className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-zinc-50 text-left transition-colors ${
+          className={`flex shrink-0 items-center gap-3 p-3 sm:p-4 min-w-[168px] rounded-xl bg-zinc-50 text-left transition-colors ${
             c.disabled
               ? "opacity-40 cursor-not-allowed"
               : c.destructive
@@ -192,11 +193,53 @@ export function OverviewActionCards({
           <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0 ${c.iconBg} ${c.iconColor}`}>
             {c.icon}
           </div>
-          <span className={`text-[13px] sm:text-[14px] font-medium min-w-0 truncate ${c.destructive ? "text-red-600" : "text-zinc-900"}`}>
+          <span className={`text-[13px] sm:text-[14px] font-medium whitespace-nowrap ${c.destructive ? "text-red-600" : "text-zinc-900"}`}>
             {c.label}
           </span>
         </button>
       ))}
+    </FadingScroller>
+  );
+}
+
+/**
+ * One row that scrolls sideways, with a soft fade on whichever edge still has
+ * more to show. Two rows of cards ate the top of every tab; one scrolling row
+ * costs a single line and the fade says "there is more" without a scrollbar.
+ * The fade is a mask on the scroller itself, so it works on any background.
+ */
+function FadingScroller({ children }: { children: React.ReactNode }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = React.useState({ left: false, right: false });
+  const measure = React.useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setEdge({
+      left: el.scrollLeft > 4,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+    });
+  }, []);
+  React.useEffect(() => {
+    measure();
+    const el = ref.current;
+    if (!el) return;
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    window.addEventListener("resize", measure);
+    return () => { ro?.disconnect(); window.removeEventListener("resize", measure); };
+  }, [measure, children]);
+  const fade = 40;
+  const mask = `linear-gradient(to right, ${edge.left ? "transparent" : "#000"} 0, #000 ${edge.left ? fade : 0}px, #000 calc(100% - ${edge.right ? fade : 0}px), ${edge.right ? "transparent" : "#000"} 100%)`;
+  return (
+    <div
+      ref={ref}
+      onScroll={measure}
+      data-edge-left={edge.left}
+      data-edge-right={edge.right}
+      className="flex gap-2 sm:gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{ WebkitMaskImage: mask, maskImage: mask }}
+    >
+      {children}
     </div>
   );
 }
