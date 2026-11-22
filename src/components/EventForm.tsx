@@ -1,5 +1,6 @@
 "use client";
 
+import { formTiersHavePaid } from "../lib/paidEvent";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
@@ -2163,6 +2164,8 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             - It does not: the host sets their own, with the SAME control the
               manage page's refund modal uses (RefundPolicyField). Standard =
               platform default window; None = buyers contact the host. */}
+        {/* Only when something can be paid: a free event has nothing to refund. */}
+        {formTiersHavePaid(tiers) && (
         <div className="mt-6">
           <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2">{tf("refunds")}</p>
           {houseRefundBands && houseRefundBands.length > 0 ? (
@@ -2175,6 +2178,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
             <RefundPolicyField value={refundPolicy} onChange={setRefundPolicy} anchor="EVENT_START" />
           )}
         </div>
+        )}
       </div>
       )}
 

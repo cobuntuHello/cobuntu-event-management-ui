@@ -11,6 +11,7 @@ import { DistributionEditModal } from "./DistributionEditModal";
 import { AfterCheckoutEditModal } from "./AfterCheckoutEditModal";
 import { ApprovalEditModal } from "./ApprovalEditModal";
 import { RefundPolicyEditModal, refundPolicySummary } from "./RefundPolicyEditModal";
+import { eventHasPaidTier } from "../lib/paidEvent";
 
 /**
  * Settings drawer for the event-management Overview tab.
@@ -404,7 +405,9 @@ export function SettingsDrawer({
                       * COMMUNITY_SCOPED_EVENT_FIELDS precisely so an owner can
                       * decide who gets into their own event.
                       */}
-                    {isCommunityOwned && (
+                    {/* No row for a free event: there is no payment to refund, so a
+                        refund policy on it only invites a promise about nothing. */}
+                    {isCommunityOwned && eventHasPaidTier(event) && (
                         <SettingsRow
                             label={t("refundPolicy")}
                             summary={refundPolicySummary(event.refundPolicy)}
