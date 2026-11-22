@@ -415,6 +415,7 @@ export function PriceEditModal({
               autoScheduleEnabled: !!t.autoScheduleEnabled,
               salesStartAt: t.salesStartAt ?? "",
               salesEndAt: t.salesEndAt ?? "",
+              opensAfterTierId: t.opensAfterTierId ?? null,
               vatCategory,
               vatPriceEntry,
             };
@@ -1123,6 +1124,9 @@ export function PriceEditModal({
           }}
           publishToggling={publishToggling}
           draftMode={draftMode}
+          waveSiblings={drafts
+            .filter((d) => d.id && !d.deleted && d.localId !== activeDraft.localId)
+            .map((d) => ({ id: d.id as string, name: d.name, capacity: d.capacity }))}
         />
       ) : (
         // Level 1: default tier list. Add tier + Donations + Save.

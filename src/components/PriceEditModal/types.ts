@@ -30,6 +30,11 @@ export interface Tier {
   salesStartAt?: string | null;
   salesEndAt?: string | null;
   autoScheduleEnabled?: boolean;
+  /** Waves: the tier this one opens after (null = no wave rule). GET /tiers
+   *  also says whether it is still waiting for that tier to sell out. */
+  opensAfterTierId?: string | null;
+  waitingForWave?: boolean;
+  waitingForTierName?: string | null;
   products: {
     id: string;
     price: number;
@@ -129,6 +134,12 @@ export interface DraftTier {
   autoScheduleEnabled: boolean;
   salesStartAt: string;
   salesEndAt: string;
+  /**
+   * Waves: the saved tier this one opens after. It goes on sale once that
+   * tier sells out (or its sales window ends), e.g. Early bird -> Final wave.
+   * null = no wave rule. Backend: product_tiers.opensAfterTierId.
+   */
+  opensAfterTierId?: string | null;
   /**
    * Seller VAT (backend docs/features/seller-vat.md). null = no VAT on this
    * ticket. When set, `price` above holds what the host TYPED: the buyer price
