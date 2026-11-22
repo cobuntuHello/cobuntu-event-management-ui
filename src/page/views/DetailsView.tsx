@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   PriceEditModal,
@@ -15,26 +15,15 @@ import {
   DateTimeEditModal,
   LocationEditModal,
   SlugEditModal,
-  ShareModal,
-  PrivateHireModal,
-  EventAddonsModal,
-  PublishModal,
-  DeleteModal,
-  DuplicateModal,
-  SettingsDrawer,
   TagsEditModal,
   EventRevenueKPIs,
-  CreateGroupChatModal,
-  EventChatCapacityNotice,
 } from "@cobuntu/event-management-ui";
-import { getEventStatus, apiBase, authHeaders } from "../helpers";
+import { getEventStatus } from "../helpers";
 import { EventImagesDialog } from "../../components/EventImagesDialog";
-import { useEventManagementConfig } from "../../config";
 
 // Sections
 import { EventCard } from "../sections/EventCard";
 import { DescriptionSection } from "../sections/DescriptionSection";
-import { OverviewActionCards } from "../sections/OverviewActionCards";
 import { DonationsSummaryCard } from "../../components/DonationsSummaryCard";
 import { useCanEdit } from "../../lib/manageAccess";
 import { useEventT } from "../../create-wizard/i18n";
@@ -48,14 +37,7 @@ import { useEventT } from "../../create-wizard/i18n";
 // feat/manage-event-restructure: "distribution" removed from EventModal —
 // it now lives inside the SettingsDrawer (along with viewability, accessibility,
 // and the refund policy), invoked by the Settings quick action card.
-export type EventModal = "name" | "datetime" | "location" | "price" | "slug" | "tags" | "share" | "publish" | "unpublish" | "delete" | "duplicate" | "groupChat" | "privateHire" | "eventAddons" | null;
-
-interface GroupChatState {
-  conversationId: string | null;
-  announceOnly: boolean;
-  memberCount: number;
-  maxMembers: number;
-}
+export type EventModal = "name" | "datetime" | "location" | "price" | "slug" | "tags" | null;
 
 interface Props {
   event: any;
@@ -79,7 +61,6 @@ interface Props {
 export function DetailsView({ event, communityTag, eventId, isPublished, onUpdate, onDelete, showToast, sellerMemberPricing }: Props) {
   const router = useRouter();
   const [modal, setModalState] = useState<EventModal>(null);
-  const [drawerOpen, setDrawerOpenState] = useState(false);
   const [bannerCropOpen, setBannerCropOpenState] = useState(false);
 
   /*
@@ -98,31 +79,15 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
    */
   const canEdit = useCanEdit();
   const setModal: typeof setModalState = (v) => {
-    // Read-only still shares and duplicates: neither changes THIS event, and
-    // duplicating last edition is the main thing a host does with an ended
-    // one. Every other modal writes, so it stays shut (T-370).
-    if (!canEdit && v !== null && v !== "share" && v !== "duplicate") return;
+    // Every modal here edits a field, so all stay shut when read-only (T-370).
+    // Share and duplicate moved to the actions bar above the tabs.
+    if (!canEdit && v !== null) return;
     setModalState(v);
-  };
-  const setDrawerOpen: typeof setDrawerOpenState = (v) => {
-    if (!canEdit && v !== false) return;
-    setDrawerOpenState(v);
   };
   const setBannerCropOpen: typeof setBannerCropOpenState = (v) => {
     if (!canEdit && v !== false) return;
     setBannerCropOpenState(v);
   };
-
-  // Event group chat (event<->chat linking). Null until the state is fetched;
-  // conversationId null = no chat yet → the action card offers "Create".
-  const [groupChat, setGroupChat] = useState<GroupChatState | null>(null);
-  const loadGroupChat = useCallback(() => {
-    fetch(`${apiBase()}/api/communities/${communityTag}/events/${event.id}/group-chat`, { headers: authHeaders() })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setGroupChat(d); })
-      .catch(() => {});
-  }, [communityTag, event.id]);
-  useEffect(() => { loadGroupChat(); }, [loadGroupChat]);
 
   // (Community fetch removed alongside the funnel-feature kill —
   // the only consumer was MembershipFunnelSection's prerequisite
@@ -132,72 +97,11 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
   const status = getEventStatus(event, communityTag);
   const t = useEventT("eventsUi.manageUi.detailsView");
 
-  // The group chat lives in the community-app (a different host than admin),
-  // at /conversations/<conversationId>. getCommunityAppUrl resolves that host
-  // (env override → admin-subdomain strip → {tag}.cobuntu.com), matching how
-  // the marketplace/event listing "Open chat" actions deep-link into it.
-  const { communityAppUrl } = useEventManagementConfig();
-  const openGroupChat = useCallback(() => {
-    const conversationId = groupChat?.conversationId;
-    if (!conversationId) return;
-    window.open(
-      `${(communityAppUrl ? communityAppUrl(communityTag) : `https://${communityTag}.cobuntu.com`)}/conversations/${conversationId}`,
-      "_blank",
-      "noopener",
-    );
-  }, [groupChat?.conversationId, communityTag]);
-
   function close() { setModal(null); }
   function saved() { setModal(null); onUpdate(); }
 
   return (
     <div className="space-y-6">
-      <OverviewActionCards
-        /*
-         * Always. This used to be `!!event?.communityId`, which hid the whole
-         * button on a personal event — and with it Approval and the refund
-         * policy, two settings the OWNER of that event is entitled to set
-         * (the backend keeps both out of COMMUNITY_SCOPED_EVENT_FIELDS). The
-         * drawer scopes its own rows now, so the community-only ones stay
-         * out on a personal event without taking the entry point with them.
-         */
-        canConfigureSettings
-        readOnly={!canEdit}
-        isPublished={isPublished}
-        isEventPast={!!status.isPast}
-        isEventLive={!!status.isLive}
-        // Conservative signal: paid event + at least one attendee.
-        // Catches the orphan-financials hazard even if every attendee
-        // is a comp (Delete still goes through the cancel-+-refund
-        // flow first, then the now-empty event can be removed).
-        hasPaidAttendees={!!status.isPaid && status.attendeeCount > 0}
-        onShare={() => setModal("share")}
-        onEdit={() => setDrawerOpen(true)}
-        onDuplicate={() => setModal("duplicate")}
-        onPublish={() => setModal("publish")}
-        onUnpublish={() => setModal("unpublish")}
-        onDelete={() => setModal("delete")}
-        groupChatExists={!!groupChat?.conversationId}
-        // When a chat already exists the card label is "Group chat active" —
-        // jump into the chat (community-app) instead of re-opening the
-        // create modal. No chat yet → open the create flow unchanged.
-        onGroupChat={() => (groupChat?.conversationId ? openGroupChat() : setModal("groupChat"))}
-        onPrivateHire={() => setModal("privateHire")}
-        onEventAddons={() => setModal("eventAddons")}
-      />
-
-      {groupChat?.conversationId && (
-        <EventChatCapacityNotice
-          memberCount={groupChat.memberCount}
-          maxMembers={groupChat.maxMembers}
-          announceOnly={groupChat.announceOnly}
-          // Without onOpenChat the soft-threshold nudge degrades to
-          // text-only; wire it to the same deep-link so the notice keeps
-          // its one-click "Open chat" action.
-          onOpenChat={openGroupChat}
-        />
-      )}
-
       <EventCard
         event={event}
         communityTag={communityTag}
@@ -281,40 +185,6 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
           onSlugChanged={(newSlug) => router.replace(`/${communityTag}/events/${newSlug}`)}
         />
       )}
-      {/* "distribution" modal is rendered by SettingsDrawer when its
-          Distribution row is clicked. No separate top-level mount needed. */}
-      {modal === "share" && <ShareModal event={event} communityTag={communityTag} onClose={close} />}
-      {modal === "privateHire" && <PrivateHireModal event={event} communityTag={communityTag} onClose={close} />}
-      {modal === "eventAddons" && <EventAddonsModal event={event} communityTag={communityTag} onClose={close} />}
-      {modal === "groupChat" && (
-        <CreateGroupChatModal
-          event={event}
-          communityTag={communityTag}
-          attendeeCount={status.attendeeCount}
-          onClose={close}
-          showToast={showToast}
-          onCreated={() => { close(); loadGroupChat(); }}
-        />
-      )}
-      {(modal === "publish" || modal === "unpublish") && (
-        <PublishModal event={event} communityTag={communityTag} isPublished={isPublished}
-          isPaid={status.isPaid} attendeeCount={status.attendeeCount} missingRequirements={status.missingRequirements}
-          onClose={close} onDone={saved} showToast={showToast} />
-      )}
-      {modal === "delete" && <DeleteModal event={event} isPaid={status.isPaid} attendeeCount={status.attendeeCount} onClose={close} onConfirm={() => { close(); onDelete(); }} />}
-      {modal === "duplicate" && (
-        <DuplicateModal
-          event={event}
-          communityTag={communityTag}
-          onClose={close}
-          showToast={showToast}
-          onDuplicated={(newEvent) => {
-            const target = newEvent.id || newEvent.slug;
-            if (target) router.push(`/${communityTag}/events/${target}`);
-          }}
-        />
-      )}
-
       {/* The event's photos: cover first, then the square gallery, under the
           community's image rules (docs/features/event-gallery.md). */}
       <EventImagesDialog
@@ -326,37 +196,6 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
         showToast={showToast}
       />
 
-      {/*
-        Rendered only when the event can have these settings — the action that
-        opens it is gated identically, so this guards a stale open state.
-      */}
-      {/*
-        * Mounted for EVERY event, community-owned or not.
-        *
-        * This was gated on `!!event?.communityId` while the Settings button
-        * above it had already been ungated — so on a member-owned event the
-        * button rendered and the drawer was not in the tree at all. Clicking
-        * it did nothing, silently.
-        *
-        * The drawer scopes its own rows (see SettingsDrawer.isCommunityOwned),
-        * which is the right place for it: the entry point should not know
-        * which settings exist.
-        */}
-      {<SettingsDrawer
-        event={event}
-        communityTag={communityTag}
-        isOpen={drawerOpen}
-        isPast={!!status.isPast}
-        onClose={() => setDrawerOpen(false)}
-        onSaved={() => { onUpdate(); }}
-        showToast={showToast}
-      />}
-      {/* The drawer used to be gated on a community fetch (community
-          prop was required for MembershipFunnelEditModal). With the
-          funnel kill, `community` is no longer needed, the gate is
-          gone, and the drawer renders unconditionally — fixes a
-          latent bug where a transient /communities or /segments fetch
-          failure would silently hide every other settings row. */}
     </div>
   );
 }

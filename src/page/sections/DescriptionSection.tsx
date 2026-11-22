@@ -5,7 +5,7 @@ import { MarkdownEditor } from "../../ui/markdown-editor";
 import { useUpdateEvent } from "../../config";
 import { useCanEdit } from "../../lib/manageAccess";
 import { useEventT } from "../../create-wizard/i18n";
-import { theme, muted } from "../../shared/theme";
+import { theme } from "../../shared/theme";
 
 /**
  * The event's description, edited where it is read.
@@ -88,14 +88,11 @@ export function DescriptionSection({ event, communityTag, onSaved, showToast }: 
 
     return (
         <div>
-            <div className="flex items-center justify-between gap-4 mb-3">
-                <div className="min-w-0">
-                    <h2 className="text-[15px] font-semibold" style={{ color: theme.text }}>{t("title")}</h2>
-                    <p className="text-[12px] mt-0.5" style={muted(0.5)}>
-                        {t("subtitle")}
-                    </p>
-                </div>
-                {canEdit && (
+            {/* No heading or subtitle: the box says what it is, and the title
+                was repeating what the page already shows. Save stays, right
+                aligned, only for someone who can edit. */}
+            {canEdit && (
+                <div className="flex justify-end mb-3">
                     <button
                         type="button"
                         onClick={save}
@@ -105,8 +102,8 @@ export function DescriptionSection({ event, communityTag, onSaved, showToast }: 
                     >
                         {saving ? tc("savingDots") : tc("save")}
                     </button>
-                )}
-            </div>
+                </div>
+            )}
 
             {/*
               * Read-only is expressed by making the editor inert, not by

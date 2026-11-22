@@ -303,8 +303,6 @@ export const OVERVIEW_MESSAGES_EN = {
       descriptionSection: {
         updated: "Description updated",
         failed: "Failed to update description",
-        title: "Description",
-        subtitle: "What attendees read on the event page.",
         placeholder: "Describe your event...",
       },
       overviewActionCards: {
