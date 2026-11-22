@@ -257,6 +257,7 @@ export const OVERVIEW_MESSAGES_EN = {
         title: "Settings",
         pastNote: "Event has ended. Access and Featured no longer affect new registrations — only Visibility and a custom landing URL still apply.",
         communityAccess: "Community access",
+        leadersOnly: "Only community leaders with event permissions can change these.",
         visibility: "Visibility",
         access: "Access",
         distribution: "Distribution",
@@ -306,6 +307,8 @@ export const OVERVIEW_MESSAGES_EN = {
         placeholder: "Describe your event...",
       },
       overviewActionCards: {
+        scrollLeft: "Show earlier actions",
+        scrollRight: "Show more actions",
         share: "Share Event",
         settings: "Settings",
         duplicate: "Duplicate Event",
