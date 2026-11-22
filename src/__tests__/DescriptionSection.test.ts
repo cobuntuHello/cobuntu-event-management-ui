@@ -51,16 +51,19 @@ describe("the description has its own section", () => {
     });
 });
 
-describe("unsaved work is visible and survives a refetch", () => {
-    it("only enables Save once the content differs", () => {
+describe("it saves itself, and unsaved work survives a refetch", () => {
+    it("has no Save button: the shared autosave does the saving", () => {
         /*
-         * A permanently live Save asks "did I change something?" every time it
-         * is seen. Enabling it on a real difference makes the button the
-         * answer, and is the unsaved-work indicator this page would otherwise
-         * lack — a modal at least announced itself by being open.
+         * T-386. A lone Save button sat above the editor. It made saving a
+         * step to remember on a field written in place, and an edit left
+         * without pressing it was lost. Behaviour is pinned in
+         * DescriptionSection.autosave.test.tsx; this pins the wiring.
          */
-        expect(section).toContain("const dirty = content !== saved;");
-        expect(section).toContain("disabled={!dirty || saving}");
+        expect(section).not.toContain('tc("save")');
+        expect(section).not.toContain("disabled={!dirty || saving}");
+        expect(section).toContain("useAutosave(");
+        expect(section).toContain("<AutosaveStatus");
+        expect(section).toContain("onBlur={autosave.flush}");
     });
 
     it("adopts a new server value ONLY when nothing is being typed", () => {
@@ -68,10 +71,17 @@ describe("unsaved work is visible and survives a refetch", () => {
          * The bug this avoids: the page refetches the event while someone is
          * mid-paragraph, and the editor silently resets to the stored text.
          * Comparing against what was last seeded says "untouched since it
-         * matched the server", which is exactly when adopting is safe.
+         * matched the server", which is exactly when adopting is safe. With
+         * autosave a refetch follows every save, so this matters more now.
          */
         expect(section).toContain("const seededFrom = useRef(saved);");
         expect(section).toContain("prev === seededFrom.current ? saved : prev");
+    });
+
+    it("a save refreshes the event, but never closes a modal the host just opened", () => {
+        // DetailsView's saved() also clears the open modal. An autosave fired
+        // by the blur of clicking a row must not shut the modal that row opens.
+        expect(details).toMatch(/<DescriptionSection[^>]*onSaved=\{onUpdate\}/);
     });
 });
 
@@ -83,8 +93,9 @@ describe("permissions and read-only", () => {
         expect(section).toContain("const canEdit = useCanEdit();");
     });
 
-    it("hides Save entirely when the viewer cannot edit", () => {
-        expect(section).toContain("{canEdit && (");
+    it("saves nothing and shows no status when the viewer cannot edit", () => {
+        expect(section).toContain("enabled: canEdit,");
+        expect(section).toContain("status={canEdit ? <AutosaveStatus");
     });
 
     it("does not re-render stored HTML itself", () => {

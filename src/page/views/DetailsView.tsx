@@ -133,8 +133,7 @@ export function DetailsView({ event, communityTag, eventId, isPublished, onUpdat
       <DescriptionSection
         event={event}
         communityTag={communityTag}
-        onSaved={saved}
-        showToast={showToast}
+        onSaved={onUpdate}
       />
 
       <DonationsSummaryCard communityTag={communityTag} eventId={eventId} />
