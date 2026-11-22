@@ -312,6 +312,13 @@ describe("PriceEditModal helpers — loadDonationFromEvent", () => {
 });
 
 describe("PriceEditModal helpers — buildTierBody", () => {
+  it("carries the wave rule: a tier id to open after, null to clear, nothing when unknown", () => {
+    expect(buildTierBody({ ...blankTier(), name: "Final wave", opensAfterTierId: "tier-early" })).toMatchObject({ opensAfterTierId: "tier-early" });
+    expect(buildTierBody({ ...blankTier(), name: "Final wave", opensAfterTierId: null })).toMatchObject({ opensAfterTierId: null });
+    const { opensAfterTierId: _omit, ...legacy } = blankTier();
+    expect(buildTierBody({ ...legacy, name: "Std" } as any)).not.toHaveProperty("opensAfterTierId");
+  });
+
   it("includes price + currency + priceMode for unlocked tiers", () => {
     const body = buildTierBody({
       ...blankTier(),

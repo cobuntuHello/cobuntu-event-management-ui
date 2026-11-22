@@ -130,6 +130,12 @@ export interface DraftTier {
   salesStartAt: string;
   salesEndAt: string;
   /**
+   * Waves: the saved tier this one opens after. It goes on sale once that
+   * tier sells out (or its sales window ends), e.g. Early bird -> Final wave.
+   * null = no wave rule. Backend: product_tiers.opensAfterTierId.
+   */
+  opensAfterTierId?: string | null;
+  /**
    * Seller VAT (backend docs/features/seller-vat.md). null = no VAT on this
    * ticket. When set, `price` above holds what the host TYPED: the buyer price
    * when vatPriceEntry is INCLUDED, the price before VAT when ADDED. The body

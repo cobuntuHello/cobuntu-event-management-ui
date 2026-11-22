@@ -1,6 +1,8 @@
 "use client";
 
-import { ChevronRight, Calendar, ClipboardList, Lock, Eye, EyeOff, Info } from "lucide-react";
+import { ChevronRight, Calendar, ClipboardList, Lock, Eye, EyeOff, Info, Layers } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
+import { LAYERS } from "@cobuntu/management-ui-shared";
 import { Eyebrow, StepInput, StepTextarea, Stepper, Switch } from "./_primitives";
 import { TIER_NAME_MAX, TIER_DESCRIPTION_MAX, type DraftTier, type VatOptions } from "./types";
 import { VatSection } from "./VatSection";
@@ -34,6 +36,12 @@ export interface TierEditViewProps {
   draftMode?: boolean;
   /** Seller VAT options for this event; undefined while loading, null when not offered. */
   vatOptions?: VatOptions | null;
+  /**
+   * Waves: the event's OTHER saved tiers, which this one can open after.
+   * Unsaved tiers are left out (no id to point at yet), so the control is
+   * absent in the create wizard. `capacity` is the draft's ("" = unlimited).
+   */
+  waveSiblings?: Array<{ id: string; name: string; capacity: string }>;
 }
 
 /** A settings row in the Advanced group — opens a sub-screen (Level 3). */
@@ -75,6 +83,7 @@ export function TierEditView({
   publishToggling,
   draftMode,
   vatOptions,
+  waveSiblings,
 }: TierEditViewProps) {
   // `t` is the tier draft here, so the translator is `tx`.
   const tx = useEventT("eventsUi.manageUi.tierEditView");
@@ -215,6 +224,39 @@ export function TierEditView({
           />
         </div>
       </div>
+
+      {/* Waves — "opens when <tier> sells out". Early-bird pricing: the next
+          tier goes on sale once the one before is gone (or its sales window
+          ends). A tier with no limit never sells out, so it cannot be followed. */}
+      {!draftMode && waveSiblings && waveSiblings.length > 0 && (
+        <div>
+          <Eyebrow help={tx("waveHelp")}>{tx("wave")}</Eyebrow>
+          <div className="mt-1.5 rounded-2xl ring-1 ring-zinc-100 px-4 py-3.5 flex items-center gap-3">
+            <span className="text-zinc-400 shrink-0"><Layers className="h-[17px] w-[17px]" /></span>
+            <div className="flex-1 min-w-0">
+              <Select
+                value={t.opensAfterTierId ?? "none"}
+                onValueChange={(v) => onUpdate({ opensAfterTierId: v === "none" ? null : v })}
+              >
+                <SelectTrigger className="h-9 w-full bg-white text-sm" aria-label={tx("wave")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent style={{ zIndex: LAYERS.popoverChild }}>
+                  <SelectItem value="none">{tx("waveNone")}</SelectItem>
+                  {waveSiblings.map((s) => (
+                    <SelectItem key={s.id} value={s.id} disabled={!s.capacity}>
+                      {s.capacity ? tx("waveAfter", { name: s.name }) : tx("waveNeedsLimit", { name: s.name })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-zinc-400 mt-1.5">
+                {t.opensAfterTierId ? tx("waveOnHint") : tx("waveOffHint")}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Availability — the publish switch, with an explanation. Was a bare
           switch in the modal footer. */}

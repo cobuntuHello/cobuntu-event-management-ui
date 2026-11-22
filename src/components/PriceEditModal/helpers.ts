@@ -113,6 +113,7 @@ export function blankTier(currency = "EUR", indexHint = 1): DraftTier {
     autoScheduleEnabled: false,
     salesStartAt: "",
     salesEndAt: "",
+    opensAfterTierId: null,
   };
 }
 
@@ -327,6 +328,9 @@ export function buildTierBody(
     // Marketplace products handle recurring; events do not.
     ...(t.sourceTierId && !t.id ? { copyFormFromTierId: t.sourceTierId } : {}),
     ...(extras.notifyAttendees ? { notifyAttendees: true } : {}),
+    // Waves: null clears the rule. Only sent when the draft knows it, so a
+    // body built without the field never touches the server's.
+    ...(t.opensAfterTierId !== undefined ? { opensAfterTierId: t.opensAfterTierId } : {}),
   };
 }
 
