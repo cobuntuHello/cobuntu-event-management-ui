@@ -23,6 +23,8 @@ const baseEvent = (overrides: Record<string, unknown> = {}) => ({
     externalDetailUrl: null,
     featured: false,
     refundPolicy: null,
+    // A PAID event: the refund row only exists when something can be paid.
+    ticketProduct: { price: 1500 },
     ...overrides,
 });
 
@@ -34,6 +36,17 @@ const baseProps = (overrides: Record<string, unknown> = {}) => ({
     onSaved: vi.fn(),
     showToast: vi.fn(),
     ...overrides,
+});
+
+describe("SettingsDrawer — a free event has no refund policy", () => {
+    it("drops the refund row when no tier costs anything", () => {
+        renderWithConfig(<SettingsDrawer {...baseProps({ event: baseEvent({ ticketProduct: { price: 0 } }) })} />);
+        expect(screen.queryByText("Refund policy")).not.toBeInTheDocument();
+    });
+    it("keeps it when any tier costs something", () => {
+        renderWithConfig(<SettingsDrawer {...baseProps({ event: baseEvent({ tiers: [{ product: { price: 0 } }, { product: { price: 900 } }] }) })} />);
+        expect(screen.getByText("Refund policy")).toBeInTheDocument();
+    });
 });
 
 describe("SettingsDrawer — visibility", () => {
