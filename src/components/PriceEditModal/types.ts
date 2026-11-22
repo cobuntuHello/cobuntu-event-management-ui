@@ -30,6 +30,11 @@ export interface Tier {
   salesStartAt?: string | null;
   salesEndAt?: string | null;
   autoScheduleEnabled?: boolean;
+  /** Waves: the tier this one opens after (null = no wave rule). GET /tiers
+   *  also says whether it is still waiting for that tier to sell out. */
+  opensAfterTierId?: string | null;
+  waitingForWave?: boolean;
+  waitingForTierName?: string | null;
   products: {
     id: string;
     price: number;
