@@ -17,6 +17,7 @@ import { getEventManagementConfig } from "../config";
 import { EventManageHeader, type EventManageHeaderProps } from "./EventManageHeader";
 import { ManageAccessProvider } from "../lib/manageAccess";
 import { getEventT } from "../create-wizard/i18n";
+import type { RenderShareQr } from "../components/ShareModal";
 
 /**
  * THE event manage page. One implementation, both apps.
@@ -125,6 +126,13 @@ export interface EventManagePageProps {
    * with the rest of the reviews UI.
    */
   reviewsSlot?: React.ReactNode;
+  /**
+   * The Share modal's "QR code" row: the host app draws the shared link as
+   * its branded QR code (Download, Share). A render function because the link
+   * is built here, and the code is passed it verbatim. Absent means the modal
+   * has no QR row.
+   */
+  renderShareQr?: RenderShareQr;
   communityTag: string;
   /** Slug or id, whichever the host app routes on. */
   eventId: string;
@@ -184,6 +192,7 @@ export function EventManagePage({
   ledgerSlot,
   referralsSlot,
   reviewsSlot,
+  renderShareQr,
   communityTag,
   eventId,
   event,
@@ -366,6 +375,7 @@ export function EventManagePage({
           onUpdate={() => { void onUpdate(); }}
           onDelete={() => { void onDelete(); }}
           showToast={showToast}
+          renderShareQr={renderShareQr}
         />
         <SectionsNav communityTag={communityTag} activeView={active} onViewChange={onViewChange} visibleViews={allowed} />
         <ViewTransition viewKey={active}>{content}</ViewTransition>

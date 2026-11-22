@@ -28,6 +28,7 @@ import { getEventStatus, apiBase, authHeaders } from "../helpers";
 import { useEventManagementConfig } from "../../config";
 import { useCanEdit } from "../../lib/manageAccess";
 import { OverviewActionCards } from "./OverviewActionCards";
+import type { RenderShareQr } from "../../components/ShareModal";
 
 /** The window event a host's Overview dispatches to ask this bar to do something. */
 export const MANAGE_ACTION_EVENT = "cobuntu:manage-action";
@@ -64,9 +65,11 @@ interface Props {
   onUpdate: () => void;
   onDelete: () => void;
   showToast: (msg: string) => void;
+  /** The Share modal's QR code row (EventManagePage's `renderShareQr`). */
+  renderShareQr?: RenderShareQr;
 }
 
-export function EventActionsBar({ event, communityTag, isPublished, onUpdate, onDelete, showToast }: Props) {
+export function EventActionsBar({ event, communityTag, isPublished, onUpdate, onDelete, showToast, renderShareQr }: Props) {
   const router = useRouter();
   const canEdit = useCanEdit();
   const [modal, setModalState] = useState<ActionModal>(null);
@@ -156,7 +159,7 @@ export function EventActionsBar({ event, communityTag, isPublished, onUpdate, on
         />
       )}
 
-      {modal === "share" && <ShareModal event={event} communityTag={communityTag} onClose={close} />}
+      {modal === "share" && <ShareModal event={event} communityTag={communityTag} onClose={close} renderQr={renderShareQr} />}
       {modal === "privateHire" && <PrivateHireModal event={event} communityTag={communityTag} onClose={close} />}
       {modal === "eventAddons" && <EventAddonsModal event={event} communityTag={communityTag} onClose={close} />}
       {modal === "groupChat" && (
