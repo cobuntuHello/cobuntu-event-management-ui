@@ -203,12 +203,20 @@ export function OverviewActionCards({
 }
 
 /**
- * One row that scrolls sideways, with a soft fade on whichever edge still has
- * more to show. Two rows of cards ate the top of every tab; one scrolling row
- * costs a single line and the fade says "there is more" without a scrollbar.
+ * One row that scrolls sideways. Two rows of cards ate the top of every tab;
+ * one scrolling row costs a single line.
+ *
+ * Telling people it scrolls (T-377, 2026-11-22): a 40px fade over near-white
+ * cards on a white page was too faint to notice, so the row read as complete
+ * and the cards past the edge went unseen. Now, on whichever edge still has
+ * more to show:
+ *  - the fade is wide enough to visibly dim the card it cuts, and
+ *  - a round arrow button sits over it, which scrolls the row by most of its
+ *    width when pressed (a trackpad or a swipe still works as before).
  * The fade is a mask on the scroller itself, so it works on any background.
  */
 function FadingScroller({ children }: { children: React.ReactNode }) {
+  const t = useEventT("eventsUi.manageUi.overviewActionCards");
   const ref = React.useRef<HTMLDivElement>(null);
   const [edge, setEdge] = React.useState({ left: false, right: false });
   const measure = React.useCallback(() => {
@@ -228,18 +236,40 @@ function FadingScroller({ children }: { children: React.ReactNode }) {
     window.addEventListener("resize", measure);
     return () => { ro?.disconnect(); window.removeEventListener("resize", measure); };
   }, [measure, children]);
-  const fade = 40;
+  const scrollBy = (dir: -1 | 1) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(160, el.clientWidth * 0.8), behavior: "smooth" });
+  };
+  const fade = 96;
   const mask = `linear-gradient(to right, ${edge.left ? "transparent" : "#000"} 0, #000 ${edge.left ? fade : 0}px, #000 calc(100% - ${edge.right ? fade : 0}px), ${edge.right ? "transparent" : "#000"} 100%)`;
-  return (
-    <div
-      ref={ref}
-      onScroll={measure}
-      data-edge-left={edge.left}
-      data-edge-right={edge.right}
-      className="flex gap-2 sm:gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      style={{ WebkitMaskImage: mask, maskImage: mask }}
+  const arrow = (dir: -1 | 1) => (
+    <button
+      type="button"
+      onClick={() => scrollBy(dir)}
+      aria-label={dir === -1 ? t("scrollLeft") : t("scrollRight")}
+      data-scroll-arrow={dir === -1 ? "left" : "right"}
+      className={`absolute top-1/2 -translate-y-1/2 ${dir === -1 ? "left-1" : "right-1"} z-10 w-9 h-9 rounded-full bg-white text-zinc-700 flex items-center justify-center cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.08)] ring-1 ring-zinc-200 hover:bg-zinc-50 active:scale-95 transition`}
     >
-      {children}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {dir === -1 ? <polyline points="15 18 9 12 15 6" /> : <polyline points="9 18 15 12 9 6" />}
+      </svg>
+    </button>
+  );
+  return (
+    <div className="relative">
+      <div
+        ref={ref}
+        onScroll={measure}
+        data-edge-left={edge.left}
+        data-edge-right={edge.right}
+        className="flex gap-2 sm:gap-3 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ WebkitMaskImage: mask, maskImage: mask }}
+      >
+        {children}
+      </div>
+      {edge.left && arrow(-1)}
+      {edge.right && arrow(1)}
     </div>
   );
 }

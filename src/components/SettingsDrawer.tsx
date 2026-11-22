@@ -134,6 +134,22 @@ export function SettingsDrawer({
      * create form and never again. Scope the ROWS, keep the entry point.
      */
     const isCommunityOwned = !!event?.communityId;
+    /*
+     * Leader-only settings, shown LOCKED rather than editable (T-376).
+     *
+     * A host or co-host may edit a community-owned event, but who can see it,
+     * who can register, the landing page and after-checkout stay with a leader
+     * holding EVENTS_CREATE in the owning community (the server's
+     * assertCanConfigureCommunityScoped). The event read says so in
+     * `viewerCanConfigureCommunity`. Only an explicit false locks: a payload
+     * that never resolved it (an older core, another surface) keeps today's
+     * editable rows, and the server still refuses what it must.
+     */
+    const lockedCommunity = isCommunityOwned && event?.viewerCanConfigureCommunity === false;
+    // After checkout only exists for community-owned events (the route 403s a
+    // personal one), so it never renders for those. A consumer may still hide
+    // it; a locked viewer sees it locked like its neighbours.
+    const showAfterCheckout = isCommunityOwned && (!hideAfterCheckout || lockedCommunity);
     const [visible, setVisible] = useState(false);
     const [animating, setAnimating] = useState(false);
     const [modal, setModal] = useState<ModalKey>(null);
@@ -188,7 +204,7 @@ export function SettingsDrawer({
      * Each editor is gated identically to the row that opens it, so a stale
      * `modal` state can't surface an editor to someone the backend would 403.
      */
-    if (modal === "viewability" && isCommunityOwned) {
+    if (modal === "viewability" && isCommunityOwned && !lockedCommunity) {
         return (
             <ViewabilityEditModal
                 event={event}
@@ -201,7 +217,7 @@ export function SettingsDrawer({
             />
         );
     }
-    if (modal === "accessibility" && isCommunityOwned) {
+    if (modal === "accessibility" && isCommunityOwned && !lockedCommunity) {
         return (
             <AccessibilityEditModal
                 event={event}
@@ -217,7 +233,7 @@ export function SettingsDrawer({
             />
         );
     }
-    if (modal === "distribution" && isCommunityOwned) {
+    if (modal === "distribution" && isCommunityOwned && !lockedCommunity) {
         return (
             <DistributionEditModal
                 event={event}
@@ -228,7 +244,7 @@ export function SettingsDrawer({
             />
         );
     }
-    if (modal === "after-checkout" && !hideAfterCheckout) {
+    if (modal === "after-checkout" && showAfterCheckout && !lockedCommunity) {
         return (
             <AfterCheckoutEditModal
                 event={event}
@@ -319,11 +335,17 @@ export function SettingsDrawer({
                             {t("communityAccess")}
                         </p>
                     )}
+                    {lockedCommunity && (
+                        <p className="px-6 pb-2 text-[12px] text-zinc-500 leading-snug" data-testid="community-settings-locked-note">
+                            {t("leadersOnly")}
+                        </p>
+                    )}
                     {isCommunityOwned && (
                     <SettingsRow
                         label={t("visibility")}
                         summary={tierAccessSummary(toTierAccessValue(event.viewability ?? "PUBLIC", viewTierIds), membershipTiers)}
                         onClick={() => openModal("viewability")}
+                        locked={lockedCommunity}
                         icon={
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -337,6 +359,7 @@ export function SettingsDrawer({
                         label={t("access")}
                         summary={tierAccessSummary(toTierAccessValue(event.accessibility ?? "PUBLIC", buyTierIds), membershipTiers)}
                         onClick={() => openModal("accessibility")}
+                        locked={lockedCommunity}
                         icon={
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
                                 <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -353,6 +376,7 @@ export function SettingsDrawer({
                             (event.featured ? ` · ${t("featured")}` : "")
                         }
                         onClick={() => openModal("distribution")}
+                        locked={lockedCommunity}
                         icon={
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400">
                                 <path d="M4 4h16v6H4z" />
@@ -363,8 +387,9 @@ export function SettingsDrawer({
                         }
                     />
                     )}
-                    {!hideAfterCheckout && (
+                    {showAfterCheckout && (
                         <SettingsRow
+                            locked={lockedCommunity}
                             label={t("afterCheckout")}
                             summary={
                                 event.afterCheckoutMode === "MEMBERSHIP_UPSELL" ? t("upsell")
@@ -432,12 +457,33 @@ function SettingsRow({
     label,
     summary,
     onClick,
+    locked = false,
 }: {
     icon: React.ReactNode;
     label: string;
     summary: string;
     onClick: () => void;
+    /** Shows the current value with a lock, and does not open (T-376). */
+    locked?: boolean;
 }) {
+    if (locked) {
+        return (
+            <div
+                className="w-full text-left flex items-center gap-3 px-6 py-4 border-b border-zinc-100"
+                data-locked="true"
+            >
+                <div className="shrink-0 opacity-60">{icon}</div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{label}</p>
+                    <p className="text-sm text-zinc-500 mt-0.5 truncate">{summary}</p>
+                </div>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 shrink-0" aria-hidden="true">
+                    <rect x="4" y="11" width="16" height="10" rx="2" />
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+            </div>
+        );
+    }
     return (
         <button
             type="button"
