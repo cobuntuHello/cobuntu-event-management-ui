@@ -172,14 +172,28 @@ export function validateTier(t: DraftTier): string | null {
   if (t.description.length > TIER_DESCRIPTION_MAX) {
     return tr()("descriptionTooLong", { name: t.name, max: TIER_DESCRIPTION_MAX });
   }
-  if (t.price === "" || isNaN(parseFloat(t.price))) {
-    return tr()("priceRequired", { name: t.name });
-  }
-  if (t.priceMode === "pwyw" && t.pwywMin.trim()) {
-    const min = parseFloat(t.pwywMin);
-    if (isNaN(min) || min < 0) {
-      return tr()("pwywMinInvalid", { name: t.name });
+  // Pay what you want takes no price: the buyer names it. The host MAY
+  // suggest one, which is where the buyer's amount starts at checkout (T-399).
+  // It used to be required like a fixed price, so a host who only wanted a
+  // floor (or nothing) could not save, for a number no buyer ever saw.
+  if (t.priceMode === "pwyw") {
+    const suggested = (t.price ?? "").trim();
+    if (suggested && (isNaN(parseFloat(suggested)) || parseFloat(suggested) < 0)) {
+      return tr()("suggestedPriceInvalid", { name: t.name });
     }
+    if (t.pwywMin.trim()) {
+      const min = parseFloat(t.pwywMin);
+      if (isNaN(min) || min < 0) {
+        return tr()("pwywMinInvalid", { name: t.name });
+      }
+      // The buyer's amount starts at the suggestion, so one under the floor
+      // would open checkout on an amount it then refuses.
+      if (suggested && parseFloat(suggested) > 0 && parseFloat(suggested) < min) {
+        return tr()("suggestedBelowMin", { name: t.name });
+      }
+    }
+  } else if (t.price === "" || isNaN(parseFloat(t.price))) {
+    return tr()("priceRequired", { name: t.name });
   }
   if (t.installmentEnabled) {
     const total = parseFloat(t.installmentTotal);
@@ -313,7 +327,8 @@ export function buildTierBody(
     description: t.description.trim() || null,
     // Seller VAT: a price typed BEFORE VAT is sent as the buyer price
     // (net + VAT); the server always stores what the buyer pays.
-    ...(locked ? {} : { price: buyerPriceToSend(t, extras.vatRate ?? null) ?? parseFloat(t.price), currency: t.currency }),
+    // Pay what you want with no suggestion is stored as 0 (no suggestion).
+    ...(locked ? {} : { price: buyerPriceToSend(t, extras.vatRate ?? null) ?? (t.priceMode === "pwyw" ? 0 : parseFloat(t.price)), currency: t.currency }),
     ...(extras.vatChanged
       ? {
           vatCategory: t.vatCategory ?? null,
