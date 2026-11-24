@@ -386,7 +386,11 @@ export function PriceEditModal({
             const vatCategory = ((t.products as any).vatCategory ?? null) as DraftTier["vatCategory"];
             const vatPriceEntry = (((t.products as any).vatPriceEntry ?? "INCLUDED") as DraftTier["vatPriceEntry"]);
             // A price entered "before VAT" is shown back the same way.
-            const priceDisplay = typedPriceFromStored(t.products.price, t.products.currency);
+            // Pay what you want with no suggestion is stored as 0: show it as
+            // the blank "No suggestion" it was, not as a suggested 0.
+            const priceDisplay = t.priceMode === "pwyw" && !t.products.price
+              ? ""
+              : typedPriceFromStored(t.products.price, t.products.currency);
             snapshot.set(t.id, { name: t.name, price: priceDisplay, currency: t.products.currency, vatCategory, vatPriceEntry });
             return {
               localId: t.id,   // saved tiers reuse their backend id as the dnd key

@@ -119,7 +119,7 @@ export function BasicsStep({
             <StepInput
               type="number" min="0" step="0.01" value={t.price}
               onChange={(e) => onUpdate({ price: e.target.value })}
-              placeholder="0.00"
+              placeholder={t.priceMode === "pwyw" ? tx("noSuggestion") : "0.00"}
               locked={locked}
               prefix={sym}
               title={locked ? tx("priceLockedTitle") : undefined}
