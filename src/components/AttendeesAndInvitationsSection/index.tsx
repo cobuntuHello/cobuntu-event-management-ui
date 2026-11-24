@@ -4,11 +4,11 @@ import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useEventManagementConfig } from "../../config";
 import { useEventT } from "../../create-wizard/i18n";
-import { EmptyState as SharedEmptyState } from "@cobuntu/management-ui-shared";
+import { EmptyState as SharedEmptyState, ExportMenu, downloadTable, type ExportFormat } from "@cobuntu/management-ui-shared";
 import { UserAvatarFallback } from "../../ui/user-avatar-fallback";
 import { AttendeeDetailDrawer } from "./AttendeeDetailDrawer";
 import { RefundSaleModal, SalesUiConfigProvider, type SaleRow } from "@cobuntu/sales-ui";
-import { answerText, type AnswerField } from "./answerText";
+import { attendeeExportTable } from "./attendeeExport";
 
 interface Props {
   event: any;
@@ -415,49 +415,19 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
     return undefined;
   }
 
-  function exportCSV() {
-    // Union form-answer fields across attendees so each becomes a CSV column.
-    const fieldMap = new Map<string, string>();
-    const fieldDefs = new Map<string, AnswerField>();
-    attendees.forEach((a: any) => {
-      const fields = a.formAnswers?.fields;
-      if (Array.isArray(fields)) {
-        for (const f of fields) {
-          if (!fieldMap.has(f.id)) fieldMap.set(f.id, f.label || f.id);
-          if (!fieldDefs.has(f.id)) fieldDefs.set(f.id, f);
-        }
-      }
+  /** The attendee list as Excel or CSV (T-397, attendeeExport.ts). */
+  function exportAttendees(format: ExportFormat) {
+    const table = attendeeExportTable({
+      attendees,
+      eventName: event?.name || event?.title || "",
+      eventCurrency: currency,
+      isPaid,
+      hostNameById,
+      saleFor: (a) => findSaleForAttendee(a),
     });
-    const fieldEntries = [...fieldMap.entries()];
-    const headers = [
-      "Name", "Email", "Usertag", "Tier", "Status", "Ticket Price", "Currency", "Purchase Date",
-      ...fieldEntries.map(([, label]) => label),
-    ];
-    const rows = attendees.map((a: any) => {
-      const sale = findSaleForAttendee(a);
-      const ans = a.formAnswers?.answer || {};
-      const cell = (id: string) => answerText(fieldDefs.get(id), ans[id]);
-      return [
-        a.name || a.user?.name || "",
-        a.email || "",
-        a.usertag || a.user?.usertag ? `@${a.usertag || a.user.usertag}` : "",
-        a.tier?.name || "",
-        "Confirmed",
-        sale ? (sale.grossAmount / 100).toFixed(2) : isPaid ? "—" : "Free",
-        sale ? sale.currency : currency,
-        sale ? new Date(sale.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
-        ...fieldEntries.map(([id]) => cell(id)),
-      ];
-    });
-    const csv = [headers, ...rows].map((r: string[]) => r.map((c: string) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${event?.slug || event?.id}-attendees.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadTable(table, format, `${event?.slug || event?.id}-attendees`);
   }
+
 
   // Render the skeleton while EITHER:
   //  • wave-2a (invitations + stats) is still in flight, OR
@@ -596,11 +566,17 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         </div>
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {attendeeCount > 0 && (
-            <button onClick={exportCSV}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              {tx("export")}
-            </button>
+            <ExportMenu
+              onExport={exportAttendees}
+              data-testid="attendees-export"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+              label={
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  {tx("export")}
+                </>
+              }
+            />
           )}
           {!isPast && (
             <>
