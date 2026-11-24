@@ -88,4 +88,31 @@ describe("attendee export", () => {
         expect(csv).toContain("André Barros");
         expect(csv).not.toMatch(/[—–]/);
     });
+
+    describe("where the money went (T-397)", () => {
+        const split = { donation: 0, shipping: 0, vat: 690, community: 228, communityName: "PBN", cobuntu: 86, stripe: 80, seller: 3296, sellerExVat: 2606 };
+        const withSplit = { ...bought, paid: { ...bought.paid, split } };
+        const refunded = { ...bought, id: "rf", status: "CANCELLED", paid: { ...bought.paid, refunded: true, split: null } };
+
+        it("adds the split for a viewer the Ledger shows it to, adding up to the ticket price", () => {
+            const t = table([withSplit, gifted, refunded]);
+            const cells = (r: number) => ["Community", "Community gets", "Cobuntu gets", "Stripe gets", "Seller gets", "VAT", "Seller net (excl. VAT)"].map((h) => t.rows[r][col(t, h)]);
+            expect(cells(0)).toEqual(["PBN", 2.28, 0.86, 0.8, 32.96, 6.9, 26.06]);
+            expect(split.community + split.cobuntu + split.stripe + split.seller).toBe(3690);
+            expect(cells(1)).toEqual(["", 0, 0, 0, 0, 0, 0]);
+            expect(cells(2)).toEqual(["", null, null, null, null, null, null]);
+            expect(col(t, "Donation")).toBe(-1);
+        });
+
+        it("adds a Donation column only when a seat carried one", () => {
+            const t = table([{ ...withSplit, paid: { ...withSplit.paid, split: { ...split, donation: 500, seller: 3796 } } }]);
+            expect(t.rows[0][col(t, "Donation")]).toBe(5);
+        });
+
+        it("leaves the split out entirely when the backend sent none (a viewer outside the Ledger rule)", () => {
+            const t = table([bought, gifted]);
+            expect(col(t, "Seller gets")).toBe(-1);
+            expect(col(t, "Community")).toBe(-1);
+        });
+    });
 });
