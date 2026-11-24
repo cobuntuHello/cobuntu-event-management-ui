@@ -33,10 +33,14 @@ describe("MarkdownEditor", () => {
     expect(container.querySelector("del")?.textContent).toBe("gone");
   });
 
-  it("renders a heading line larger/bolder", () => {
+  it("renders a heading line bold at the body size, so the caret stays on it", () => {
+    // Drawn larger, a heading pushed every line under it out from under the
+    // caret and the selection (T-398). Bold here is a stroke over the regular
+    // face, which keeps every character exactly as wide as in the textarea.
     const { container } = render(<MarkdownEditor value="# Title" onChange={vi.fn()} />);
-    expect(container.innerHTML).toContain("Title");
-    expect(container.querySelector(".font-bold")).not.toBeNull();
+    const title = [...container.querySelectorAll("span")].find((s) => s.textContent === "Title");
+    expect(title?.getAttribute("style")).toContain("-webkit-text-stroke");
+    expect(title?.className ?? "").not.toMatch(/text-\[|font-bold|font-semibold/);
   });
 
   it("marks up an inline code span without reformatting its contents", () => {
