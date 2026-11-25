@@ -36,6 +36,8 @@ export const OVERVIEW_MESSAGES_EN = {
         emailBody: "Check out this event: {url}",
         email: "Email",
         title: "Share event",
+        shareVia: "Share via",
+        orCopyLink: "Or copy link",
       },
       privateHireModal: {
         // T-286 ("Packages v2: hold vs sinal") — see

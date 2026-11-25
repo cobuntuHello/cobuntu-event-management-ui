@@ -41,12 +41,15 @@ describe("ShareModal QR code row", () => {
     expect(renderQr.mock.calls[0][0].url).toBe("https://orbis.cobuntu.com/events/evt-1");
   });
 
-  it("sits under the share targets and above the copy-link row", () => {
+  // T-409: the code leads, under the event's name, as on the profile sheet.
+  it("sits under the event's name and above Share via and the copy-link row", () => {
     renderWithConfig(<ShareModal event={event} communityTag="orbis" onClose={vi.fn()} renderQr={qrSlot()} />);
     const qr = screen.getByTestId("qr-row");
-    const linkedIn = screen.getByRole("button", { name: /linkedin/i });
+    const title = screen.getByText("Summer Mixer");
+    const linkedIn = screen.getByRole("link", { name: /linkedin/i });
     const copyRow = screen.getByText(URL_SHARED);
-    expect(linkedIn.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(title.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(qr.compareDocumentPosition(linkedIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(qr.compareDocumentPosition(copyRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
