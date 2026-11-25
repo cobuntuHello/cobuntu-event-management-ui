@@ -27,7 +27,8 @@ import { getEventT } from '../../create-wizard/i18n';
 const NS = 'eventsUi.manageUi.activitySentences';
 
 export interface ActivityEntryForRender {
-    source: 'EVENT_AUDIT' | 'HOST_AUDIT' | 'SALE';
+    /** REGISTRATION and CANCELLATION: the attendees' own moves (T-416). */
+    source: 'EVENT_AUDIT' | 'HOST_AUDIT' | 'SALE' | 'REGISTRATION' | 'CANCELLATION';
     action: string;
     actor: { id: string; name: string | null; usertag: string | null; profileImage: string | null } | null;
     payload: Record<string, unknown> | null;
@@ -47,6 +48,9 @@ function actorName(entry: ActivityEntryForRender): string {
     return entry.actor?.name?.trim()
         || entry.actor?.usertag
         || str(entry.payload, 'buyerEmail')
+        // A guest's place (T-416): the name they gave, else their address.
+        || str(entry.payload, 'attendeeName')
+        || str(entry.payload, 'guestEmail')
         || getEventT(NS)('someone');
 }
 
@@ -312,6 +316,19 @@ export function renderActivitySentence(entry: ActivityEntryForRender): RenderedS
             const money = amountLabel(entry.payload);
             return { text: money ? t('refundedAmount', { actor, money }) : t('refunded', { actor }) };
         }
+
+        /*
+         * The attendees' own moves (T-416). A free event's 50 registrations
+         * used to be invisible here: a free place makes no sale. A paid place
+         * stays its purchase line above; the host's adds and removals stay
+         * the host's lines.
+         */
+        case 'REGISTERED':
+            return { text: t('registered', { actor }) };
+        case 'REGISTRATION_REQUESTED':
+            return { text: t('registrationRequested', { actor }) };
+        case 'REGISTRATION_CANCELLED':
+            return { text: t('registrationCancelled', { actor }) };
 
         default:
             // Unknown action — render a non-misleading fallback so the
