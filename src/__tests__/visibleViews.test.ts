@@ -33,6 +33,18 @@ describe("the tab set", () => {
     it("adds activity for a moderator", () => {
         expect(visibleViews({ event: host, forceModerator: true })).toContain("activity");
     });
+
+    /*
+     * Reported live 25 Nov 2026: a leader hosting their community's own event
+     * had no Activity tab, because `hosts[]` alone made them "just a host".
+     */
+    it("adds activity for a host who also leads the community", () => {
+        expect(visibleViews({ event: host, viewerUserId: "u1", isLeader: true })).toContain("activity");
+    });
+
+    it("still leaves it out for a host who does not lead", () => {
+        expect(visibleViews({ event: host, viewerUserId: "u1", isLeader: false })).not.toContain("activity");
+    });
 });
 
 describe("the ledger tab", () => {
