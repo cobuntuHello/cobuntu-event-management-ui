@@ -152,6 +152,8 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingIdState] = useState<string | "new" | null>(null);
+  // Nothing to list and nothing being added: the empty state stands alone (its own dotted card).
+  const agendaEmpty = !agendaLoading && items.length === 0 && editingId !== "new";
   /*
    * Adding or editing an agenda item is a write on someone else's event.
    *
@@ -389,8 +391,13 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
 
       {/* Card. The redundant "Event Schedule (N items)" sub-header that
           used to live inside this card was dropped — the section header
-          above already names this surface; the inner one repeated it. */}
-      <div className="shadow-sm overflow-hidden" style={{ background: theme.cardBg, borderRadius: theme.cardRadius, border: `1px solid ${theme.borderSubtle}` }}>
+          above already names this surface; the inner one repeated it.
+          With nothing in it, the empty state's own dotted card is the only
+          card: wrapped in this one it drew a card in a card (FSC, 25 Nov 2026). */}
+      <div
+        data-agenda-card={agendaEmpty ? undefined : ""}
+        className={agendaEmpty ? undefined : "shadow-sm overflow-hidden"}
+        style={agendaEmpty ? undefined : { background: theme.cardBg, borderRadius: theme.cardRadius, border: `1px solid ${theme.borderSubtle}` }}>
         {editingId === "new" && InlineForm}
         {agendaLoading ? (
           <div className="p-5 space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 animate-pulse" style={{ background: theme.insetBg, borderRadius: theme.buttonRadius }} />)}</div>
