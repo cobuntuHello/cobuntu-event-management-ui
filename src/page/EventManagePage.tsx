@@ -55,13 +55,21 @@ export type { ViewKey };
  * Derived the same way the manage-intercept sheet derives it — is the viewer
  * in `hosts[]`? — so one rule, not two that can disagree. A host who is ALSO a
  * leader gets the leader set, because the more permissive of the two is the
- * true answer.
+ * true answer. That needs `isLeader` from the host app: `hosts[]` alone cannot
+ * tell a leader who hosts from a member who hosts, and without it a leader
+ * hosting their community's own event lost the Activity tab.
  */
 export function visibleViews(opts: {
   event: any;
   viewerUserId?: string | null;
   /** Host app override — the admin app is a moderation surface by definition. */
   forceModerator?: boolean;
+  /**
+   * The viewer leads the community this page is under. Only widens the TAB set
+   * (a leader gets Activity even when they also host); unlike forceModerator
+   * it does not lift the after-the-event edit lock or change the read-only note.
+   */
+  isLeader?: boolean;
   /**
    * Whether the host is passing a Ledger panel.
    *
@@ -98,7 +106,7 @@ export function visibleViews(opts: {
   ];
   const isHost = !!opts.viewerUserId
     && (opts.event?.hosts ?? []).some((h: any) => h?.userId === opts.viewerUserId);
-  const isModerator = opts.forceModerator || !isHost;
+  const isModerator = !!opts.forceModerator || !!opts.isLeader || !isHost;
   return isModerator ? [...base, "activity"] : base;
 }
 
@@ -170,6 +178,8 @@ export interface EventManagePageProps {
   viewerUserId?: string | null;
   /** True on inherently-moderation surfaces (the admin app). */
   forceModerator?: boolean;
+  /** The viewer leads this community: a host who leads still gets the leader tabs. See visibleViews. */
+  isLeader?: boolean;
   /**
    * May this viewer CHANGE the event, as opposed to merely open this page?
    *
@@ -207,6 +217,7 @@ export function EventManagePage({
   hubs,
   viewerUserId,
   forceModerator,
+  isLeader,
   // Defaults true: every consumer that has not been taught about this renders
   // exactly as it did before, and read-only is opt-in by the page that knows
   // it is showing someone else's event.
@@ -217,8 +228,8 @@ export function EventManagePage({
   getEventManagementConfig();
 
   const allowed = React.useMemo(
-    () => visibleViews({ event, viewerUserId, forceModerator, hasLedger: !!ledgerSlot, hasReferrals: !!referralsSlot, hasReviews: !!reviewsSlot }),
-    [event, viewerUserId, forceModerator, ledgerSlot, referralsSlot, reviewsSlot],
+    () => visibleViews({ event, viewerUserId, forceModerator, isLeader, hasLedger: !!ledgerSlot, hasReferrals: !!referralsSlot, hasReviews: !!reviewsSlot }),
+    [event, viewerUserId, forceModerator, isLeader, ledgerSlot, referralsSlot, reviewsSlot],
   );
 
   // A ?view= the viewer may not use falls back rather than rendering an empty
