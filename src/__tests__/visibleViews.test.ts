@@ -19,7 +19,7 @@ const host = { hosts: [{ userId: "u1" }] };
 describe("the tab set", () => {
     it("gives a host the working tabs", () => {
         expect(visibleViews({ event: host, viewerUserId: "u1" }))
-            .toEqual(["overview", "details", "pricing", "attendees", "hosts", "agenda"]);
+            .toEqual(["overview", "details", "pricing", "attendees", "hosts", "agenda", "activity"]);
     });
 
     /*
@@ -42,8 +42,14 @@ describe("the tab set", () => {
         expect(visibleViews({ event: host, viewerUserId: "u1", isLeader: true })).toContain("activity");
     });
 
-    it("still leaves it out for a host who does not lead", () => {
-        expect(visibleViews({ event: host, viewerUserId: "u1", isLeader: false })).not.toContain("activity");
+    /*
+     * 25 Nov 2026: a co-host who leads nothing (Finance Social Club) had no
+     * Activity tab on the event they run. Every host gets it now.
+     */
+    it("gives a host or co-host who leads nothing the Activity tab too", () => {
+        const cohosted = { hosts: [{ userId: "owner" }, { userId: "u1" }] };
+        expect(visibleViews({ event: cohosted, viewerUserId: "u1", isLeader: false })).toContain("activity");
+        expect(visibleViews({ event: cohosted, viewerUserId: "owner" })).toContain("activity");
     });
 });
 
@@ -54,7 +60,7 @@ describe("the ledger tab", () => {
 
     it("appears after details when it does", () => {
         const views = visibleViews({ event: host, viewerUserId: "u1", hasLedger: true });
-        expect(views).toEqual(["overview", "details", "pricing", "ledger", "attendees", "hosts", "agenda"]);
+        expect(views).toEqual(["overview", "details", "pricing", "ledger", "attendees", "hosts", "agenda", "activity"]);
     });
 
     /*

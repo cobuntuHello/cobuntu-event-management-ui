@@ -47,17 +47,16 @@ export type { ViewKey };
 /**
  * Which tabs this viewer gets.
  *
- * A member hosting their own event is not a community leader, so the page
- * cannot simply show everything. Activity and Updates are moderation surfaces:
- * an audit log across the community's events, and community-wide broadcasts.
- * A host gets the tabs that operate THEIR event.
+ * ACTIVITY IS FOR EVERY HOST (decided 25 Nov 2026). It used to be a
+ * moderator-only tab, kept from hosts, and a co-host running an event (seen
+ * live on Finance Social Club) could not see who registered, cancelled or
+ * paid on their own event. The log is the event's own history, the backend
+ * already lets any host read it (canReadItem), so every viewer of this page
+ * gets it: hosts and co-hosts, leaders, carrying communities, staff.
  *
- * Derived the same way the manage-intercept sheet derives it — is the viewer
- * in `hosts[]`? — so one rule, not two that can disagree. A host who is ALSO a
- * leader gets the leader set, because the more permissive of the two is the
- * true answer. That needs `isLeader` from the host app: `hosts[]` alone cannot
- * tell a leader who hosts from a member who hosts, and without it a leader
- * hosting their community's own event lost the Activity tab.
+ * `forceModerator` and `isLeader` no longer change the tab set; they stay on
+ * the signature because callers pass them and forceModerator still matters to
+ * the page (the after-the-event edit lock, the read-only note).
  */
 export function visibleViews(opts: {
   event: any;
@@ -104,10 +103,7 @@ export function visibleViews(opts: {
     ...(opts.hasReviews ? (["reviews"] as ViewKey[]) : []),
     "hosts", "agenda",
   ];
-  const isHost = !!opts.viewerUserId
-    && (opts.event?.hosts ?? []).some((h: any) => h?.userId === opts.viewerUserId);
-  const isModerator = !!opts.forceModerator || !!opts.isLeader || !isHost;
-  return isModerator ? [...base, "activity"] : base;
+  return [...base, "activity"];
 }
 
 export interface EventManagePageProps {
