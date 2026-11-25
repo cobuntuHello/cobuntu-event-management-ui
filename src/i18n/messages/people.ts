@@ -486,6 +486,10 @@ export const PEOPLE_MESSAGES_EN = {
         purchaseGiftFor: "a gift for {name}",
         refundedAmount: "{actor} was refunded {money}",
         refunded: "{actor} was refunded",
+        // The attendees' own moves (T-416): a free place makes no sale, so these name them.
+        registered: "{actor} registered",
+        registrationRequested: "{actor} asked to join",
+        registrationCancelled: "{actor} cancelled their place",
         eventUpdated: "{actor} updated the event",
         justNow: "just now",
         minutesAgo: "{count}m ago",

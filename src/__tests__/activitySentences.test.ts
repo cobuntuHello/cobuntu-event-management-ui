@@ -264,3 +264,26 @@ describe("formatRelativeTime", () => {
         expect(formatRelativeTime("not-a-date", now)).toBe("not-a-date");
     });
 });
+
+/*
+ * The attendees' own moves (T-416). FSC's "Sessão de Boas-Vindas" had 50
+ * attendees and none of them in Activity: a free place makes no sale.
+ */
+describe("registrations and cancellations", () => {
+    const ana = { id: "u1", name: "Ana Silva", usertag: "ana", profileImage: null };
+    const placeEntry = (source: "REGISTRATION" | "CANCELLATION", action: string, actor: typeof ana | null, payload: Record<string, unknown> | null = null): ActivityEntryForRender =>
+        ({ source, action, actor, payload });
+
+    it("names who registered, asked to join, or gave their place back", () => {
+        expect(renderActivitySentence(placeEntry("REGISTRATION", "REGISTERED", ana)).text).toBe("Ana Silva registered");
+        expect(renderActivitySentence(placeEntry("REGISTRATION", "REGISTRATION_REQUESTED", ana)).text).toBe("Ana Silva asked to join");
+        expect(renderActivitySentence(placeEntry("CANCELLATION", "REGISTRATION_CANCELLED", ana)).text).toBe("Ana Silva cancelled their place");
+    });
+
+    it("a guest by the name they gave, else by their address, never 'Someone'", () => {
+        expect(renderActivitySentence(placeEntry("REGISTRATION", "REGISTERED", null, { attendeeName: "Rita Lopes", guestEmail: "rita@example.com" })).text)
+            .toBe("Rita Lopes registered");
+        expect(renderActivitySentence(placeEntry("REGISTRATION", "REGISTERED", null, { attendeeName: null, guestEmail: "rita@example.com" })).text)
+            .toBe("rita@example.com registered");
+    });
+});
