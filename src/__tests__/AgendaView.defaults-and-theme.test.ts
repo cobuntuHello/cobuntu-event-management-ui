@@ -101,3 +101,21 @@ describe("it styles from tokens, not from hardcoded greys", () => {
         expect(view).toMatch(/text-red-500/);
     });
 });
+
+/*
+ * An empty agenda is ONE card: the empty state's own dotted one. Inside the
+ * list's card it drew a card in a card (FSC's Sessão de Boas-Vindas, 25 Nov
+ * 2026). The list's card comes back as soon as there is something in it,
+ * including the add form.
+ */
+describe("an empty agenda draws one card", () => {
+    it("is empty only with nothing listed, nothing loading and nothing being added", () => {
+        expect(view).toContain('const agendaEmpty = !agendaLoading && items.length === 0 && editingId !== "new";');
+    });
+    it("drops the list's card styling while empty, and keeps the empty state's dotted card", () => {
+        expect(view).toContain('className={agendaEmpty ? undefined : "shadow-sm overflow-hidden"}');
+        expect(view).toMatch(/style=\{agendaEmpty \? undefined : \{ background: theme\.cardBg/);
+        // EmptyState is bordered (dotted) by default; it must not be switched off here.
+        expect(view).not.toMatch(/<EmptyState[^>]*bordered=\{false\}/);
+    });
+});
