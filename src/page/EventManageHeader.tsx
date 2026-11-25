@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { ManageOwnerLine } from "./ManageOwnerLine";
+import type { ManageOwner } from "./manageOwner";
 
 /**
  * The manage page's header — breadcrumbs, identity, Back and Preview.
@@ -19,11 +21,32 @@ import * as React from "react";
  * /events in the community app, and Preview opens an absolute URL from the
  * admin app and a relative one from the community app, which is the whole
  * reason a hardcoded <tag>.cobuntu.com broke preview on custom domains.
+ *
+ * Under the title: the owner and the viewer's relationship to the event (see
+ * manageOwner.ts), not its status, attendee count and price.
  */
 
 export interface EventManageHeaderProps {
   breadcrumbs: Array<{ label: string; onClick?: () => void }>;
   title: string;
+  /**
+   * WHOSE event this is, drawn under the title as a mark and a name: the
+   * community's icon (a rounded square) for a community-owned event, else the
+   * creator's avatar (a circle). `eventManageOwner(event)` builds it.
+   */
+  owner?: ManageOwner | null;
+  /**
+   * What the viewer is to it, already worded by the app, e.g. "You manage this
+   * as a co-host". `eventManageRelationship(...)` says which case applies; the
+   * words are the app's, like every other label on this header.
+   */
+  relationship?: string | null;
+  /**
+   * Free text under the title. The manage pages no longer pass one: it carried
+   * "Live · 48 attendees · EUR 20", which the page's own bar and Overview
+   * already say, in place of the owner and relationship above. Kept so a
+   * caller on an older pattern still renders.
+   */
   subtitle?: string;
   onBack: () => void;
   backLabel: string;
@@ -40,6 +63,8 @@ const CalendarIcon = () => (
 export function EventManageHeader({
   breadcrumbs,
   title,
+  owner,
+  relationship,
   subtitle,
   onBack,
   backLabel,
@@ -125,6 +150,7 @@ export function EventManageHeader({
             {/* Wraps on a phone; truncates from md up, where the actions return
                 to this row and the space is genuinely contested. */}
             <h1 className="text-xl font-semibold text-zinc-900 md:truncate">{title}</h1>
+            <ManageOwnerLine owner={owner} relationship={relationship} />
             {subtitle && <p className="text-sm text-zinc-500">{subtitle}</p>}
           </div>
         </div>

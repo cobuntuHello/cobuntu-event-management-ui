@@ -279,6 +279,19 @@ export { EventManagePage, visibleViews, type EventManagePageProps, type ViewKey 
 export { SECTION_KEYS } from "./page/sections/SectionsNav";
 export { getEventManagementConfig } from "./config";
 export { EventManageHeader, type EventManageHeaderProps } from "./page/EventManageHeader";
+/*
+ * The header's owner line, and the two answers it draws: whose event this is
+ * and what the viewer is to it. Exported apart from the header because the
+ * admin keeps its own PageHeader and renders the same line inside it.
+ */
+export { ManageOwnerLine, ownerImageCandidates, type ManageOwnerLineProps } from "./page/ManageOwnerLine";
+export {
+  eventManageOwner,
+  eventManageRelationship,
+  type ManageOwner,
+  type ManageRelationship,
+  type ManageViewer,
+} from "./page/manageOwner";
 
 /**
  * Agenda item duration.
