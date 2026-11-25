@@ -631,7 +631,10 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
               <span className="text-[11px] text-zinc-400 tabular-nums">{tx("acceptedSent")}</span>
             </div>
             {byInviter.length > 0 ? (
-              <div className="divide-y divide-zinc-50 max-h-[180px] overflow-y-auto">
+              // No max-height here either: the page is the only scroller on
+              // this tab, so the host list grows with its rows (see the
+              // note above the tab content).
+              <div className="divide-y divide-zinc-50">
                 {byInviter.map(inv => (
                   <div key={inv.userId} className="flex items-center justify-between px-4 py-2.5">
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -669,11 +672,15 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
         </div>
       </div>
 
-      {/* Tab content */}
+      {/* Tab content. Every sub-tab list grows to its full height on
+          purpose: a fixed-height box with its own scrollbar inside a page
+          that also scrolls gave two scrollers on one screen, and the page
+          must be the only one. Do not add max-h / overflow-y back to these
+          lists (a test guards it). */}
       <div className="border-t border-zinc-100">
         {tab === "approved" && (
           approved.length > 0 ? (
-            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+            <div className="divide-y divide-zinc-100">
               {approved.map((a: any) => (
                 <ApprovedRow
                   key={a.id}
@@ -692,7 +699,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
         {tab === "pending" && (
           pendingAttendees.length > 0 ? (
-            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+            <div className="divide-y divide-zinc-100">
               {pendingAttendees.map((a: any) => (
                 <PendingRow key={a.id} a={a}
                   sale={findSaleForAttendee(a)}
@@ -710,7 +717,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
         {tab === "rejected" && (
           rejected.length > 0 ? (
-            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+            <div className="divide-y divide-zinc-100">
               {rejected.map((a: any) => (
                 <RejectedRow key={a.id} a={a}
                   sale={findSaleForAttendee(a)}
@@ -724,7 +731,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
         {tab === "cancelled" && (
           cancelled.length > 0 ? (
-            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+            <div className="divide-y divide-zinc-100">
               {cancelled.map((a: any) => (
                 <CancelledRow key={a.id} a={a}
                   sale={findSaleForAttendee(a)}
@@ -738,7 +745,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
         {tab === "refunded" && (
           refundedSales.length > 0 ? (
-            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+            <div className="divide-y divide-zinc-100">
               {refundedSales.map((sale) => (
                 <RefundedRow key={sale.id} sale={sale} />
               ))}
@@ -750,7 +757,7 @@ export function AttendeesAndInvitationsSection({ event, communityTag, isPublishe
 
         {tab === "invitations" && (
           pendingInvitations.length > 0 ? (
-            <div className="divide-y divide-zinc-100 max-h-[400px] overflow-y-auto">
+            <div className="divide-y divide-zinc-100">
               {pendingInvitations.map(inv => (
                 <InvitationRow key={inv.id} inv={inv}
                   resending={resending === inv.id}
