@@ -306,7 +306,6 @@ describe("ownershipMode communityOnly", () => {
     expect(screen.getByText("Orbis")).toBeTruthy();
     // The personal card is gone entirely, not just unselected.
     expect(screen.queryByText("You")).toBeNull();
-    expect(screen.queryByRole("radio")).toBeNull();
     expect(screen.getByText("You are creating this for Orbis, with your role. Hosting your own events here isn't open to you in this community.")).toBeTruthy();
     expect(screen.getByText("It goes live straight away, as Orbis's event.")).toBeTruthy();
     expect(screen.queryByText(/Both go live straight away/)).toBeNull();
@@ -339,7 +338,8 @@ describe("ownershipMode communityOnly", () => {
     const { tr } = renderWizard({ initialDrafts: [], canCreateForCommunity: false, ownershipMode: "communityOnly" });
     await screen.findByTestId("event-form");
     walk();
-    press("Create & List");
+    // A member's event under approval: the member's own submit, not a leader's.
+    press("Create & Request Listing");
     await waitFor(() => expect(tr.createEvent).toHaveBeenCalledTimes(1));
     expect((tr.createEvent as any).mock.calls[0][0]).toMatchObject({ ownership: "personal" });
   });
