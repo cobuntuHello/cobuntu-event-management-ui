@@ -292,6 +292,59 @@ describe("ownershipMode personalOnly", () => {
   });
 });
 
+/*
+ * communityOnly: a host who reached the form only through their create role
+ * (member hosting off in the community, or their tier may not host). One
+ * community card, a line saying so, no "It's yours" first-time pop-up, and the
+ * event is always created as the community's.
+ */
+describe("ownershipMode communityOnly", () => {
+  it("shows the community card only, with the role note and a one-card subtitle", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: true, ownershipMode: "communityOnly" });
+    await screen.findByTestId("event-form");
+    expect(railLabel()).toBe("Who is hosting");
+    expect(screen.getByText("Orbis")).toBeTruthy();
+    // The personal card is gone entirely, not just unselected.
+    expect(screen.queryByText("You")).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.getByText("You are creating this for Orbis, with your role. Hosting your own events here isn't open to you in this community.")).toBeTruthy();
+    expect(screen.getByText("It goes live straight away, as Orbis's event.")).toBeTruthy();
+    expect(screen.queryByText(/Both go live straight away/)).toBeNull();
+  });
+
+  it("creates with ownership community", async () => {
+    const { tr } = renderWizard({ initialDrafts: [], canCreateForCommunity: true, ownershipMode: "communityOnly" });
+    await screen.findByTestId("event-form");
+    walk();
+    press(buttons().includes("Create & List") ? "Create & List" : "Create");
+    await waitFor(() => expect(tr.createEvent).toHaveBeenCalledTimes(1));
+    expect((tr.createEvent as any).mock.calls[0][0]).toMatchObject({ ownership: "community" });
+  });
+
+  it("skips the first-time pop-up, which describes hosting as yourself", async () => {
+    try { localStorage.removeItem("us-first-time-creator-seen::orbis::event"); } catch { /* ignore */ }
+    renderWizard({ initialDrafts: [], canCreateForCommunity: true, ownershipMode: "communityOnly" });
+    await screen.findByTestId("event-form");
+    expect(screen.queryByText(/Before you host your first event/)).toBeNull();
+  });
+
+  it("still shows the first-time pop-up in choice mode (control for the test above)", async () => {
+    try { localStorage.removeItem("us-first-time-creator-seen::orbis::event"); } catch { /* ignore */ }
+    renderWizard({ initialDrafts: [], canCreateForCommunity: true });
+    await screen.findByTestId("event-form");
+    expect(await screen.findByText(/Before you host your first event/)).toBeTruthy();
+  });
+
+  it("does nothing for a host without the role: still the member's personal flow", async () => {
+    const { tr } = renderWizard({ initialDrafts: [], canCreateForCommunity: false, ownershipMode: "communityOnly" });
+    await screen.findByTestId("event-form");
+    walk();
+    press("Create & List");
+    await waitFor(() => expect(tr.createEvent).toHaveBeenCalledTimes(1));
+    expect((tr.createEvent as any).mock.calls[0][0]).toMatchObject({ ownership: "personal" });
+  });
+});
+
 describe("drafts without a host route", () => {
   it("resumes a draft in place from the Continue step", async () => {
     const getDraft = vi.fn(async () => ({ id: "d-1", name: "Half done", draftStep: "commerce", communityId: null }));

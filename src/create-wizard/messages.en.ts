@@ -37,6 +37,8 @@ export const EVENT_WIZARD_MESSAGES_EN = {
       "createRequest": "Create & Request Listing",
       "stepOwnershipTitle": "Who is hosting this?",
       "stepOwnershipSubtitle": "Both go live straight away. What changes is where the money lands, who takes a cut, and which options you get.",
+      "stepOwnershipSubtitleCommunityOnly": "It goes live straight away, as {community}'s event.",
+      "ownershipCommunityOnlyNote": "You are creating this for {community}, with your role. Hosting your own events here isn't open to you in this community.",
       "stepDetailsTitle": "About your event",
       "stepDetailsSubtitle": "When it happens, where it is, and how you describe it.",
       "stepCommerceTitle": "Pricing",

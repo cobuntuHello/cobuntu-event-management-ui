@@ -315,8 +315,16 @@ export interface EventCreateWizardProps {
    * this; what changes is the UI stops presenting a choice it would have
    * refused. Pair with `community.ownershipPerksNote` so the screen says
    * something rather than standing in for a removed control.
+   *
+   * `"communityOnly"`: the mirror image. The host reached this form ONLY
+   * through a create role (EVENTS_CREATE): member hosting is off in the
+   * community, or their tier may not host. They create for the community and
+   * nothing else, so the step shows ONE card, always "community", plus a line
+   * saying so, and the first-time "It's yours" pop-up is skipped (it describes
+   * hosting as yourself). The backend refuses a personal event here anyway.
+   * Only meaningful with `canCreateForCommunity` true.
    */
-  ownershipMode?: "choice" | "personalOnly";
+  ownershipMode?: "choice" | "personalOnly" | "communityOnly";
   /**
    * Add the "Member prices" step right after Pricing: a lower price per
    * membership tier on each ticket that charges (EventForm memberPricesStep).

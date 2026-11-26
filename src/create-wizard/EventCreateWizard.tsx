@@ -212,7 +212,17 @@ function WizardInner({
    * backend refuses community ownership for a non-leader whatever is sent).
    */
   const [ownership, setOwnership] = useState<"community" | "personal">("community");
-  const effectiveOwnership: "community" | "personal" = ownershipMode === "personalOnly" ? "personal" : (isLeaderHere ? ownership : "personal");
+  /*
+   * communityOnly pins "community" even over a resumed personal draft: this
+   * host reached the form only through their create role, and the backend
+   * refuses them a personal event here, so offering it back would only fail
+   * on submit.
+   */
+  const effectiveOwnership: "community" | "personal" =
+    ownershipMode === "personalOnly" ? "personal"
+      : ownershipMode === "communityOnly" && isLeaderHere ? "community"
+        : (isLeaderHere ? ownership : "personal");
+  const communityOnly = ownershipMode === "communityOnly" && isLeaderHere;
 
   /*
    * The arrangements this member may host under. Empty is never an error: the
@@ -850,7 +860,13 @@ function WizardInner({
   const header = currentExtra && !created
     ? { title: currentExtra.title, subtitle: currentExtra.subtitle ?? "" }
     : steps.length > 1
-      ? { title: t(stepHeaderKeys(railCurrent).title), subtitle: t(stepHeaderKeys(railCurrent).subtitle, { community: communityName }) }
+      ? {
+          title: t(stepHeaderKeys(railCurrent).title),
+          // "Both go live straight away" compares two cards; with one there is nothing to compare.
+          subtitle: communityOnly && railCurrent === "ownership"
+            ? t("stepOwnershipSubtitleCommunityOnly", { community: communityName })
+            : t(stepHeaderKeys(railCurrent).subtitle, { community: communityName }),
+        }
       : { title: t("hostAnEventIn", { community: communityName }), subtitle: t("createEventDescription", { community: communityName }) };
 
   return (
@@ -873,12 +889,16 @@ function WizardInner({
       {!created && (
         <>
 
-      <FirstTimeCreatorModal
-        communityTag={communityTag}
-        communityName={communityName}
-        sellingGuideHref={hrefs.sellingGuide}
-        fullGuideHref={hrefs.fullGuide}
-      />
+      {/* Not for communityOnly: its three points ("It's yours", your payouts,
+          the community's commission) describe hosting as yourself. */}
+      {!communityOnly && (
+        <FirstTimeCreatorModal
+          communityTag={communityTag}
+          communityName={communityName}
+          sellingGuideHref={hrefs.sellingGuide}
+          fullGuideHref={hrefs.fullGuide}
+        />
+      )}
 
       {/* Theme adapter for the shared (hardcoded light/zinc) form, scoped to
           .themed-event-form. See theme.ts. */}
@@ -944,7 +964,12 @@ function WizardInner({
                 platformFeeRate={platformFeeRate}
                 {...(ownershipMode === "personalOnly"
                   ? { singleOption: "personal" as const, perksNote: community.ownershipPerksNote }
-                  : {})}
+                  : communityOnly
+                    ? {
+                        singleOption: "community" as const,
+                        perksNote: t("ownershipCommunityOnlyNote", { community: communityName }),
+                      }
+                    : {})}
               />
             </StepPane>
 
