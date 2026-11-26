@@ -553,9 +553,28 @@ function WizardInner({
    * above) — i.e. the member's own account, even for a community-owned
    * event, which is the wrong account to be checking at all.
    */
+  /*
+   * For a community-owned event the gate's link and words are the COMMUNITY's.
+   * It used to carry no connectUrl, so EventForm fell back to the member's own
+   * onboarding: a leader whose personal Stripe was already connected landed on
+   * "your Stripe is connected" and came back to the same locked tile, a loop.
+   * An empty string (not undefined) when the host gives no community link, so
+   * that fallback can never fire: the pop-up then simply does not open and the
+   * tile's hint says what is missing.
+   */
   const stripeStatusOverride = effectiveOwnership === "personal"
     ? { connected: stripeReadiness.ready, connectUrl: hrefs.connectStripe }
-    : { connected: !!community.payments?.connected };
+    : {
+        connected: !!community.payments?.connected,
+        connectUrl: hrefs.connectCommunityStripe ?? "",
+        copy: {
+          paidHint: t("communityStripePaidHint", { community: communityName }),
+          donationsHint: t("communityStripeDonationsHint", { community: communityName }),
+          title: t("communityStripeTitle", { community: communityName }),
+          message: t("communityStripeMessage", { community: communityName }),
+          confirm: t("communityStripeConfirm"),
+        },
+      };
 
   useEffect(() => {
     let cancelled = false;
@@ -959,6 +978,7 @@ function WizardInner({
                 onChange={setOwnership}
                 communityName={communityName}
                 communityIconUrl={community.iconUrl}
+                communityStripeConnected={community.payments ? !!community.payments.connected : undefined}
                 viewer={viewer}
                 disabled={creating}
                 platformFeeRate={platformFeeRate}
