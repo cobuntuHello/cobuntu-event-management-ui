@@ -29,6 +29,7 @@ export function OwnershipToggle({
   copyNamespace = "eventsUi.ownership",
   singleOption,
   perksNote,
+  communityStripeConnected,
 }: {
   value: EventOwnership;
   onChange: (next: EventOwnership) => void;
@@ -46,6 +47,13 @@ export function OwnershipToggle({
   singleOption?: EventOwnership;
   /** Appended to the single card's own facts, below the built-in ones. */
   perksNote?: ReactNode;
+  /**
+   * Whether the community has a Stripe account that can take payments. False
+   * turns the community card's "needs Stripe" fact into "no Stripe yet: free
+   * events only", so a leader knows before the pricing step why Paid is
+   * locked there. Undefined (unknown) keeps the general fact.
+   */
+  communityStripeConnected?: boolean;
 }) {
   const t = useWizardT(copyNamespace);
   const rich = (key: string, values?: Record<string, string>) =>
@@ -64,7 +72,9 @@ export function OwnershipToggle({
         rich("communityPayout"),
         rich("communityCommission"),
         formattedFee ? rich("communityCobuntuFee", { rate: formattedFee }) : rich("communityCobuntuFeeUnknown"),
-        rich("communityStripe"),
+        communityStripeConnected === false
+          ? rich("communityStripeMissing", { community: communityName })
+          : rich("communityStripe"),
         rich("communityOptions"),
       ],
       avatar: <OwnerAvatar shape="square" src={communityIconUrl ?? null} name={communityName} />,

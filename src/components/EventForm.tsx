@@ -453,7 +453,25 @@ interface EventFormProps {
    * gate asks the right question. Omitted → falls back to the internal hook,
    * unchanged from before this prop existed.
    */
-  stripeStatusOverride?: { connected: boolean; connectUrl?: string | null };
+  stripeStatusOverride?: { connected: boolean; connectUrl?: string | null; copy?: StripeGateCopy };
+}
+
+/**
+ * Words for the paid/donation gate when the account it checks is not the
+ * viewer's own: a COMMUNITY-owned event pays out to the community, so the tile
+ * hint and the leave-for-Stripe pop-up say the community needs Stripe, and the
+ * host's connectUrl opens the community's Stripe setup. Each field omitted
+ * keeps the form's own wording.
+ */
+export interface StripeGateCopy {
+  /** Under the locked "Paid entry" tile. */
+  paidHint?: string;
+  /** Under the locked "Free with donations" tile. */
+  donationsHint?: string;
+  /** The pop-up's title, message and confirm button. */
+  title?: string;
+  message?: string;
+  confirm?: string;
 }
 
 export type { EventFormProps };
@@ -1504,7 +1522,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 key: "paid", title: tf("presetPaidTitle"), icon: <CreditCard className="h-[18px] w-[18px]" strokeWidth={2} />, popular: true,
                 body: tf("presetPaidBody"),
                 locked: !paidGateKnown,
-                hint: paidGateKnown ? undefined : tf("connectStripePayments"),
+                hint: paidGateKnown ? undefined : (stripeStatusOverride?.copy?.paidHint ?? tf("connectStripePayments")),
               },
               {
                 key: "donations", title: tf("presetDonationsTitle"), icon: <Heart className="h-[18px] w-[18px]" strokeWidth={2} />,
@@ -1512,7 +1530,7 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
                 // Donations are money too — same Stripe requirement as "Paid
                 // entry", and the same lock/hint treatment.
                 locked: !paidGateKnown,
-                hint: paidGateKnown ? undefined : tf("connectStripeDonations"),
+                hint: paidGateKnown ? undefined : (stripeStatusOverride?.copy?.donationsHint ?? tf("connectStripeDonations")),
               },
             ];
             return cards.map((c) => {
@@ -1732,9 +1750,9 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
           setPendingStripeLeaveUrl(null);
           if (url) window.location.href = url;
         }}
-        title={tf("connectStripePayments")}
-        message={tf("stripeLeaveMessage")}
-        confirmLabel={tf("continueToStripe")}
+        title={stripeStatusOverride?.copy?.title ?? tf("connectStripePayments")}
+        message={stripeStatusOverride?.copy?.message ?? tf("stripeLeaveMessage")}
+        confirmLabel={stripeStatusOverride?.copy?.confirm ?? tf("continueToStripe")}
         cancelLabel={tf("notNow")}
       />
 

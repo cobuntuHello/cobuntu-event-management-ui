@@ -345,6 +345,58 @@ describe("ownershipMode communityOnly", () => {
   });
 });
 
+/*
+ * A community-owned event pays out to the COMMUNITY, so its paid gate checks and
+ * links the community's Stripe. It once fell back to the member's own
+ * onboarding: a leader whose personal Stripe was connected went round in a loop
+ * while the community had none.
+ */
+describe("the paid gate follows the owner's Stripe account", () => {
+  const noStripe = { tag: "orbis", id: "c1", name: "Orbis", memberFeeModel: "FLAT" as const, memberRequireApproval: true, payments: { connected: false, chargesEnabled: false } };
+  const lastOverride = () => h.props[h.props.length - 1]?.stripeStatusOverride;
+
+  it("community-owned: the community's status, the admin link, and words about the community", async () => {
+    renderWizard({
+      initialDrafts: [], canCreateForCommunity: true, community: noStripe,
+      navigation: { hrefs: { ...hrefs, connectCommunityStripe: "https://admin.example/orbis/connect-stripe" }, navigate: vi.fn() },
+    });
+    await screen.findByTestId("event-form");
+    const o = lastOverride();
+    expect(o.connected).toBe(false);
+    expect(o.connectUrl).toBe("https://admin.example/orbis/connect-stripe");
+    expect(o.connectUrl).not.toBe("/stripe");
+    expect(o.copy.title).toBe("Connect Orbis's Stripe");
+    expect(o.copy.paidHint).toBe("Orbis needs Stripe to take payments");
+  });
+
+  it("community-owned with no community link: never the member's own onboarding", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: true, community: noStripe });
+    await screen.findByTestId("event-form");
+    expect(lastOverride().connectUrl).toBe("");
+  });
+
+  it("personal: the member's own account and link, unchanged", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: false, community: noStripe });
+    await screen.findByTestId("event-form");
+    const o = lastOverride();
+    expect(o.connectUrl).toBe("/stripe");
+    expect(o.copy).toBeUndefined();
+  });
+
+  it("the ownership card says the community has no Stripe yet", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: true, community: noStripe });
+    await screen.findByTestId("event-form");
+    expect(screen.getByText(/Orbis has no Stripe yet/)).toBeTruthy();
+    expect(screen.queryByText(/The community needs/)).toBeNull();
+  });
+
+  it("the card keeps the general fact when the community's Stripe is unknown", async () => {
+    renderWizard({ initialDrafts: [], canCreateForCommunity: true });
+    await screen.findByTestId("event-form");
+    expect(screen.queryByText(/has no Stripe yet/)).toBeNull();
+  });
+});
+
 describe("drafts without a host route", () => {
   it("resumes a draft in place from the Continue step", async () => {
     const getDraft = vi.fn(async () => ({ id: "d-1", name: "Half done", draftStep: "commerce", communityId: null }));

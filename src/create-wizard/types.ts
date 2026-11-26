@@ -146,6 +146,15 @@ export interface EventCreateWizardHrefs {
   events: string;
   /** Where a member connects their own Stripe. */
   connectStripe: string;
+  /**
+   * Where a leader connects the COMMUNITY's Stripe (the admin app's
+   * /<community>/connect-stripe). A community-owned event pays out to the
+   * community, so its paid gate links here, never to `connectStripe`: that is
+   * the member's own account, already connected for most leaders, and sending
+   * them there was a loop (Impact Hub Porto, 26 Nov 2026). Omitted → the gate
+   * explains but offers no link.
+   */
+  connectCommunityStripe?: string;
   /** "How it works" (selling in this community). */
   howItWorks: string;
   /** The selling guide linked from the first-time explainer. */
