@@ -1,15 +1,19 @@
 import type { EventFormData } from "../components/EventForm";
 import type { EventDraftRow } from "./types";
+import { readDraftForm } from "./draftForm";
 
 /**
  * Turning a stored draft back into the form that wrote it. Lifted from the
  * community app (lib/draftResume.ts, the event half).
  *
  * Fails soft field by field: a draft exists so someone does not lose work, and
- * a mapping that throws on one odd value would lose all of it. NOT restored:
- * tiers (no reverse mapping of the tier draft shape) and files (a File cannot
- * round-trip). Times are read back in the browser's zone; the form keeps the
- * timezone as its own field, so the pair stays consistent.
+ * a mapping that throws on one odd value would lose all of it. A draft that
+ * carries the wizard's whole form (draftForm.ts) restores everything in it,
+ * tickets and uploaded photos included. A draft from before that, read from
+ * its columns alone, does NOT restore tiers (no reverse mapping of the tier
+ * draft shape) or files (a File cannot round-trip). Times are read back in the
+ * browser's zone; the form keeps the timezone as its own field, so the pair
+ * stays consistent.
  */
 function splitDateTime(iso: unknown): { date: Date | null; time: string | null } {
   if (typeof iso !== "string") return { date: null, time: null };
@@ -23,6 +27,20 @@ function splitDateTime(iso: unknown): { date: Date | null; time: string | null }
 export function eventDraftToForm(row: EventDraftRow): Partial<EventFormData> {
   const start = splitDateTime(row.startDate);
   const end = splitDateTime(row.endDate);
+  /*
+   * The whole form, when the draft carries one (events.draftForm, see
+   * draftForm.ts): tickets, places, photos and dates included. It is what the
+   * form itself emitted, so it wins over the columns below; the name and the
+   * description still come from the columns when the stored form lacks them.
+   */
+  const stored = readDraftForm(row);
+  if (stored) {
+    return {
+      ...stored.form,
+      name: typeof stored.form.name === "string" && stored.form.name ? stored.form.name : (typeof row.name === "string" ? row.name : ""),
+      description: typeof stored.form.description === "string" ? stored.form.description : (typeof row.description === "string" ? row.description : ""),
+    };
+  }
   return {
     name: typeof row.name === "string" ? row.name : "",
     description: typeof row.description === "string" ? row.description : "",

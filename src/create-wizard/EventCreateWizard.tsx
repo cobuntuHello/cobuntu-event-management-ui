@@ -22,6 +22,7 @@ import { WizardCopyProvider, useWizardT } from "./i18n";
 import { WizardNavProvider, DefaultLink, browserNavigate } from "./navigation";
 import { useAutosaveDraft } from "./useAutosaveDraft";
 import { eventDraftToForm, draftOwnership } from "./draftResume";
+import { serializeDraftForm, readDraftForm } from "./draftForm";
 import { communityCannotTakeCommission } from "./communityCommissionGate";
 import { ResumeDraftStep } from "./ResumeDraftStep";
 import { OwnershipToggle } from "./OwnershipToggle";
@@ -375,6 +376,12 @@ function WizardInner({
         if (!live()) return;
         if (row) {
           setDraftRow(row);
+          // What lives outside the form: the access step and the package.
+          // The form itself seeds from draftInitial (eventDraftToForm).
+          const stored = readDraftForm(row);
+          if (stored?.viewAccess) setViewAccess(stored.viewAccess);
+          if (stored?.buyAccess) setBuyAccess(stored.buyAccess);
+          if (stored?.packageId) setPackageId(stored.packageId);
           // Ownership first: it decides which steps exist.
           const leader = leaderRef.current;
           const owned = draftOwnership(row);
@@ -447,6 +454,14 @@ function WizardInner({
   // The autosaved row, once a save has LANDED: create finishes it.
   const savedDraftRef = useRef<string | null>(null);
   const formDataRef = useRef<EventFormData | null>(null);
+  // Read at autosave time, like the form: the wizard state outside the form
+  // that a resumed draft must also get back (draftForm.ts).
+  const viewAccessRef = useRef(viewAccess);
+  viewAccessRef.current = viewAccess;
+  const buyAccessRef = useRef(buyAccess);
+  buyAccessRef.current = buyAccess;
+  const packageIdRef = useRef(packageId);
+  packageIdRef.current = packageId;
 
   const autosave = useAutosaveDraft({
     draftId: autosaveIdRef.current,
@@ -463,11 +478,38 @@ function WizardInner({
         draftStep: stepRef.current,
         // A community-owned draft records the community, or its Drafts list cannot find it.
         communityId: ownershipRef.current === "community" ? communityId : null,
+        /*
+         * The WHOLE form (backend events.draftForm). The fields above are the
+         * row's typed columns, kept for the Drafts list and older readers; on
+         * their own they lost the dates, places, tickets, prices and photos.
+         */
+        form: serializeDraftForm({
+          form: d,
+          viewAccess: viewAccessRef.current,
+          buyAccess: buyAccessRef.current,
+          packageId: packageIdRef.current,
+        }),
       };
     },
     isEnabled: () => !!formDataRef.current?.name?.trim(),
     onSaved: (id: string) => { savedDraftRef.current = id; },
   });
+
+  // The access step and the package are not the form, so the form's onChange
+  // does not save them: a change here schedules the same quiet-period save.
+  // Before any name exists isEnabled keeps this a no-op.
+  useEffect(() => {
+    if (created) return;
+    autosave.schedule();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewAccess, buyAccess, packageId]);
+
+  // A restored or remembered package the community no longer offers would be
+  // refused at submit; drop it once the list is known so the picker asks again.
+  useEffect(() => {
+    if (!packageId || packages.length === 0) return;
+    if (!packages.some((p) => p.id === packageId)) setPackageId(packages.length === 1 ? packages[0].id : null);
+  }, [packages, packageId]);
 
   // Listing REQUIRES an arrangement when there is one to pick.
   const needsPackage = packages.length > 0 && !packageId;
