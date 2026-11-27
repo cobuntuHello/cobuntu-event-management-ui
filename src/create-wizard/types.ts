@@ -193,6 +193,16 @@ export interface EventCreateWizardNavigation {
    * Default: never.
    */
   shouldUseHistoryBack?: () => boolean;
+  /**
+   * Open every "Connect Stripe" in a NEW TAB instead of leaving the form
+   * (0.109.2). Leaving loses the answers a draft does not keep: a saved draft
+   * holds the name, description and dates, not the photos, the category or
+   * the tickets, so a host who came back from Stripe met a form that looked
+   * restarted. In a new tab nothing is left, and the wizard asks Stripe again
+   * each time its tab is shown, so Paid entry opens as soon as the account is
+   * ready. Default (unset): leave the page, as before.
+   */
+  connectStripeInNewTab?: boolean;
 }
 
 /** A host-defined step appended after the last Cobuntu step, before submit. */

@@ -777,3 +777,59 @@ describe("stylesheets", () => {
     }
   });
 });
+
+/*
+ * CONNECT STRIPE IN A NEW TAB (0.109.2, TEJÁ's host form). Leaving the form
+ * for Stripe lost what a draft does not keep (photos, category, tickets), so
+ * a host can open Stripe in a new tab instead. This tab is then never
+ * reloaded, so the wizard must ask Stripe again when the host comes back.
+ */
+describe("navigation.connectStripeInNewTab", () => {
+  const notReadyThenReady = () => {
+    let calls = 0;
+    return vi.fn(async () => (++calls === 1 ? { connected: false, chargesEnabled: false } : { connected: true, chargesEnabled: true }));
+  };
+  const lastOverride = () => h.props.at(-1)?.stripeStatusOverride;
+  const showTab = () => document.dispatchEvent(new Event("visibilitychange"));
+
+  it("tells the form to open Stripe in a new tab, and unlocks Paid entry once the host comes back with a ready account", async () => {
+    const tr = transport({ stripeStatus: notReadyThenReady() });
+    renderWizard({ transport: tr, navigation: { hrefs, navigate: vi.fn(), connectStripeInNewTab: true } });
+    await screen.findByTestId("event-form");
+    await waitFor(() => expect(tr.stripeStatus).toHaveBeenCalledTimes(1));
+    expect(lastOverride()).toEqual({ connected: false, connectUrl: "/stripe", connectInNewTab: true });
+
+    showTab();
+    await waitFor(() => expect(lastOverride()?.connected).toBe(true));
+    expect(tr.stripeStatus).toHaveBeenCalledTimes(2);
+
+    // Ready now: coming back again asks nothing more.
+    showTab();
+    window.dispatchEvent(new Event("focus"));
+    expect(tr.stripeStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps asking on each return while the account is still not ready", async () => {
+    const tr = transport({ stripeStatus: vi.fn(async () => ({ connected: true, chargesEnabled: false })) });
+    renderWizard({ transport: tr, navigation: { hrefs, navigate: vi.fn(), connectStripeInNewTab: true } });
+    await screen.findByTestId("event-form");
+    await waitFor(() => expect(tr.stripeStatus).toHaveBeenCalledTimes(1));
+    showTab();
+    await waitFor(() => expect(tr.stripeStatus).toHaveBeenCalledTimes(2));
+    showTab();
+    await waitFor(() => expect(tr.stripeStatus).toHaveBeenCalledTimes(3));
+    expect(lastOverride()?.connected).toBe(false);
+  });
+
+  it("is off by default: the page is left for Stripe as before, and a return asks nothing", async () => {
+    const tr = transport({ stripeStatus: notReadyThenReady() });
+    renderWizard({ transport: tr });
+    await screen.findByTestId("event-form");
+    await waitFor(() => expect(tr.stripeStatus).toHaveBeenCalledTimes(1));
+    expect(lastOverride()).toEqual({ connected: false, connectUrl: "/stripe", connectInNewTab: false });
+    showTab();
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(tr.stripeStatus).toHaveBeenCalledTimes(1);
+  });
+});

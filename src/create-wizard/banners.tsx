@@ -70,12 +70,15 @@ export function FormNoticeBanner({
   body,
   actionHref,
   actionLabel,
+  actionNewTab = false,
   className = "",
 }: {
   title: string;
   body: string;
   actionHref?: string;
   actionLabel?: string;
+  /** Open the action in a new tab (Connect Stripe under navigation.connectStripeInNewTab). */
+  actionNewTab?: boolean;
   className?: string;
 }) {
   const AMBER = "#f59e0b";
@@ -105,6 +108,23 @@ export function FormNoticeBanner({
           {body}
         </p>
         {actionHref && actionLabel ? (
+          actionNewTab ? (
+            // A plain link: the host's renderLink (a router link) is for
+            // moving within the app, and this one must not move the form.
+            <a
+              href={actionHref}
+              target="_blank"
+              rel="noopener"
+              className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold no-underline"
+              style={{ color: `color-mix(in srgb, ${AMBER} 66%, var(--text-color, #111))` }}
+            >
+              {actionLabel}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </a>
+          ) : (
           <WizardLink
             href={actionHref}
             className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold no-underline"
@@ -116,6 +136,7 @@ export function FormNoticeBanner({
               <polyline points="12 5 19 12 12 19" />
             </svg>
           </WizardLink>
+          )
         ) : null}
       </div>
     </div>

@@ -94,6 +94,7 @@ export const FORM_MESSAGES_EN = {
         resetPresetMessage: "Your custom ticket tiers and donation setup will be replaced with this preset's defaults.",
         reset: "Reset",
         stripeLeaveMessage: "You'll be taken to Stripe to connect your account. You can come back and finish this event afterward.",
+        stripeNewTabMessage: "Stripe opens in a new tab. This form stays open here with everything you've entered, so come back to this tab when you're done.",
         continueToStripe: "Continue to Stripe",
         notNow: "Not now",
         goodToKnow: "Good to know",

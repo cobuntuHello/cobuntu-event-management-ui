@@ -86,6 +86,34 @@ describe("EventForm — pricing presets", () => {
     hrefSpy.mockRestore();
   });
 
+  it("with connectInNewTab, Continue to Stripe opens a new tab and the form stays (0.109.2)", async () => {
+    mockFetch([{ url: /\/stripe\/connected/, body: { connected: false, chargesEnabled: false } }]);
+    const user = userEvent.setup();
+    renderWithConfig(
+      <EventForm
+        communityTag="c-1"
+        page="commerce"
+        onChange={vi.fn()}
+        initialData={{ tiers: [FREE_TIER] } as any}
+        stripeStatusOverride={{ connected: false, connectUrl: "/account/payouts/onboard", connectInNewTab: true }}
+      />,
+    );
+    const hrefSpy = vi.spyOn(window.location, "href", "set");
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    await user.click(screen.getByRole("button", { name: /Paid entry/ }));
+    expect(screen.getByText(/Stripe opens in a new tab/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Continue to Stripe/i }));
+
+    expect(openSpy).toHaveBeenCalledWith("/account/payouts/onboard", "_blank", "noopener");
+    expect(hrefSpy).not.toHaveBeenCalled();
+    // The pricing step is still here, untouched.
+    expect(screen.getByRole("button", { name: /Free entry/ })).toBeInTheDocument();
+
+    openSpy.mockRestore();
+    hrefSpy.mockRestore();
+  });
+
   /*
    * Choosing Paid blanks the price (no invented amount). The card used to be
    * derived from the price alone, so it stayed on Free right after the click

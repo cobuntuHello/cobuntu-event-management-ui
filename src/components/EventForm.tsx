@@ -451,8 +451,12 @@ interface EventFormProps {
    * it for other member-selling flows) and passes it through here so the
    * gate asks the right question. Omitted → falls back to the internal hook,
    * unchanged from before this prop existed.
+   *
+   * `connectInNewTab` (0.109.2): "Continue to Stripe" opens `connectUrl` in a
+   * new tab and this form stays as it is (see the create wizard's
+   * `navigation.connectStripeInNewTab`). Unset: the page is left, as before.
    */
-  stripeStatusOverride?: { connected: boolean; connectUrl?: string | null };
+  stripeStatusOverride?: { connected: boolean; connectUrl?: string | null; connectInNewTab?: boolean };
 }
 
 export type { EventFormProps };
@@ -1729,10 +1733,13 @@ export function EventForm({ communityTag, initialData, onChange, showErrors, own
         onConfirm={() => {
           const url = pendingStripeLeaveUrl;
           setPendingStripeLeaveUrl(null);
-          if (url) window.location.href = url;
+          if (!url) return;
+          // A new tab keeps this form, and everything in it, where it is.
+          if (stripeStatusOverride?.connectInNewTab) window.open(url, "_blank", "noopener");
+          else window.location.href = url;
         }}
         title={tf("connectStripePayments")}
-        message={tf("stripeLeaveMessage")}
+        message={tf(stripeStatusOverride?.connectInNewTab ? "stripeNewTabMessage" : "stripeLeaveMessage")}
         confirmLabel={tf("continueToStripe")}
         cancelLabel={tf("notNow")}
       />

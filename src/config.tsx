@@ -47,6 +47,11 @@ export interface EventManagementConfig {
    * storefront).
    */
   stripeConnectUrl: (communityTag: string) => string;
+  /**
+   * Open `stripeConnectUrl` in a new tab (the create wizard's
+   * `navigation.connectStripeInNewTab`). Unset: the same tab, as before.
+   */
+  stripeConnectNewTab?: boolean;
 
   /**
    * Optional override for the Stripe-status endpoint the paid-tier gate

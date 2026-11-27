@@ -58,6 +58,21 @@ export function __resetStripeStatusCache() {
   stripeCache.clear();
 }
 
+/**
+ * Forget the cached answers, so the next editor that asks asks Stripe again.
+ * The one case where a cached answer stops being the real one inside a page
+ * load: Stripe was connected in another tab (`stripeConnectNewTab`), and the
+ * wizard has just seen the account turn ready.
+ */
+export function forgetStripeStatus() {
+  stripeCache.clear();
+}
+
+/** Link attributes for "Connect Stripe": a new tab when the host asked for one. */
+function connectLinkTarget(newTab: boolean | undefined) {
+  return newTab ? { target: "_blank", rel: "noopener" } : {};
+}
+
 export function useStripeStatus(communityTag: string, opts: { enabled?: boolean } = {}): StripeStatus {
   const { apiBaseUrl, authHeaders, stripeStatusUrl, stripeStatus: stripeStatusFn } = useEventManagementConfig();
   const enabled = opts.enabled ?? true;
@@ -175,7 +190,7 @@ export function StripePayoutNotice({
   known: boolean;
   connected: boolean;
 }) {
-  const { stripeConnectUrl } = useEventManagementConfig();
+  const { stripeConnectUrl, stripeConnectNewTab } = useEventManagementConfig();
   const t = useEventT("eventsUi.manageUi.stripeStatus");
   if (!known || connected) return null;
   return (
@@ -188,6 +203,7 @@ export function StripePayoutNotice({
       </p>
       <a
         href={stripeConnectUrl(communityTag)}
+        {...connectLinkTarget(stripeConnectNewTab)}
         className="mt-1.5 inline-block text-[12px] font-medium text-amber-900 underline underline-offset-2 hover:text-amber-950"
       >
         {t("connectStripe")}
@@ -209,7 +225,7 @@ export function StripeRequiredWarning({
   communityTag: string;
   onClose: () => void;
 }) {
-  const { stripeConnectUrl } = useEventManagementConfig();
+  const { stripeConnectUrl, stripeConnectNewTab } = useEventManagementConfig();
   const t = useEventT("eventsUi.manageUi.stripeStatus");
   if (typeof document === "undefined") return null;
   return createPortal(
@@ -243,6 +259,7 @@ export function StripeRequiredWarning({
           </button>
           <a
             href={stripeConnectUrl(communityTag)}
+            {...connectLinkTarget(stripeConnectNewTab)}
             className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 no-underline cursor-pointer"
           >
             {t("connectStripe")}

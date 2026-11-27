@@ -15,6 +15,7 @@ import {
 } from "@cobuntu/management-ui-shared";
 import { EventForm, type EventFormData } from "../components/EventForm";
 import { EventManagementConfigProvider } from "../config";
+import { forgetStripeStatus } from "../components/stripe-status";
 import { draftTiersToCreatePayload, donationDraftToPayload } from "../components/PriceEditModal/helpers";
 import { LISTING_NAME_MAX, listingNameTooLong } from "../lib/listingNameLimit";
 import type { CategoryOption } from "../components/CategoryPickerRow";
@@ -148,6 +149,7 @@ export function EventCreateWizard(props: EventCreateWizardProps) {
               // Paid member events pay out to the MEMBER's own Connect account.
               stripeStatus: () => transport.stripeStatus(),
               stripeConnectUrl: () => navigation.hrefs.connectStripe,
+              stripeConnectNewTab: navigation.connectStripeInNewTab,
               searchTags: (q) => transport.searchTags(q),
               createTag: (name) => transport.createTag(name),
               // Event images (EventImagesEditor): uploaded through the
@@ -543,8 +545,9 @@ function WizardInner({
    * above) — i.e. the member's own account, even for a community-owned
    * event, which is the wrong account to be checking at all.
    */
+  const connectInNewTab = !!navigation.connectStripeInNewTab;
   const stripeStatusOverride = effectiveOwnership === "personal"
-    ? { connected: stripeReadiness.ready, connectUrl: hrefs.connectStripe }
+    ? { connected: stripeReadiness.ready, connectUrl: hrefs.connectStripe, connectInNewTab }
     : { connected: !!community.payments?.connected };
 
   useEffect(() => {
@@ -561,6 +564,48 @@ function WizardInner({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /*
+   * BACK FROM STRIPE IN ANOTHER TAB (connectStripeInNewTab, 0.109.2). The
+   * answer above is read once, and this page is never reloaded when Stripe
+   * opens in a new tab, so it would still say "not connected" when the host
+   * comes back with an account that is ready, and Paid entry would send them
+   * to Stripe again. So each time this tab is shown again while the account is
+   * not ready, Stripe is asked again. Once it is ready the editors' cached
+   * answer is dropped too (forgetStripeStatus), so the price editor's notice
+   * agrees. Off by default: a host that leaves the page reloads it anyway.
+   */
+  const stripeReadyRef = useRef(stripeReadiness.ready);
+  stripeReadyRef.current = stripeReadiness.ready;
+  useEffect(() => {
+    if (!connectInNewTab || typeof window === "undefined") return;
+    let live = true;
+    let asking = false;
+    const recheck = async () => {
+      if (document.visibilityState !== "visible" || stripeReadyRef.current || asking) return;
+      asking = true;
+      try {
+        const data = await transport.stripeStatus();
+        const ready = !!data?.connected && !!data?.chargesEnabled;
+        if (live && ready) {
+          forgetStripeStatus();
+          setStripeReadiness({ loading: false, ready: true });
+        }
+      } catch {
+        // Unanswered: keep what is known; the next return asks again.
+      } finally {
+        asking = false;
+      }
+    };
+    document.addEventListener("visibilitychange", recheck);
+    window.addEventListener("focus", recheck);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", recheck);
+      window.removeEventListener("focus", recheck);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectInNewTab]);
 
   function validate(d: EventFormData | null): string | null {
     if (!d || !d.name.trim()) return t("eventNameRequired");
@@ -906,6 +951,7 @@ function WizardInner({
           body={t("connectStripeBody")}
           actionHref={hrefs.connectStripe}
           actionLabel={t("connectStripe")}
+          actionNewTab={connectInNewTab}
         />
       )}
       {/* The COMMUNITY's account. No action link ON PURPOSE: only a leader can fix it. */}
@@ -1181,6 +1227,7 @@ function WizardInner({
               body={t("donationsNotSavedBody")}
               actionHref={effectiveOwnership === "personal" ? hrefs.connectStripe : undefined}
               actionLabel={effectiveOwnership === "personal" ? t("connectStripe") : undefined}
+              actionNewTab={connectInNewTab}
             />
           )}
           <CreatedModal
