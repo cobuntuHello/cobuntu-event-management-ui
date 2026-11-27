@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { CalendarClock } from "lucide-react";
-import { formatEventDate, formatEventTime, getTimezoneAbbr, PencilIcon, missingRequirementLabel } from "../helpers";
+import { eventDateLocale, formatEventDate, formatEventTime, getTimezoneAbbr, PencilIcon, missingRequirementLabel } from "../helpers";
 import { useEventT } from "../../create-wizard/i18n";
 import { EventBannerPlaceholder } from "../../ui/event-banner-placeholder";
 
@@ -152,7 +152,7 @@ export function EventCard({
                     <div className={`flex flex-col w-full h-full ${locked ? "" : "group-hover:opacity-0 transition-opacity"}`}>
                       <div className="bg-zinc-100 px-1.5 py-0.5 flex items-center justify-center">
                         <span className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
-                          {startDate.toLocaleDateString("en-US", { month: "short" })}
+                          {startDate.toLocaleDateString(eventDateLocale(), { month: "short" })}
                         </span>
                       </div>
                       <div className="flex-1 flex items-center justify-center bg-white">

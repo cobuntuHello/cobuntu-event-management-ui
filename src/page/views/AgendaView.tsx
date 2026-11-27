@@ -7,7 +7,7 @@ import { getEventManagementConfig } from "../../config";
 import { EmptyState } from "@cobuntu/management-ui-shared";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { useCanEdit } from "../../lib/manageAccess";
-import { apiBase } from "../helpers";
+import { apiBase, eventDateLocale } from "../helpers";
 import { useEventT } from "../../create-wizard/i18n";
 
 
@@ -320,7 +320,7 @@ export function AgendaView({ event, communityTag, eventId, showToast }: Props) {
     } catch { await loadAgenda(); }
   }
 
-  function fmtTime(iso: string) { return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }); }
+  function fmtTime(iso: string) { return new Date(iso).toLocaleTimeString(eventDateLocale(), { hour: "2-digit", minute: "2-digit" }); }
 
   const InlineForm = (
     <div className="px-5 py-4 space-y-3" style={{ background: theme.insetBg }}>

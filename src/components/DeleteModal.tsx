@@ -2,6 +2,7 @@
 
 import { ModalShell } from "../ui/modal-shell";
 import { useEventT } from "../create-wizard/i18n";
+import { eventDateLocale } from "../page/helpers";
 
 interface Props {
   event: any;
@@ -26,7 +27,7 @@ export function DeleteModal({ event, isPaid, attendeeCount, onClose, onConfirm }
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-zinc-900 truncate">{event.name}</p>
-            <p className="text-xs text-zinc-500">{startDate ? startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : ""}</p>
+            <p className="text-xs text-zinc-500">{startDate ? startDate.toLocaleDateString(eventDateLocale(), { weekday: "short", month: "short", day: "numeric" }) : ""}</p>
           </div>
         </div>
         {attendeeCount > 0 && (
