@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { SharedModalShell } from "../ui/modal-shell";
 import { useEventT } from "../i18n";
 import { useEventImageRules, useUpdateEvent, useUploadEventImage } from "../config";
 import { EventImagesEditor, imageKey, type EventImage } from "./EventImagesEditor";
@@ -18,6 +18,16 @@ import { EventImagesEditor, imageKey, type EventImage } from "./EventImagesEdito
  * Until they are known nothing can be added, so a photo is never checked
  * against "no rules" by mistake. Without an upload route (no apiBaseUrl and no
  * config.uploadEventImage) the editor is the single inline cover it always was.
+ *
+ * THE SHARED MODAL SHELL, NOT THE RADIX DIALOG. The photo manager opens its
+ * own upload modal (the shared ModalShell, z-[120]) from inside this one. A
+ * Radix Dialog sat at z-[130], so that upload modal opened BEHIND it, and as a
+ * modal Radix also blocked pointer events and focus everywhere outside its own
+ * content: the picker was visible, dimmed and unreachable. Impact Hub Porto's
+ * host could not add a photo to an existing event this way (2026-11-27). Two
+ * shared shells sit on the same layer and portal into the same target, so the
+ * one opened second is stacked on top and takes the clicks, which is how the
+ * product page's photo modal has always worked.
  */
 export function EventImagesDialog({
   open, onOpenChange, communityTag, event, onSaved, showToast,
@@ -68,22 +78,13 @@ export function EventImagesDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!saving) onOpenChange(o); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{tView("imageTitle")}</DialogTitle>
-        </DialogHeader>
-        <div className="max-h-[65vh] overflow-y-auto py-1">
-          <EventImagesEditor
-            images={images}
-            onChange={setImages}
-            rules={rules ?? null}
-            upload={upload}
-            disabled={saving || rules === undefined}
-            allowStockPhotos
-          />
-        </div>
-        <DialogFooter>
+    <SharedModalShell
+      open={open}
+      onClose={() => { if (!saving) onOpenChange(false); }}
+      title={tView("imageTitle")}
+      width="w-full sm:w-[560px]"
+      footer={
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             disabled={saving}
@@ -95,8 +96,17 @@ export function EventImagesDialog({
           <Button type="button" disabled={saving || uploading || rules === undefined} onClick={() => { void save(); }}>
             {saving ? tButtons("saving") : tButtons("save")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      }
+    >
+      <EventImagesEditor
+        images={images}
+        onChange={setImages}
+        rules={rules ?? null}
+        upload={upload}
+        disabled={saving || rules === undefined}
+        allowStockPhotos
+      />
+    </SharedModalShell>
   );
 }
