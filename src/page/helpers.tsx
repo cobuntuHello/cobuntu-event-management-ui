@@ -57,14 +57,33 @@ export async function updateEvent(communityTag: string, eventId: string, body: R
   return res.json();
 }
 
-export function formatEventDate(dateStr: string | null) {
-  if (!dateStr) return "";
-  return new Date(dateStr).toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
+/**
+ * The locale the manage pages write dates and times in.
+ *
+ * These used to be hard-wired to "en-US", so a Portuguese host read "Friday,
+ * December 11, 12:30 PM" on an otherwise Portuguese page (Impact Hub Porto,
+ * Nov 2026). The host app's messages carry the locale under
+ * `eventsUi.manageUi.dateLocale.locale` ("pt-BR", "pt-PT", ...), the same key
+ * the attendee pages already read. English keeps "en-US", so English output is
+ * unchanged. Anything that is not a locale Intl knows falls back to "en-US".
+ */
+export function eventDateLocale(): string {
+  const value = getEventT("eventsUi.manageUi.dateLocale")("locale");
+  try {
+    if (value && Intl.DateTimeFormat.supportedLocalesOf([value]).length > 0) return value;
+  } catch { /* not a locale tag */ }
+  return "en-US";
 }
 
+export function formatEventDate(dateStr: string | null) {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString(eventDateLocale(), { weekday: "long", day: "numeric", month: "long" });
+}
+
+/** The locale's own clock: "12:30 PM" in English, "12:30" in Portuguese. */
 export function formatEventTime(dateStr: string | null) {
   if (!dateStr) return "";
-  return new Date(dateStr).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return new Date(dateStr).toLocaleTimeString(eventDateLocale(), { hour: "numeric", minute: "2-digit" });
 }
 
 export function getTimezoneAbbr(tz: string) {
