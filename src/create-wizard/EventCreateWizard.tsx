@@ -1182,10 +1182,10 @@ function WizardInner({
           </p>
           <div className="flex shrink-0 items-center gap-2.5">
             {previousStep(steps, step) ? (
-              <WizardButton onClick={goBack} disabled={creating}>Back</WizardButton>
+              <WizardButton onClick={goBack} disabled={creating}>{t("back")}</WizardButton>
             ) : (
               /* Step one has no Back, so it gets a way out. */
-              <WizardButton onClick={cancel} disabled={creating}>Cancel</WizardButton>
+              <WizardButton onClick={cancel} disabled={creating}>{t("cancel")}</WizardButton>
             )}
             {step === "resume" && (
               <WizardButton primary onClick={startSomethingNew} disabled={creating}>
@@ -1193,7 +1193,7 @@ function WizardInner({
               </WizardButton>
             )}
             {!onFinalStep && step !== "resume" && (
-              <WizardButton primary onClick={goNext} disabled={creating || extraIncomplete}>Next</WizardButton>
+              <WizardButton primary onClick={goNext} disabled={creating || extraIncomplete}>{t("next")}</WizardButton>
             )}
             {onFinalStep && submitActions.map((a) => (
               <WizardButton
@@ -1217,9 +1217,9 @@ function WizardInner({
         <div className="flex items-stretch gap-2">
           <div className="flex-1 min-w-0">
             {previousStep(steps, step) ? (
-              <WizardButton onClick={goBack} disabled={creating}>Back</WizardButton>
+              <WizardButton onClick={goBack} disabled={creating}>{t("back")}</WizardButton>
             ) : (
-              <WizardButton onClick={cancel} disabled={creating}>Cancel</WizardButton>
+              <WizardButton onClick={cancel} disabled={creating}>{t("cancel")}</WizardButton>
             )}
           </div>
           {step === "resume" && (
@@ -1231,7 +1231,7 @@ function WizardInner({
           )}
           {!onFinalStep && step !== "resume" && (
             <div className="flex-1 min-w-0">
-              <WizardButton primary onClick={goNext} disabled={creating || extraIncomplete}>Next</WizardButton>
+              <WizardButton primary onClick={goNext} disabled={creating || extraIncomplete}>{t("next")}</WizardButton>
             </div>
           )}
           {onFinalStep && submitActions.map((a) => (
