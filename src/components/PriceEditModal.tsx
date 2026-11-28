@@ -51,6 +51,7 @@ import { typedPriceFromStored, vatRateFor } from "./PriceEditModal/vat";
 import { StepView } from "./PriceEditModal/StepView";
 import { FooterSlotContext, PendingCommitContext, type PendingCommit } from "./PriceEditModal/footer-slot";
 import { DonationsSection } from "./PriceEditModal/DonationsSection";
+import { EventCapacitySection } from "./PriceEditModal/EventCapacitySection";
 import {
   buildRowsFromOverrides,
   buildUpsertBody,
@@ -241,6 +242,11 @@ export function PriceEditModal({
     draftMode && initialDraftDonation ? initialDraftDonation : loadDonationFromEvent(event),
   );
   const [donationDirty, setDonationDirty] = useState(false);
+  // Event capacity (T-422): the places all tickets share. null = not offered
+  // here (create wizard, or the read failed): the card is hidden and nothing
+  // is saved. `value` is as typed, "" = not set; `taken` is the floor.
+  const [eventCap, setEventCap] = useState<{ value: string; taken: number } | null>(null);
+  const [eventCapDirty, setEventCapDirty] = useState(false);
 
   // Three-level navigation state. Each non-null value escalates the
   // modal body to a "takeover" view:
@@ -359,16 +365,22 @@ export function PriceEditModal({
     }
     (async () => {
       try {
-        const [tierRes, vatRes] = await Promise.all([
+        const [tierRes, vatRes, capRes] = await Promise.all([
           fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/tiers`, { headers: authHeaders() }),
           // Seller VAT (backend docs/features/seller-vat.md). A failure only
           // hides the VAT section; it never blocks editing tiers.
           fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/vat-options`, { headers: authHeaders() })
             .catch(() => null),
+          // Event capacity: a failure only hides its card, like VAT.
+          fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/capacity`, { headers: authHeaders() })
+            .catch(() => null),
         ]);
         const tiers: Tier[] = tierRes.ok ? await tierRes.json() : [];
         const vat: VatOptions | null = vatRes && vatRes.ok ? await vatRes.json().catch(() => null) : null;
         setVatOptions(vat);
+        const cap: { eventCapacity: number | null; taken: number } | null =
+          capRes && capRes.ok ? await capRes.json().catch(() => null) : null;
+        setEventCap(cap ? { value: cap.eventCapacity == null ? "" : String(cap.eventCapacity), taken: cap.taken ?? 0 } : null);
         if (tiers.length === 0) {
           setDrafts([blankTier()]);
         } else {
@@ -673,6 +685,12 @@ export function PriceEditModal({
   }
 
   const visible = drafts.map((t, idx) => ({ ...t, _idx: idx })).filter(t => !t.deleted);
+  // The event capacity as a number when set (T-422), for the ticket screen's
+  // "also counts toward the event's N places" line.
+  const eventCapNumber = eventCap && eventCap.value.trim() !== "" ? Number(eventCap.value) : null;
+  const sharedRoom = eventCapNumber != null && Number.isFinite(eventCapNumber)
+    ? { capacity: eventCapNumber, left: Math.max(0, eventCapNumber - (eventCap?.taken ?? 0)) }
+    : null;
 
   // Member-pricing fetches are async per saved tier. If the host clicks
   // Save before any of them resolve, the save loop iterates an
@@ -789,6 +807,14 @@ export function PriceEditModal({
 
       const donationErr = validateDonation(donation);
       if (donationErr) throw new Error(donationErr);
+
+      // The event capacity, checked before anything is written: a whole
+      // number of at least 1 (or empty), never below the places taken.
+      if (!draftMode && eventCap && eventCapDirty && eventCap.value.trim() !== "") {
+        const n = Number(eventCap.value);
+        if (!Number.isInteger(n) || n < 1) throw new Error(tx("eventCapacityInvalid"));
+        if (n < eventCap.taken) throw new Error(tx("eventCapacityBelowTaken", { count: eventCap.taken }));
+      }
 
       // Draft mode: hand the validated drafts to the parent and close.
       // No backend writes — the parent owns the source of truth and will
@@ -919,6 +945,20 @@ export function PriceEditModal({
           const e = await res.json().catch(() => ({}));
           throw new Error(describeSaveError(e, tx("failedToSaveDonations"), isPersonalEvent));
         }
+      }
+
+      // Event capacity (T-422): its own endpoint, like donations; only when changed.
+      if (eventCap && eventCapDirty) {
+        const res = await fetch(`${apiBaseUrl}/api/communities/${communityTag}/events/${event.id}/capacity`, {
+          method: "PUT",
+          headers: jsonHeaders(),
+          body: JSON.stringify({ eventCapacity: eventCap.value.trim() === "" ? null : Number(eventCap.value) }),
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          throw new Error(describeSaveError(e, tx("failedToSaveEventCapacity"), isPersonalEvent));
+        }
+        setEventCapDirty(false);
       }
 
       if (!opts.suppressFinalToast) showToast(sentForReview ? tx("pricingUpdatedSentForReview") : tx("pricingUpdated"));
@@ -1128,6 +1168,7 @@ export function PriceEditModal({
           }}
           publishToggling={publishToggling}
           draftMode={draftMode}
+          sharedRoom={sharedRoom}
           waveSiblings={drafts
             .filter((d) => d.id && !d.deleted && d.localId !== activeDraft.localId)
             .map((d) => ({ id: d.id as string, name: d.name, capacity: d.capacity }))}
@@ -1179,6 +1220,22 @@ export function PriceEditModal({
             <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">{tx("wholeListing")}</span>
             <div className="h-px flex-1 bg-zinc-100" />
           </div>
+
+          {/* Event capacity (T-422): the places all tickets share. Event-wide,
+              so it lives here with Donations, never inside a tier. */}
+          {eventCap && !draftMode && (
+            <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4">
+              <EventCapacitySection
+                value={eventCap.value}
+                onChange={(next) => {
+                  setEventCap((c) => (c ? { ...c, value: next } : c));
+                  setEventCapDirty(true);
+                }}
+                taken={eventCap.taken}
+                ticketCapacities={visible.map((d) => (d.capacity.trim() === "" ? null : parseInt(d.capacity, 10)))}
+              />
+            </div>
+          )}
 
           {/* Donations sidecar — independent of tiers. Saved via PUT /donations
               alongside tier writes when changed. */}
