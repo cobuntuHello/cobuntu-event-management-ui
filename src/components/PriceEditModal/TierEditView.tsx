@@ -42,6 +42,12 @@ export interface TierEditViewProps {
    * absent in the create wizard. `capacity` is the draft's ("" = unlimited).
    */
   waveSiblings?: Array<{ id: string; name: string; capacity: string }>;
+  /**
+   * The event capacity (T-422) when one is set: the places every ticket
+   * shares, and how many are left. Shown under this ticket's own capacity so
+   * the host sees both limits apply. Absent in the create wizard.
+   */
+  sharedRoom?: { capacity: number; left: number } | null;
 }
 
 /** A settings row in the Advanced group — opens a sub-screen (Level 3). */
@@ -84,6 +90,7 @@ export function TierEditView({
   draftMode,
   vatOptions,
   waveSiblings,
+  sharedRoom,
 }: TierEditViewProps) {
   // `t` is the tier draft here, so the translator is `tx`.
   const tx = useEventT("eventsUi.manageUi.tierEditView");
@@ -170,6 +177,11 @@ export function TierEditView({
         <p className="text-[12px] text-zinc-500 mt-1.5 leading-relaxed">
           {tx("capacityHint")}
         </p>
+        {sharedRoom && (
+          <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-[12px] text-zinc-600 leading-relaxed" data-testid="shares-event-capacity">
+            {tx("sharesEventCapacity", { capacity: sharedRoom.capacity, left: sharedRoom.left })}
+          </p>
+        )}
       </div>
 
       {/* Pricing — the full pricing surface, inline (model, price, billing,

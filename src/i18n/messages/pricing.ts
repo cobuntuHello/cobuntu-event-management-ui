@@ -297,6 +297,7 @@ export const PRICING_MESSAGES_EN = {
         "capacity": "Capacity",
         "unlimited": "Unlimited",
         "capacityHint": "How many tickets can be sold before this tier is sold out. Leave empty for unlimited.",
+        "sharesEventCapacity": "This ticket also counts toward the event's {capacity, plural, one {# place} other {# places}}, which every ticket shares. {left, plural, =0 {None of them are left.} one {# of them is left.} other {# of them are left.}}",
         "wave": "Opens",
         "waveHelp": "Early-bird pricing: this ticket goes on sale only when the one before it sells out, or its sales end.",
         "waveNone": "Right away",
@@ -318,6 +319,17 @@ export const PRICING_MESSAGES_EN = {
         "draftModeNote": "This choice is saved with the event — nothing goes live until you create it.",
         "liveNote": "Changes here take effect immediately."
       },
+      "eventCapacitySection": {
+        "label": "Event capacity (optional)",
+        "help": "The places all of this event's tickets share, like the chairs in the room. Each ticket's own capacity still applies.",
+        "notSet": "Not set",
+        "status": "{taken} of {capacity} taken, {left} left",
+        "statusFull": "{taken} of {capacity} taken, full",
+        "hintSet": "Every ticket sells from these places in any mix, and sales stop when they are gone. Each ticket's own capacity still applies.",
+        "hintNotSetSum": "Not set, so the event holds what its tickets add up to: {total, plural, one {# place} other {# places}} ({parts}). Set a number when tickets share the same places, like a dinner with or without wine.",
+        "hintNotSetTotal": "Not set, so the event holds what its ticket allows: {total, plural, one {# place} other {# places}}. Set a number when tickets share the same places, like a dinner with or without wine.",
+        "hintNotSetUnlimited": "Not set, and a ticket has no limit, so the event has none either. Set a number when tickets share the same places, like a dinner with or without wine."
+      },
       "priceEditModal": {
         "failedToLoad": "Failed to load",
         "failedToUpdatePublish": "Failed to update publish state",
@@ -327,6 +339,9 @@ export const PRICING_MESSAGES_EN = {
         "tierFallback": "Tier",
         "failedToSaveOrder": "Failed to save new order",
         "failedToSave": "Failed to save",
+        "failedToSaveEventCapacity": "Failed to save the event capacity",
+        "eventCapacityInvalid": "The event capacity must be a whole number of at least 1, or empty.",
+        "eventCapacityBelowTaken": "The event capacity can't be lower than the {count, plural, one {# place} other {# places}} already taken.",
         "pricingSaved": "Pricing saved",
         "failedToDeleteTier": "Failed to delete \"{name}\"",
         "failedToUpdateTier": "Failed to update \"{name}\"",
