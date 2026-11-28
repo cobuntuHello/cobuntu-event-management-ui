@@ -13,6 +13,9 @@
 export const EVENT_WIZARD_MESSAGES_EN = {
   "eventsUi": {
     "createEventClient": {
+      "back": "Back",
+      "cancel": "Cancel",
+      "next": "Next",
       "eventNameRequired": "Event name is required",
       "startDateRequired": "Start date is required",
       "endDateRequired": "End date is required",
